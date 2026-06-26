@@ -12,9 +12,9 @@ server with fast starting times, cold or warm.
 Adding a new model should be just a few lines of code, in particular when it has a similar
 structure to what we already support.
 
-Its LGPL license makes it a good baseline for client based applications like [turbopixel](https://omega.gg/turbopixel/sources).
-That's actually the original motivation for doing so. Licensing this under LGPL sounds like the
-right thing to do.
+turboCLI is a good baseline for client based applications like [turbopixel](https://omega.gg/turbopixel/sources).
+That's actually the original motivation for doing so. However, licensing this under LGPL sounds
+like the right thing to do.
 
 - [Bash scripts](bash/README.md)
 
