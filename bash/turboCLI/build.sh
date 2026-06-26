@@ -30,7 +30,7 @@ name="diffusion"
 
 repository="https://github.com/omega-gg/turboCLI.git"
 
-commit="7e009156645acba2b922657c50bfa3d521a59ad6"
+commit="7e0414ca049d623c38d20daff5f4f428fd242ac4"
 
 diffusers="784fa62652fb2719d415830f918fc32a49ecc7a1"
 
