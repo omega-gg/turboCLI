@@ -48,6 +48,7 @@ MODEL    = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo"}
 ### CPU
 
 ```
+export SKY_PATH_BIN="$PWD/bin"
 cd bash/python
 sh build.sh default
 cd ../turboCLI
@@ -60,6 +61,7 @@ sh run.sh "a beautiful knight" out.png 512 512 cpu
 ### CUDA
 
 ```
+export SKY_PATH_BIN="$PWD/bin"
 cd bash/python
 sh build.sh default
 cd ../turboCLI
@@ -72,6 +74,7 @@ sh run.sh "a beautiful knight" out.png 512 512 cuda
 ### Apple MPS
 
 ```
+export SKY_PATH_BIN="$PWD/bin"
 cd bash/python
 sh build.sh default
 cd ../turboCLI
