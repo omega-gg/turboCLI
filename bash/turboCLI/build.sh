@@ -28,7 +28,11 @@ set -e
 
 name="diffusion"
 
-commit="784fa62652fb2719d415830f918fc32a49ecc7a1"
+repository="https://github.com/omega-gg/turboCLI.git"
+
+commit="c00cee34a397d82016aa5f44e4273cbda7dfd5bc"
+
+diffusers="784fa62652fb2719d415830f918fc32a49ecc7a1"
 
 #--------------------------------------------------------------------------------------------------
 # Functions
@@ -145,4 +149,18 @@ fi
 
 uv pip install --upgrade hf_transfer safetensors accelerate transformers peft \
                          "huggingface_hub[hf_xet]" \
-                         "git+https://github.com/huggingface/diffusers@$commit"
+                         "git+https://github.com/huggingface/diffusers@$diffusers"
+
+#--------------------------------------------------------------------------------------------------
+# Python
+#--------------------------------------------------------------------------------------------------
+
+git init
+
+git remote add origin "$repository"
+
+git fetch --depth 1 origin "$commit"
+
+git checkout FETCH_HEAD
+
+rm -rf .git
