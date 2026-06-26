@@ -30,7 +30,7 @@ like the right thing to do.
 - macOS 64 bit.
 - Linux 32 bit and 64 bit.
 
-## Sample
+## Sample model
 
 Here is the z-image recipe:
 
@@ -41,6 +41,44 @@ PIPELINE = "diffusers:ZImagePipeline"
 MODES    = ("generate",)
 CFG      = ("guidance_scale", 0.0)
 MODEL    = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo"}
+```
+
+## Quickstart
+
+### CPU
+
+```
+cd bash/python
+sh build.sh default
+cd ../turboCLI
+sh build.sh cpu
+cd ../z-image
+sh build.sh z-image-turbo bfloat16 fast
+sh run.sh "a beautiful knight" out.png 512 512 cpu
+```
+
+### CUDA
+
+```
+cd bash/python
+sh build.sh default
+cd ../turboCLI
+sh build.sh cuda
+cd ../z-image
+sh build.sh z-image-turbo bfloat16 fast
+sh run.sh "a beautiful knight" out.png 512 512 cuda
+```
+
+### Apple MPS
+
+```
+cd bash/python
+sh build.sh default
+cd ../turboCLI
+sh build.sh mps
+cd ../z-image
+sh build.sh z-image-turbo float16 fast
+sh run.sh "a beautiful knight" out.png 512 512 mps
 ```
 
 ## License
