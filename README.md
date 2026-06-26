@@ -28,7 +28,7 @@ like the right thing to do.
 
 - Windows 10 and later.
 - macOS 64 bit.
-- Linux 32 bit and 64 bit.
+- Linux 64 bit.
 
 ## Sample model
 
@@ -80,6 +80,7 @@ sh build.sh default
 cd ../turboCLI
 sh build.sh mps
 cd ../z-image
+# MPS prefers float16 (bfloat16 support is patchy)
 sh build.sh z-image-turbo float16 fast
 sh run.sh "a beautiful knight" out.png 512 512 mps
 ```
