@@ -30,7 +30,7 @@ name="diffusion"
 
 repository="https://github.com/omega-gg/turboCLI.git"
 
-commit="c00cee34a397d82016aa5f44e4273cbda7dfd5bc"
+commit="7e009156645acba2b922657c50bfa3d521a59ad6"
 
 diffusers="784fa62652fb2719d415830f918fc32a49ecc7a1"
 
@@ -109,8 +109,22 @@ if [ "$1" = "clean" ]; then
     exit 0
 fi
 
+#--------------------------------------------------------------------------------------------------
+# Clone
+#--------------------------------------------------------------------------------------------------
+
 mkdir -p "$name"
 cd       "$name"
+
+git init
+
+git remote add origin "$repository"
+
+git fetch --depth 1 origin "$commit"
+
+git checkout FETCH_HEAD
+
+rm -rf .git
 
 #--------------------------------------------------------------------------------------------------
 # Activate
@@ -150,17 +164,3 @@ fi
 uv pip install --upgrade hf_transfer safetensors accelerate transformers peft \
                          "huggingface_hub[hf_xet]" \
                          "git+https://github.com/huggingface/diffusers@$diffusers"
-
-#--------------------------------------------------------------------------------------------------
-# Python
-#--------------------------------------------------------------------------------------------------
-
-git init
-
-git remote add origin "$repository"
-
-git fetch --depth 1 origin "$commit"
-
-git checkout FETCH_HEAD
-
-rm -rf .git
