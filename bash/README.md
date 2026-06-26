@@ -3,6 +3,7 @@
 ## Core
 
 - [python](python/README.md)
+- [diffusion](turboCLI/README.md)
 
 ## Generate
 
