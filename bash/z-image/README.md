@@ -1,9 +1,4 @@
-# [Bash](../README.md) Z-Image tools
-
-## Configuration
-
-Place your turboCLI runner into the SKY_PATH_BIN/diffusion folder or set SKY_PATH_Z_IMAGE. Your models
-should be in SKY_PATH_BIN/z-image-model or SKY_PATH_Z_IMAGE_MODEL.
+# [Bash](../README.md) Z-Image
 
 ## Tools
 

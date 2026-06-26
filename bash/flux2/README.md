@@ -1,9 +1,4 @@
-# [Bash](../README.md) flux2 tools
-
-## Configuration
-
-Place your turboCLI runner into the SKY_PATH_BIN/diffusion folder or set SKY_PATH_FLUX2. Your models
-should be in SKY_PATH_BIN/flux2-model or SKY_PATH_FLUX2_MODEL.
+# [Bash](../README.md) flux2
 
 ## Tools
 

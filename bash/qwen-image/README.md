@@ -1,9 +1,4 @@
-# [Bash](../README.md) qwen-image tools
-
-## Configuration
-
-Place your turboCLI runner into the SKY_PATH_BIN/diffusion folder or set SKY_PATH_QWEN_IMAGE. Your
-models should be in SKY_PATH_BIN/qwen-image-model or SKY_PATH_QWEN_IMAGE_MODEL.
+# [Bash](../README.md) qwen-image
 
 ## Tools
 
