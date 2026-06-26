@@ -26,7 +26,7 @@ like the right thing to do.
 
 ## Sample
 
-Here is the z-image engine:
+Here is the z-image recipe:
 
 ```
 NAME     = "z-image-turbo"
