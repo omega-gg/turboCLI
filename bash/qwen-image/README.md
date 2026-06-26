@@ -1,6 +1,6 @@
 # [Bash](../README.md) qwen-image
 
-## Tools
+## Scripts
 
 ### [build.sh](build.sh): Install a model into the model folder
 
