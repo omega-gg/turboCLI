@@ -2,47 +2,28 @@
 
 ## Configuration
 
-Place your flux2 standalone folder into the SKY_PATH_BIN/flux2 folder or set SKY_PATH_FLUX2. Your
-models should be in SKY_PATH_BIN/flux2-model or SKY_PATH_FLUX2_MODEL.
+Place your turboCLI runner into the SKY_PATH_BIN/diffusion folder or set SKY_PATH_FLUX2. Your models
+should be in SKY_PATH_BIN/flux2-model or SKY_PATH_FLUX2_MODEL.
 
 ## Tools
 
-### [build.sh](build.sh): Install flux2 in the SKY_PATH_BIN folder
+### [build.sh](build.sh): Install a model into the model folder
 
 ```
-Usage: build <cpu | cuda | mps | clean>
+Usage: build [engine = flux2-4b] [dtype = bfloat16] [fast]
 
-example:
-    build cuda
-```
-
-### [check.sh](check.sh): Check the install validity
-
-```
-Usage: check
-```
-
-### [check-model.sh](check-model.sh): Check the installed models
-
-```
-Usage: check-model [model]
-```
-
-### [model.sh](model.sh): Download a model into the model folder
-
-```
-Usage: model <model> [dtype = bfloat16] [fast]
-
-models:
-  FLUX.2-klein-4B
-  FLUX.2-klein-4B-base
-  FLUX.2-klein-9B
-  FLUX.2-klein-9B-base
+engine: flux2-4b
 
 dtype: bfloat16, float16, float32
 
 example:
-    model FLUX.2-klein-4B
+    build flux2-4b
+```
+
+### [check.sh](check.sh): Check the installed models
+
+```
+Usage: check [model]
 ```
 
 ### [run.sh](run.sh): Generate an image from a text prompt
@@ -51,19 +32,22 @@ example:
 Usage: run <prompt> <output image> [width = 512] [height = 512]
            [renderer = cpu] [seed = -1] [inference = 4]
            [cuda_offload = sequential_cpu] [slicing = none]
+           [loras = none]
            [server]
 
 renderer: cpu, cuda, mps
 
-cuda_offload: none, model_cpu, sequential_cpu
+cuda_offload: none, model_cpu, sequential_cpu, custom (diffusion/backend folder)
 
 slicing: none, slice
+
+loras: none, comma separated <path>@[weight]
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
     run "knight in armor" output.png
-    run "knight in armor" output.png 512 512 cuda -1 4 sequential_cpu none 8080
+    run "knight in armor" output.png 512 512 cuda -1 4 sequential_cpu none none 8080
 ```
 
 ### [run-image.sh](run-image.sh): Generate an image from a text prompt and reference images
@@ -73,19 +57,22 @@ Usage: run-image <prompt> <input images> <output image>
                  [width = 512] [height = 512]
                  [renderer = cpu] [seed = -1] [inference = 4]
                  [cuda_offload = sequential_cpu] [slicing = none]
+                 [loras = none]
                  [server]
 
 input images: separated by a comma, 4 maximum
 
 renderer: cpu, cuda, mps
 
-cuda_offload: none, model_cpu, sequential_cpu
+cuda_offload: none, model_cpu, sequential_cpu, custom (diffusion/backend folder)
 
 slicing: none, slice
+
+loras: none, comma separated <path>@[weight]
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
     run "knight in armor" shield.png,helmet.png output.png
-    run "knight in armor" shield.png,helmet.png output.png 512 512 cuda -1 4 sequential_cpu none 8080
+    run "knight in armor" shield.png,helmet.png output.png 512 512 cuda -1 4 sequential_cpu none none 8080
 ```

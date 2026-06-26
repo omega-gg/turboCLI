@@ -64,7 +64,7 @@ check()
 
 if [ $# != 0 -a $# != 1 ]; then
 
-    echo "Usage: check-model [model]"
+    echo "Usage: check [model]"
 fi
 
 sky="$(getSky)"
@@ -96,9 +96,6 @@ if [ $# = 1 ]; then
 fi
 
 check "FLUX.2-klein-4B"
-check "FLUX.2-klein-4B-base"
-check "FLUX.2-klein-9B"
-check "FLUX.2-klein-9B-base"
 
 if [ -z "$models" ]; then
 

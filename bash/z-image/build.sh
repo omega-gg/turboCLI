@@ -26,9 +26,9 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-engine="flux2-4b"
+engine="z-image-turbo"
 
-model="FLUX.2-klein-4B"
+model="Z-Image-Turbo"
 
 dtype="bfloat16"
 
@@ -109,14 +109,14 @@ if [ $# -gt 3 ] \
    || \
    [ $# -ge 3 -a "$3" != "fast" ]; then
 
-    echo "Usage: install [engine = $engine] [dtype = $dtype] [fast]"
+    echo "Usage: build [engine = $engine] [dtype = $dtype] [fast]"
     echo ""
-    echo "engine: flux2-4b"
+    echo "engine: z-image-turbo"
     echo ""
     echo "dtype: bfloat16, float16, float32"
     echo ""
     echo "example:"
-    echo "    install flux2-4b"
+    echo "    build z-image-turbo"
 
     exit 1
 fi
@@ -127,9 +127,9 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_FLUX2:-$sky/diffusion}"
+bin="${SKY_PATH_Z_IMAGE:-$sky/diffusion}"
 
-bin_model="${SKY_PATH_FLUX2_MODEL:-$sky/flux2-model}"
+bin_model="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image-model}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 

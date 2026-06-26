@@ -26,9 +26,9 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-engine="qwen-image-edit-2511"
+engine="flux2-4b"
 
-model="Qwen-Image-Edit-2511"
+model="FLUX.2-klein-4B"
 
 dtype="bfloat16"
 
@@ -109,16 +109,14 @@ if [ $# -gt 3 ] \
    || \
    [ $# -ge 3 -a "$3" != "fast" ]; then
 
-    echo "Usage: install [engine = $engine] [dtype = $dtype] [fast]"
+    echo "Usage: build [engine = $engine] [dtype = $dtype] [fast]"
     echo ""
-    echo "engine: qwen-image-edit-2511"
-    echo "        qwen-image-edit-2511-lightning"
-    echo "        qwen-image-edit-2511-lightning-angles"
+    echo "engine: flux2-4b"
     echo ""
     echo "dtype: bfloat16, float16, float32"
     echo ""
     echo "example:"
-    echo "    install qwen-image-edit-2511"
+    echo "    build flux2-4b"
 
     exit 1
 fi
@@ -129,9 +127,9 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_QWEN_IMAGE:-$sky/diffusion}"
+bin="${SKY_PATH_FLUX2:-$sky/diffusion}"
 
-bin_model="${SKY_PATH_QWEN_IMAGE_MODEL:-$sky/qwen-image-model}"
+bin_model="${SKY_PATH_FLUX2_MODEL:-$sky/flux2-model}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 

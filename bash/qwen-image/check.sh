@@ -64,7 +64,7 @@ check()
 
 if [ $# != 0 -a $# != 1 ]; then
 
-    echo "Usage: check-model [model]"
+    echo "Usage: check [model]"
 fi
 
 sky="$(getSky)"

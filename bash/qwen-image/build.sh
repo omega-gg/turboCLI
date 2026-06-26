@@ -26,9 +26,9 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-engine="z-image-turbo"
+engine="qwen-image-edit-2511"
 
-model="Z-Image-Turbo"
+model="Qwen-Image-Edit-2511"
 
 dtype="bfloat16"
 
@@ -109,14 +109,16 @@ if [ $# -gt 3 ] \
    || \
    [ $# -ge 3 -a "$3" != "fast" ]; then
 
-    echo "Usage: install [engine = $engine] [dtype = $dtype] [fast]"
+    echo "Usage: build [engine = $engine] [dtype = $dtype] [fast]"
     echo ""
-    echo "engine: z-image-turbo"
+    echo "engine: qwen-image-edit-2511"
+    echo "        qwen-image-edit-2511-lightning"
+    echo "        qwen-image-edit-2511-lightning-angles"
     echo ""
     echo "dtype: bfloat16, float16, float32"
     echo ""
     echo "example:"
-    echo "    install z-image-turbo"
+    echo "    build qwen-image-edit-2511"
 
     exit 1
 fi
@@ -127,9 +129,9 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_Z_IMAGE:-$sky/diffusion}"
+bin="${SKY_PATH_QWEN_IMAGE:-$sky/diffusion}"
 
-bin_model="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image-model}"
+bin_model="${SKY_PATH_QWEN_IMAGE_MODEL:-$sky/qwen-image-model}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
