@@ -24,6 +24,12 @@ like the right thing to do.
 - Z-Image-Turbo
 - Qwen-Image-Edit
 
+## Platforms
+
+- Windows 10 and later.
+- macOS 64 bit.
+- Linux 32 bit and 64 bit.
+
 ## Sample
 
 Here is the z-image recipe:
