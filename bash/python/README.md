@@ -1,7 +1,5 @@
 # [Bash](../README.md) Python
 
-## Scripts
-
 ### [build.sh](build.sh): Install python in the SKY_PATH_BIN folder
 
 ```

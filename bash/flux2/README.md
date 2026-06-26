@@ -1,7 +1,5 @@
 # [Bash](../README.md) flux2
 
-## Scripts
-
 ### [build.sh](build.sh): Install a model into the model folder
 
 ```
