@@ -58,6 +58,7 @@ sh build.sh cpu
 
 cd ../z-image
 sh build.sh z-image-turbo bfloat16 fast
+
 sh run.sh "a beautiful knight" out.png 512 512 cpu
 ```
 
@@ -74,6 +75,7 @@ sh build.sh cuda
 
 cd ../z-image
 sh build.sh z-image-turbo bfloat16 fast
+
 sh run.sh "a beautiful knight" out.png 512 512 cuda
 ```
 
@@ -91,6 +93,7 @@ sh build.sh mps
 cd ../z-image
 # MPS prefers float16 (bfloat16 support is patchy)
 sh build.sh z-image-turbo float16 fast
+
 sh run.sh "a beautiful knight" out.png 512 512 mps
 ```
 
