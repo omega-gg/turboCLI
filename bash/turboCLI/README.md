@@ -1,6 +1,6 @@
-# [Bash](../README.md) diffusion
+# [Bash](../README.md) turboCLI
 
-### [build.sh](build.sh): Install diffusion in the SKY_PATH_BIN folder
+### [build.sh](build.sh): Install turboCLI in the SKY_PATH_BIN folder
 
 ```
 Usage: build <cpu | cuda | mps | clean>
