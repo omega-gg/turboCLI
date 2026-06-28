@@ -26,7 +26,7 @@
 # (load-or-reuse + run + save) lives in core.generate, shared with cli.py; this file owns only the
 # server-specific concerns: HTTP, locks, the latest-wins preemption id, and the idle watcher.
 #
-# Run as: python -m runner.server  (reads SKY_DIFFUSION_* env, set by server.sh).
+# Run as: python -m runner.server  (reads SKY_TURBOCLI_* env, set by server.sh).
 
 import os
 import time
@@ -43,14 +43,14 @@ from runner import core
 
 log = core.log
 
-HOST = os.environ["SKY_DIFFUSION_HOST"]
-PORT = int(os.environ["SKY_DIFFUSION_PORT"])
+HOST = os.environ["SKY_TURBOCLI_HOST"]
+PORT = int(os.environ["SKY_TURBOCLI_PORT"])
 
 # Clear the resident model after this many idle seconds (0 disables it).
-TIMEOUT = float(os.environ["SKY_DIFFUSION_TIMEOUT"])
+TIMEOUT = float(os.environ["SKY_TURBOCLI_TIMEOUT"])
 
 # Number of ports to try (starting at PORT) when scanning for a free one.
-RANGE = int(os.environ["SKY_DIFFUSION_RANGE"])
+RANGE = int(os.environ["SKY_TURBOCLI_RANGE"])
 
 # Concurrency: requests run in their own threads (ThreadingHTTPServer) but only one generation
 # touches the GPU at a time (gpu_lock). Each request takes the next latest_id; an in-flight job
@@ -248,7 +248,7 @@ class Server(ThreadingHTTPServer):
 # Optional scan: if the requested port is taken, bind the first free one in [PORT, PORT + RANGE - 1].
 # The probe is a plain socket (no SO_REUSEADDR) so an in-use port reliably fails, including on Windows
 # where the server's allow_reuse_address would otherwise let it bind a live port.
-if os.environ.get("SKY_DIFFUSION_SCAN") == "1":
+if os.environ.get("SKY_TURBOCLI_SCAN") == "1":
     for candidate in range(PORT, PORT + RANGE):
         probe = socket.socket()
 

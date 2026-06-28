@@ -30,7 +30,7 @@ Usage: run <prompt> <output image> [width = 512] [height = 512]
 
 renderer: cpu, cuda, mps
 
-cuda_offload: none, model_cpu, sequential_cpu, custom (diffusion/backend folder)
+cuda_offload: none, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
 
 slicing: none, slice
 

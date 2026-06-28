@@ -132,7 +132,7 @@ if [ $# -lt 3 -o $# -gt 12 ] \
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""
-    echo "cuda_offload: none, model_cpu, sequential_cpu, custom (diffusion/backend folder)"
+    echo "cuda_offload: none, model_cpu, sequential_cpu, custom (turboCLI/backend folder)"
     echo ""
     echo "slicing: none, slice"
     echo ""
@@ -153,7 +153,7 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_QWEN_IMAGE:-$sky/diffusion}"
+bin="${SKY_PATH_QWEN_IMAGE:-$sky/turboCLI}"
 
 bin_model="${SKY_PATH_QWEN_IMAGE_MODEL:-$sky/qwen-image-model}"
 

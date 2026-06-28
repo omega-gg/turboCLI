@@ -129,7 +129,7 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_QWEN_IMAGE:-$sky/diffusion}"
+bin="${SKY_PATH_QWEN_IMAGE:-$sky/turboCLI}"
 
 bin_model="${SKY_PATH_QWEN_IMAGE_MODEL:-$sky/qwen-image-model}"
 

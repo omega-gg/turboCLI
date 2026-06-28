@@ -100,7 +100,7 @@ fi
 # Check
 #--------------------------------------------------------------------------------------------------
 
-path="${SKY_PATH_DIFFUSION:-$sky/diffusion}"
+path="${SKY_PATH_TURBOCLI:-$sky/turboCLI}"
 
 json=$(ls "$path"/.venv/Lib/site-packages/diffusers-*.dist-info/direct_url.json \
           "$path"/.venv/lib/python*/site-packages/diffusers-*.dist-info/direct_url.json \
@@ -108,7 +108,7 @@ json=$(ls "$path"/.venv/Lib/site-packages/diffusers-*.dist-info/direct_url.json 
 
 if [ ! -f "$json" ]; then
 
-    echo "diffusion is not installed"
+    echo "turboCLI is not installed"
 
     exit 1
 fi
@@ -117,11 +117,11 @@ install=$(sed -n 's/.*"commit_id":"\([^"]*\)".*/\1/p' "$json")
 
 if [ "$install" != "$commit" ]; then
 
-    echo "diffusion is not installed"
+    echo "turboCLI is not installed"
 
     exit 1
 fi
 
-echo "diffusion is installed"
+echo "turboCLI is installed"
 
 exit 0

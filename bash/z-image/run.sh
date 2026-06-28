@@ -129,7 +129,7 @@ if [ $# -lt 2 -o $# -gt 11 ] \
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""
-    echo "cuda_offload: none, model_cpu, sequential_cpu, custom (diffusion/backend folder)"
+    echo "cuda_offload: none, model_cpu, sequential_cpu, custom (turboCLI/backend folder)"
     echo ""
     echo "slicing: none, slice"
     echo ""
@@ -150,7 +150,7 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_Z_IMAGE:-$sky/diffusion}"
+bin="${SKY_PATH_Z_IMAGE:-$sky/turboCLI}"
 
 bin_model="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image-model}"
 

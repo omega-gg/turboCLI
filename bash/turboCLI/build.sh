@@ -26,7 +26,7 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-name="diffusion"
+name="turboCLI"
 
 repository="https://github.com/omega-gg/turboCLI.git"
 
