@@ -13,8 +13,8 @@ Adding a new model should be just a few lines of code, in particular when it has
 structure to what we already support.
 
 turboCLI is a good baseline for client based applications like [turbopixel](https://omega.gg/turbopixel/sources).
-That's actually the original motivation for doing so. However, licensing this under LGPL sounds
-like the right thing to do.
+That's actually the original motivation for it. However, licensing this under LGPL sounds like the
+right thing to do.
 
 - [Bash scripts](bash/README.md)
 
@@ -29,6 +29,11 @@ like the right thing to do.
 - Windows 10 and later.
 - macOS 64 bit.
 - Linux 64 bit.
+
+## Requirements
+
+On Windows:
+- [Git for Windows](https://git-for-windows.github.io).
 
 ## Sample model
 
