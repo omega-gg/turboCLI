@@ -6,7 +6,7 @@
 turboCLI is a high-performance runner for generative models, with a focus on efficiency,
 maintainability and simplicity.
 
-It can be used via bash CLI or embedded in a python application. It works sequentially or behind a
+It can be used via CLI or embedded in a python application. It works sequentially or behind a
 server with fast starting times, cold or warm.
 
 Adding a new model should be just a few lines of code, in particular when it has a similar
@@ -26,14 +26,14 @@ right thing to do.
 
 ## Platforms
 
-- Windows 10 and later.
-- macOS 64 bit.
-- Linux 64 bit.
+- Windows 10 and later
+- macOS 64 bit
+- Linux 64 bit
 
 ## Requirements
 
 On Windows:
-- [Git for Windows](https://git-for-windows.github.io).
+- [Git for Windows](https://git-for-windows.github.io)
 
 ## Sample model
 
