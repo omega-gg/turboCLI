@@ -37,19 +37,6 @@ macOS and Linux should work out of the box.
 On Windows:
 - [Git for Windows](https://git-for-windows.github.io)
 
-## Sample model
-
-Here is the z-image recipe:
-
-```
-NAME     = "z-image-turbo"
-TYPE     = "z-image"
-PIPELINE = "diffusers:ZImagePipeline"
-MODES    = ("generate",)
-CFG      = ("guidance_scale", 0.0)
-MODEL    = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo"}
-```
-
 ## Quickstart
 
 ### CPU
@@ -102,6 +89,19 @@ cd ../z-image
 sh build.sh z-image-turbo float16 fast
 
 sh run.sh "a beautiful knight" out.png 512 512 mps
+```
+
+## Sample model
+
+Here is the z-image recipe:
+
+```
+NAME     = "z-image-turbo"
+TYPE     = "z-image"
+PIPELINE = "diffusers:ZImagePipeline"
+MODES    = ("generate",)
+CFG      = ("guidance_scale", 0.0)
+MODEL    = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo"}
 ```
 
 ## License
