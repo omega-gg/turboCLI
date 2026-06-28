@@ -45,14 +45,11 @@ On Windows:
 # Install folder
 export SKY_PATH_BIN="$PWD/bin"
 
-cd bash/python
-sh build.sh default
+cd bash/python; sh build.sh default
 
-cd ../turboCLI
-sh build.sh cpu
+cd ../turboCLI; sh build.sh cpu
 
-cd ../z-image
-sh build.sh z-image-turbo bfloat16 fast
+cd ../z-image; sh build.sh z-image-turbo bfloat16 fast
 
 sh run.sh "a beautiful knight" out.png 512 512 cpu
 ```
@@ -63,14 +60,11 @@ sh run.sh "a beautiful knight" out.png 512 512 cpu
 # Install folder
 export SKY_PATH_BIN="$PWD/bin"
 
-cd bash/python
-sh build.sh default
+cd bash/python; sh build.sh default
 
-cd ../turboCLI
-sh build.sh cuda
+cd ../turboCLI; sh build.sh cuda
 
-cd ../z-image
-sh build.sh z-image-turbo bfloat16 fast
+cd ../z-image; sh build.sh z-image-turbo bfloat16 fast
 
 sh run.sh "a beautiful knight" out.png 512 512 cuda
 ```
@@ -81,15 +75,12 @@ sh run.sh "a beautiful knight" out.png 512 512 cuda
 # Install folder
 export SKY_PATH_BIN="$PWD/bin"
 
-cd bash/python
-sh build.sh default
+cd bash/python; sh build.sh default
 
-cd ../turboCLI
-sh build.sh mps
+cd ../turboCLI; sh build.sh mps
 
-cd ../z-image
 # MPS prefers float16 (bfloat16 support is patchy)
-sh build.sh z-image-turbo float16 fast
+cd ../z-image; sh build.sh z-image-turbo float16 fast
 
 sh run.sh "a beautiful knight" out.png 512 512 mps
 ```
