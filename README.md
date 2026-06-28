@@ -88,7 +88,6 @@ cd ../turboCLI
 sh build.sh mps
 
 cd ../z-image
-
 # MPS prefers float16 (bfloat16 support is patchy)
 sh build.sh z-image-turbo float16 fast
 
