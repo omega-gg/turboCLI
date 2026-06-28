@@ -32,6 +32,8 @@ right thing to do.
 
 ## Requirements
 
+macOS and Linux should work out of the box.
+
 On Windows:
 - [Git for Windows](https://git-for-windows.github.io)
 
