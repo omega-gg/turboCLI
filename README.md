@@ -42,6 +42,7 @@ On Windows:
 ### CPU
 
 ```
+# Install folder
 export SKY_PATH_BIN="$PWD/bin"
 
 cd bash/python
@@ -59,6 +60,7 @@ sh run.sh "a beautiful knight" out.png 512 512 cpu
 ### CUDA
 
 ```
+# Install folder
 export SKY_PATH_BIN="$PWD/bin"
 
 cd bash/python
@@ -76,6 +78,7 @@ sh run.sh "a beautiful knight" out.png 512 512 cuda
 ### Apple MPS
 
 ```
+# Install folder
 export SKY_PATH_BIN="$PWD/bin"
 
 cd bash/python
