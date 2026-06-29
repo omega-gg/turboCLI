@@ -116,7 +116,6 @@ mkdir -p "$sky"
 cd       "$sky"
 
 rm -rf "$name"
-rm -rf "$name-model"
 
 if [ "$1" = "clean" ]; then
 
