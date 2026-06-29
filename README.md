@@ -20,7 +20,7 @@ right thing to do.
 
 ## Custom backends
 
-- [turbo-comfy](https://omega.gg/turboCLI): CUDA high performance offloader
+- [turbo-comfy](https://omega.gg/turboCLI) - CUDA high performance offloader
 
 ## Supported engines
 
