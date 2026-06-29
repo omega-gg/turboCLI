@@ -30,7 +30,7 @@ name="turboCLI"
 
 repository="https://github.com/omega-gg/turboCLI.git"
 
-commit="7e0414ca049d623c38d20daff5f4f428fd242ac4"
+commit="475d26f292a03ff5d57c842c061472ae69541011"
 
 diffusers="784fa62652fb2719d415830f918fc32a49ecc7a1"
 
