@@ -69,7 +69,7 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_FLUX2_MODEL:-$sky/flux2-model}"
+bin="${SKY_PATH_FLUX2_MODEL:-$sky/flux2}"
 
 #--------------------------------------------------------------------------------------------------
 # Check

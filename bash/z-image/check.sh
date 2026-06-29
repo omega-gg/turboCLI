@@ -73,7 +73,7 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image-model}"
+bin="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image}"
 
 #--------------------------------------------------------------------------------------------------
 # Check

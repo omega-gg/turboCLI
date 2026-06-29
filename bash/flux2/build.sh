@@ -130,7 +130,7 @@ sky="$(getSky)"
 
 bin="${SKY_PATH_FLUX2:-$sky/turboCLI}"
 
-bin_model="${SKY_PATH_FLUX2_MODEL:-$sky/flux2-model}"
+bin_model="${SKY_PATH_FLUX2_MODEL:-$sky/flux2}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 

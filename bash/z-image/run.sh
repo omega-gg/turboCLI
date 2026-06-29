@@ -152,7 +152,7 @@ sky="$(getSky)"
 
 bin="${SKY_PATH_Z_IMAGE:-$sky/turboCLI}"
 
-bin_model="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image-model}"
+bin_model="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 

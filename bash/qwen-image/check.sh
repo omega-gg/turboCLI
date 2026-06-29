@@ -69,7 +69,7 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_QWEN_IMAGE_MODEL:-$sky/qwen-image-model}"
+bin="${SKY_PATH_QWEN_IMAGE_MODEL:-$sky/qwen-image}"
 
 #--------------------------------------------------------------------------------------------------
 # Check

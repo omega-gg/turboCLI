@@ -132,7 +132,7 @@ sky="$(getSky)"
 
 bin="${SKY_PATH_QWEN_IMAGE:-$sky/turboCLI}"
 
-bin_model="${SKY_PATH_QWEN_IMAGE_MODEL:-$sky/qwen-image-model}"
+bin_model="${SKY_PATH_QWEN_IMAGE_MODEL:-$sky/qwen-image}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
