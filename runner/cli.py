@@ -24,8 +24,8 @@
 # Replaces the inlined heredoc in the run*.sh wrappers; shares core.generate with the server.
 #
 # Every input arrives via argv flags (--prompt=..., --width=..., etc.), so arbitrary text reaches
-# Python untouched -- no shell/source interpolation. (The wrappers pass --prompt="$1" with the equals
-# form so a prompt starting with '-' is not read as a flag.)
+# Python untouched -- no shell/source interpolation. (The wrappers pass --prompt="$1" with the
+# equals form so a prompt starting with '-' is not read as a flag.)
 #
 # Run as: python -m runner.cli --engine flux2-4b --mode generate --model ... (from the deployed
 # diffusion dir, which the wrapper cd's into so `engine` and `backend` are importable).
@@ -44,7 +44,8 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--prompt", default="")
     parser.add_argument("--images", default="")
-    parser.add_argument("--loras", default="")   # "<path>@<weight>,..." (weight 0.0-1.0, default 1.0)
+    # "<path>@<weight>,..." (weight 0.0-1.0, default 1.0)
+    parser.add_argument("--loras", default="")
     parser.add_argument("--width", default="512")
     parser.add_argument("--height", default="512")
     parser.add_argument("--seed", default="-1")
@@ -75,8 +76,8 @@ def main():
     def emit(line):
         print(line, flush=True)
 
-    # NOTE: Importing core here (after argv parsing) runs offload-backend discovery before torch and
-    #       keeps `--help` instant. core.generate returns True only when the image was saved.
+    # NOTE: Importing core here (after argv parsing) runs offload-backend discovery before torch
+    #       and keeps `--help` instant. core.generate returns True only when the image was saved.
     from runner import core
 
     try:

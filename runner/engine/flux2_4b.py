@@ -21,7 +21,8 @@
 #==================================================================================================
 
 # flux2-4b engine -- text2img + img2img on FLUX.2-klein-4B. Pure declaration: core's default load
-# (from_pretrained + apply_offload) and run path cover it, so there is no code here. See PLAN-engine.md.
+# (from_pretrained + apply_offload) and run path cover it, so there is no code here. See
+# PLAN-engine.md.
 
 NAME     = "flux2-4b"
 TYPE     = "flux2"

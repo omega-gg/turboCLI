@@ -80,7 +80,8 @@ def idle_watcher():
         if idle_for < TIMEOUT:
             continue
 
-        # Skip (rather than block) when a generation is running; it'll be picked up on a later tick.
+        # Skip (rather than block) when a generation is running; it'll be picked up on a later
+        # tick.
         if not gpu_lock.acquire(blocking=False):
             continue
 
@@ -207,7 +208,8 @@ class Handler(BaseHTTPRequestHandler):
             if stale:
                 emit("SUPERSEDED: a newer request arrived before this one started")
             else:
-                # latest-wins preemption: an in-flight job aborts when a newer request bumps the id.
+                # latest-wins preemption: an in-flight job aborts when a newer request bumps the
+                # id.
                 def should_stop():
                     with state_lock:
                         if my_id == latest_id:
@@ -245,9 +247,10 @@ class Server(ThreadingHTTPServer):
     allow_reuse_address = True
 
 
-# Optional scan: if the requested port is taken, bind the first free one in [PORT, PORT + RANGE - 1].
-# The probe is a plain socket (no SO_REUSEADDR) so an in-use port reliably fails, including on Windows
-# where the server's allow_reuse_address would otherwise let it bind a live port.
+# Optional scan: if the requested port is taken, bind the first free one in
+# [PORT, PORT + RANGE - 1]. The probe is a plain socket (no SO_REUSEADDR) so an in-use port
+# reliably fails, including on Windows where the server's allow_reuse_address would otherwise let
+# it bind a live port.
 if os.environ.get("SKY_TURBOCLI_SCAN") == "1":
     for candidate in range(PORT, PORT + RANGE):
         probe = socket.socket()
@@ -267,7 +270,8 @@ if os.environ.get("SKY_TURBOCLI_SCAN") == "1":
 httpd = Server((HOST, PORT), Handler)
 
 log("server is running on http://%s:%d" % (HOST, PORT))
-log("Model loads on the first request, and reloads when engine / model / renderer / offload / slicing change.")
+log("Model loads on the first request, and reloads when engine / model / renderer / offload /"
+    " slicing change.")
 log("A new request preempts the one in progress (latest wins); generations never run in parallel.")
 
 if TIMEOUT > 0:

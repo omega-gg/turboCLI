@@ -20,11 +20,11 @@
 #
 #==================================================================================================
 
-# qwen-image-edit-2511 (default) -- base QwenImageEditPlusPipeline, NO LoRA. Pure declaration: core's
-# default load (from_pretrained / backend.load_pipe + apply_offload) and run path cover it. TYPE
-# stays "qwen-image-edit" (the backend seam's identity for this pipeline) while the engine is selectable as
-# "qwen-image-edit-2511". For LoRA presets over the SAME model, see qwen_image_edit_2511_lightning.py
-# and qwen_image_edit_2511_lightning_angles.py.
+# qwen-image-edit-2511 (default) -- base QwenImageEditPlusPipeline, NO LoRA. Pure declaration:
+# core's default load (from_pretrained / backend.load_pipe + apply_offload) and run path cover it.
+# TYPE stays "qwen-image-edit" (the backend seam's identity for this pipeline) while the engine is
+# selectable as "qwen-image-edit-2511". For LoRA presets over the SAME model, see
+# qwen_image_edit_2511_lightning.py and qwen_image_edit_2511_lightning_angles.py.
 
 NAME     = "qwen-image-edit-2511"
 TYPE     = "qwen-image-edit"

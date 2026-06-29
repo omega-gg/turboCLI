@@ -20,15 +20,16 @@
 #
 #==================================================================================================
 
-# ==================================================================================================
-#  LGPL shared diffusion engine. Everything both front-ends (cli.py one-shot, server.py HTTP) share:
+#==================================================================================================
+#  LGPL shared diffusion engine. What both front-ends (cli.py one-shot, server.py HTTP) share:
 #  offload-backend discovery, engine discovery, the resident-pipe cache, and one generation.
 #
 #  Engine-specific knowledge lives in engine/<name>.py (NAME/PIPELINE/MODES/CFG + optional
-#  extra_key()/loras()/load()); placement strategy lives behind the ../backend/<mode>/ seam (external, may be
-#  GPL) -- reached here only by string name + the fixed seam methods, never by importing a backend.
+#  extra_key()/loras()/load()); placement strategy lives behind the ../backend/<mode>/ seam
+#  (external, may be GPL) -- reached here only by string name + the fixed seam methods, never by
+#  importing a backend.
 #  See PLAN-engine.md.
-# ==================================================================================================
+#==================================================================================================
 
 import os
 import gc
@@ -36,14 +37,15 @@ import glob
 import importlib
 import traceback
 
-# --------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
 # Offload backend discovery -- MUST run before `import torch`
-# --------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
 
-# Optional weight-streaming plug-ins discovered as ../backend/<mode>/ subpackages (relative to cwd,
-# which the wrappers cd into -- the deployed diffusion dir). Each exposes the seam
-# (pre_torch_init/available/supports/load_pipe + optional prepare/reclaim/release); pre_torch_init()
-# must precede torch, and a failed init is skipped. This names no specific backend.
+# Optional weight-streaming plug-ins discovered as ../backend/<mode>/ subpackages (relative to
+# cwd, which the wrappers cd into -- the deployed diffusion dir). Each exposes the seam
+# (pre_torch_init/available/supports/load_pipe + optional prepare/reclaim/release);
+# pre_torch_init() must precede torch, and a failed init is skipped. This names no specific
+# backend.
 
 OFFLOAD_MODES = set()     # every backend/<mode>/ present (whether or not it initialised)
 OFFLOAD_BACKENDS = {}     # mode -> ready backend module (pre_torch_init succeeded + available())
@@ -65,9 +67,9 @@ for _path in sorted(glob.glob(os.path.join("backend", "*", "__init__.py"))):
 
 import torch
 
-# --------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
 # Engine discovery -- cheap: engine modules import no torch/diffusers at top level
-# --------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
 
 ENGINES = {}   # name -> engine module
 
@@ -86,9 +88,9 @@ def log(message):
     print(message, flush=True)
 
 
-# --------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
 # Resident pipeline cache
-# --------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
 
 # The currently loaded pipeline and the key it was loaded with:
 # (name, model, renderer, cuda_offload, slicing) + engine.extra_key(params).
@@ -116,9 +118,10 @@ def _device_dtype(renderer):
 def parse_loras(spec):
     """Parse the optional `loras` param into [(path, weight), ...].
 
-    Wire format: comma-separated entries, each "<path>@<weight>" (weight 0.0-1.0). The weight is taken
-    after the LAST '@' so Windows paths (which contain ':' but never '@') parse cleanly. A missing
-    weight -- no '@', or a trailing '@' with nothing after it -- defaults to 1.0. Empty/blank -> []."""
+    Wire format: comma-separated entries, each "<path>@<weight>" (weight 0.0-1.0). The weight is
+    taken after the LAST '@' so Windows paths (which contain ':' but never '@') parse cleanly. A
+    missing weight -- no '@', or a trailing '@' with nothing after it -- defaults to 1.0.
+    Empty/blank -> []."""
     out = []
 
     for item in (spec or "").split(","):
@@ -134,7 +137,8 @@ def parse_loras(spec):
             # Clamp to [0.0, 1.0]; a missing weight (trailing '@') defaults to 1.0.
             out.append((path.strip(), max(0.0, min(1.0, float(weight))) if weight else 1.0))
         else:
-            # No '@' -> rpartition put the whole string in `weight`; the path is it, weight defaults.
+            # No '@' -> rpartition put the whole string in `weight`; the path is it, weight
+            # defaults.
             out.append((weight.strip(), 1.0))
 
     return out
@@ -145,7 +149,7 @@ class Ctx:
 
     backend is the resolved seam module (or None). apply_offload()/from_pretrained() are the shared
     mechanics so an engine module never re-implements placement or the diffusers load. loras is the
-    user-supplied LoRA list [(path, weight), ...] (empty if none); an engine merges it with its own.
+    user-supplied LoRA list [(path, weight), ...] (empty if none); an engine merges with its own.
     """
 
     def __init__(self, renderer, cuda_offload, backend, loras=()):
@@ -156,10 +160,10 @@ class Ctx:
         self.device, self.dtype = _device_dtype(renderer)
 
     def apply_loras(self, p, lora_list):
-        """Load + activate a list of (path, weight) LoRAs on a NON-backend pipe (the diffusers path).
-        No-op for an empty list. The backend path passes the same list to load_pipe(lora_files=...)
-        instead, which applies them on-cast. Used by _default_load and by the LoRA-preset engines, so
-        the load_lora_weights + set_adapters dance is written once."""
+        """Load + activate a list of (path, weight) LoRAs on a NON-backend pipe (the diffusers
+        path). No-op for an empty list. The backend path passes the same list to
+        load_pipe(lora_files=...) instead, which applies them on-cast. Used by _default_load and by
+        the LoRA-preset engines, so the load_lora_weights + set_adapters dance is written once."""
         if not lora_list:
             return p
 
@@ -213,24 +217,26 @@ class Ctx:
 
 
 def engine_type(mod):
-    """The engine identity the backend seam understands (it keys the pipeline class + supports() off
-    this string). Defaults to the registry NAME; a module variant -- e.g. a LoRA preset that registers
-    under its own NAME but reuses a base engine -- overrides TYPE to keep speaking the seam's
-    vocabulary while staying selectable as a distinct engine."""
+    """The engine identity the backend seam understands (it keys the pipeline class + supports()
+    off this string). Defaults to the registry NAME; a module variant -- e.g. a LoRA preset that
+    registers under its own NAME but reuses a base engine -- overrides TYPE to keep speaking the
+    seam's vocabulary while staying selectable as a distinct engine."""
     return getattr(mod, "TYPE", mod.NAME)
 
 
 def _default_load(ctx, mod, params):
     """Default load for engines with no load() hook: build + place via the standard diffusers path.
-    A module's optional loras(params) -> [(filename, weight), ...] is resolved against the model folder
-    and applied first, then any user-supplied LoRAs (ctx.loras)."""
+    A module's optional loras(params) -> [(filename, weight), ...] is resolved against the model
+    folder and applied first, then any user-supplied LoRAs (ctx.loras)."""
     model = params["model"]
 
     preset = mod.loras(params) if hasattr(mod, "loras") else []
     lora_files = [(os.path.join(model, name), weight) for name, weight in preset] + ctx.loras
 
     if ctx.backend:
-        return ctx.backend.load_pipe(model, ctx.dtype, engine_type(mod), lora_files=lora_files or None)
+        return ctx.backend.load_pipe(
+            model, ctx.dtype, engine_type(mod), lora_files=lora_files or None
+        )
 
     p = ctx.from_pretrained(mod.PIPELINE, params)
     ctx.apply_loras(p, lora_files)
@@ -244,7 +250,8 @@ def _engine_key(mod, params):
     if hasattr(mod, "extra_key"):
         extra = tuple(mod.extra_key(params))
 
-    # User LoRAs are part of the pipe identity, so changing them reloads (== a different cached pipe).
+    # User LoRAs are part of the pipe identity, so changing them reloads (== a different cached
+    # pipe).
     loras = tuple(parse_loras(params.get("loras", "")))
 
     return (mod.NAME, params["model"], params["renderer"],
@@ -253,7 +260,7 @@ def _engine_key(mod, params):
 
 def release_pipe(reason):
     """Drop the resident pipeline (config change / idle / explicit clear). Tears down any offload
-    backend first so host-pinned weights + file handles + the offloader<->module cycle are freed."""
+    backend first so host-pinned weights + file handles + offloader<->module cycle are freed."""
     global pipe, pipe_key
 
     if pipe is None:
@@ -284,8 +291,8 @@ def release_pipe(reason):
 
 
 def get_pipe(mod, params, emit):
-    """Load-or-reuse the resident pipeline for this engine+config. Reuses when the key is unchanged,
-    else releases and reloads (== server.sh get_pipe)."""
+    """Load-or-reuse the resident pipeline for this engine+config. Reuses when the key is
+    unchanged, else releases and reloads (== server.sh get_pipe)."""
     global pipe, pipe_key
 
     key = _engine_key(mod, params)
@@ -309,7 +316,9 @@ def get_pipe(mod, params, emit):
 
     backend = OFFLOAD_BACKENDS.get(params["cuda_offload"])
 
-    ctx = Ctx(renderer, params["cuda_offload"], backend, loras=parse_loras(params.get("loras", "")))
+    ctx = Ctx(
+        renderer, params["cuda_offload"], backend, loras=parse_loras(params.get("loras", "")),
+    )
 
     loader = getattr(mod, "load", None)
 
@@ -346,7 +355,8 @@ def generate(params, emit, should_stop=None):
     params: the same plain dict the HTTP API builds (engine, mode, model, prompt, output, images,
     width, height, seed, inference, renderer, cuda_offload, slicing).
     emit: a line sink (print for cli, the socket stream for server).
-    should_stop: optional callable -> None | "cancel" | "supersede" (server preemption; None for cli).
+    should_stop: optional callable -> None | "cancel" | "supersede" (server preemption; None for
+    cli).
     """
     engine = params["engine"]
     mode = params["mode"]
@@ -496,8 +506,8 @@ def generate(params, emit, should_stop=None):
         # Format elapsed as MM:SS with tqdm's own helper so it matches the native bar exactly.
         clock = bar.format_interval(secs)
 
-        # tqdm's own convention: s/it once it passes 1s/it, it/s while faster. rate is None until the
-        # first timed update.
+        # tqdm's own convention: s/it once it passes 1s/it, it/s while faster. rate is None until
+        # the first timed update.
         if rate:
             inv   = 1.0 / rate
             speed = ("%.2fs/it" % inv) if inv > 1.0 else ("%.2fit/s" % rate)
@@ -508,8 +518,8 @@ def generate(params, emit, should_stop=None):
 
     original_progress_bar = type(p).progress_bar
 
-    # Emit our line right AFTER each tqdm update, so format_dict reflects the step just completed (the
-    # step_end callback above fires BEFORE the update, which would lag the figures by one step).
+    # Emit our line right AFTER each tqdm update so format_dict reflects the step just completed.
+    # The step_end callback above fires BEFORE the update, which would lag the figures by one step.
     def hooked_progress_bar(*args, **kwargs_):
         bar = original_progress_bar(p, *args, **kwargs_)
 
@@ -532,8 +542,8 @@ def generate(params, emit, should_stop=None):
     p.progress_bar = hooked_progress_bar
 
     try:
-        # Per-generation load boundary for the offload backend (e.g. reload a managed text encoder to
-        # GPU before the pipeline reads its execution device). No-op for a pipe with no backend.
+        # Per-generation load boundary for the offload backend (e.g. reload a managed text encoder
+        # to GPU before the pipeline reads its execution device). No-op for a pipe with no backend.
         backend = getattr(p, "_offload_backend", None)
 
         if backend is not None:
@@ -548,8 +558,8 @@ def generate(params, emit, should_stop=None):
         except Exception:
             pass
 
-        # Per-generation offload-backend housekeeping (return torch's retained allocator pool). No-op
-        # for a pipe with no backend.
+        # Per-generation offload-backend housekeeping (return torch's retained allocator pool).
+        # No-op for a pipe with no backend.
         backend = getattr(p, "_offload_backend", None)
 
         if backend is not None:

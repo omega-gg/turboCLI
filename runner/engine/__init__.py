@@ -21,6 +21,6 @@
 #==================================================================================================
 
 # Per-engine modules. Each file declares NAME / PIPELINE / MODES / CFG (and optional extra_key() /
-# loras() / load() hooks) and is auto-discovered by core. IMPORTANT: an engine module must NOT import
-# diffusers/torch at top level -- name the pipeline by string and import lazily inside hooks, so
-# discovery stays cheap and an unused engine costs nothing. See PLAN-engine.md.
+# loras() / load() hooks) and is auto-discovered by core. IMPORTANT: an engine module must NOT
+# import diffusers/torch at top level -- name the pipeline by string and import lazily inside
+# hooks, so discovery stays cheap and an unused engine costs nothing. See PLAN-engine.md.

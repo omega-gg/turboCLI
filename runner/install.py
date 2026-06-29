@@ -26,17 +26,17 @@
 #   python -m runner.install --engine <name> [--model <M>] --output <dir> [--dtype bfloat16]
 #
 # `--model` is optional for engines that fix their own model at the module level (e.g.
-# qwen-image-edit-2511 and flux2-4b each declare MODEL["model"]); an engine that omits it leaves the
-# choice to `--model`.
+# qwen-image-edit-2511 and flux2-4b each declare MODEL["model"]); an engine that omits it leaves
+# the choice to `--model`.
 #
 # So `flux2-4b` installs FLUX.2-klein-4B; each qwen engine installs the Qwen model plus exactly the
-# LoRAs it uses (none / lightning / lightning + angles). Each engine module under runner/engine declares
-# its install needs (MODEL repo + optional LORAS list). Already-present LoRAs are skipped, and removal
-# is just `rm -rf` on the model dir (handled by the wrapper).
+# LoRAs it uses (none / lightning / lightning + angles). Each engine module under runner/engine
+# declares its install needs (MODEL repo + optional LORAS list). Already-present LoRAs are skipped,
+# and removal is just `rm -rf` on the model dir (handled by the wrapper).
 #
-# Separate from the generation cli/server: install is ONLINE and needs no GPU, so this does NOT import
-# core (no offload-backend discovery / CUDA init). The wrapper install.sh keeps the env (HF_HOME,
-# hf-transfer). Run from the deployed diffusion dir so `engine` is importable.
+# Separate from the generation cli/server: install is ONLINE and needs no GPU, so this does NOT
+# import core (no offload-backend discovery / CUDA init). The wrapper install.sh keeps the env
+# (HF_HOME, hf-transfer). Run from the deployed diffusion dir so `engine` is importable.
 
 import os
 import sys
@@ -72,8 +72,8 @@ def main():
     parser = argparse.ArgumentParser(prog="runner.install")
 
     parser.add_argument("--engine", required=True)
-    parser.add_argument("--model", default=None)              # model name, e.g. FLUX.2-klein-4B;
-                                                              # optional when the engine declares its own
+    # --model: model name, e.g. FLUX.2-klein-4B; optional when the engine declares its own
+    parser.add_argument("--model", default=None)
     parser.add_argument("--output", required=True)            # destination dir
     parser.add_argument("--dtype", default="bfloat16")
 
@@ -91,8 +91,8 @@ def main():
         print("ERROR: engine '%s' is not installable (no MODEL)" % args.engine)
         sys.exit(1)
 
-    # The model name comes from --model, or from the engine's own MODEL["model"] when it declares one
-    # (e.g. qwen-image-edit-2511, a single fixed model). One of the two must be present.
+    # The model name comes from --model, or from the engine's own MODEL["model"] when it declares
+    # one (e.g. qwen-image-edit-2511, a single fixed model). One of the two must be present.
     name = args.model or model.get("model")
 
     if name is None:
@@ -101,7 +101,7 @@ def main():
 
     loras = getattr(mod, "LORAS", [])
 
-    # Heavy imports happen here (after argv parsing), so --help stays instant and bad args fail fast.
+    # Heavy imports happen here (post argv-parse), so --help stays instant and bad args fail fast.
     import gc
     import torch
     from huggingface_hub import scan_cache_dir, hf_hub_download

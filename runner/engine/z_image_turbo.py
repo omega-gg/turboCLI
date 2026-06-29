@@ -20,8 +20,8 @@
 #
 #==================================================================================================
 
-# z-image-turbo engine -- text2img only on Z-Image-Turbo. Pure declaration; core's default load + run
-# path cover it.
+# z-image-turbo engine -- text2img only on Z-Image-Turbo. Pure declaration; core's default load +
+# run path cover it.
 
 NAME     = "z-image-turbo"
 TYPE     = "z-image"

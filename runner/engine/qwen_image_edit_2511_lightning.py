@@ -22,7 +22,8 @@
 
 # qwen-image-edit-2511-lightning -- the qwen-image-edit-2511 model with the "lightning" 4-step LoRA
 # always applied (no angles, no prompt dependence). Same model/pipeline as qwen-image-edit-2511;
-# TYPE stays "qwen-image-edit" so the backend seam treats it as a normal qwen-image-edit. Standalone by design.
+# TYPE stays "qwen-image-edit" so the backend seam treats it as a normal qwen-image-edit.
+# Standalone by design.
 
 NAME     = "qwen-image-edit-2511-lightning"
 TYPE     = "qwen-image-edit"
