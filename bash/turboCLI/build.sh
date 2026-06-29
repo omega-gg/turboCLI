@@ -30,7 +30,11 @@ name="turboCLI"
 
 repository="https://github.com/omega-gg/turboCLI.git"
 
-commit="475d26f292a03ff5d57c842c061472ae69541011"
+repository_aimdo="https://github.com/omega-gg/turbo-aimdo.git"
+
+commit="b530bdf1ce969486d7c82eb3c172a180b43f1453"
+
+commit_aimdo="9cca3a2b1a39350fe57158d3af62ac3a077844ac"
 
 diffusers="784fa62652fb2719d415830f918fc32a49ecc7a1"
 
@@ -57,6 +61,24 @@ comfy_aimdo_version="0.4.10"
 #--------------------------------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------------------------------
+
+clone()
+{
+    mkdir -p "$1"
+    cd       "$1"
+
+    git init
+
+    git remote add origin "$2"
+
+    git fetch --depth 1 origin "$3"
+
+    git checkout FETCH_HEAD
+
+    rm -rf .git
+
+    cd -
+}
 
 getSky()
 {
@@ -132,18 +154,18 @@ fi
 # Clone
 #--------------------------------------------------------------------------------------------------
 
-mkdir -p "$name"
-cd       "$name"
+clone "$name" "$repository" "$commit"
 
-git init
+cd "$name"
 
-git remote add origin "$repository"
+if [ "$1" = "cuda" ]; then
 
-git fetch --depth 1 origin "$commit"
+    clone "temp" "$repository_aimdo" "$commit_aimdo"
 
-git checkout FETCH_HEAD
+    mv "temp/aimdo" "backend"
 
-rm -rf .git
+    rm -rf "temp"
+fi
 
 #--------------------------------------------------------------------------------------------------
 # Activate
