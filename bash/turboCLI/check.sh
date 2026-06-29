@@ -2,7 +2,7 @@
 set -e
 #==================================================================================================
 #
-#   Copyright (C) 2026-2026 turboCLI authors. <https://omega.gg/Sky>
+#   Copyright (C) 2026-2026 turboCLI authors. <https://omega.gg/turboCLI>
 #
 #   Author: Benjamin Arnaud. <https://bunjee.me> <bunjee@omega.gg>
 #

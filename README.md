@@ -109,7 +109,7 @@ MODEL    = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo"}
 
 ## License
 
-Copyright (C) 2026-2026 turboCLI authors | https://omega.gg/Sky
+Copyright (C) 2026-2026 turboCLI authors | https://omega.gg/turboCLI
 
 ### Authors
 
