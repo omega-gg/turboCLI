@@ -33,7 +33,6 @@
 import os
 import gc
 import glob
-import time
 import importlib
 import traceback
 
@@ -444,17 +443,12 @@ def generate(params, emit, should_stop=None):
     def stop_reason():
         return should_stop() if should_stop else None
 
-    timer = {"t0": time.time()}
-
-    def elapsed():
-        return "%.1fs" % (time.time() - timer["t0"])
-
     preview = prompt if len(prompt) <= 60 else prompt[:60] + "..."
 
     emit('generating "%s" (%d steps)...' % (preview, inference))
 
-    # NOTE: Streams one line per denoising step so the client sees progress + elapsed time. If a
-    #       newer request has arrived, we ask the pipeline to interrupt so the GPU is freed for it.
+    # This callback handles interruption. If a newer request has arrived, we ask the pipeline to
+    # interrupt so the GPU is freed for it.
     def step_end(pipeline, step, timestep, callback_kwargs):
         reason = stop_reason()
 
@@ -466,12 +460,6 @@ def generate(params, emit, should_stop=None):
             else:
                 emit("stopping for a newer request...")
 
-            return callback_kwargs
-
-        percent = int(round((step + 1) * 100.0 / inference))
-
-        emit("%3d%%|step %d/%d (%s)" % (percent, step + 1, inference, elapsed()))
-
         return callback_kwargs
 
     try:
@@ -479,20 +467,69 @@ def generate(params, emit, should_stop=None):
     except Exception:
         pass
 
-    # Anchor the timer to the denoising loop exactly like the diffusers tqdm bar, whose clock starts
-    # when the pipeline creates its progress bar (after prompt encoding, before step 1).
-    timer["t0"] = time.time()
+    emit("  0%%|step 0/%d (00:00)" % inference)
 
-    emit("  0%%|step 0/%d (0.0s)" % inference)
+    # We want one clean line per step carrying the SAME elapsed/rate as diffusers own tqdm bar. A
+    # disabled bar computes no stats, so we keep the bar fully alive but route its rendering
+    # to a sink, then read its format_dict and mirror the native figures.
+    class _Sink:
+        def write(self, *_):
+            pass
+
+        def flush(self):
+            pass
+
+    try:
+        p.set_progress_bar_config(file=_Sink(), leave=False)
+    except Exception:
+        pass
+
+    def emit_step(bar):
+        fd      = bar.format_dict
+        total   = fd.get("total") or inference
+        done    = fd.get("n") or 0
+        secs    = fd.get("elapsed") or 0.0
+        rate    = fd.get("rate")
+
+        percent = int(round(done * 100.0 / total)) if total else 0
+
+        # Format elapsed as MM:SS with tqdm's own helper so it matches the native bar exactly.
+        clock = bar.format_interval(secs)
+
+        # tqdm's own convention: s/it once it passes 1s/it, it/s while faster. rate is None until the
+        # first timed update.
+        if rate:
+            inv   = 1.0 / rate
+            speed = ("%.2fs/it" % inv) if inv > 1.0 else ("%.2fit/s" % rate)
+        else:
+            speed = "?it/s"
+
+        emit("%3d%%|step %d/%d (%s, %s)" % (percent, done, total, clock, speed))
 
     original_progress_bar = type(p).progress_bar
 
-    def timed_progress_bar(*args, **kwargs_):
-        timer["t0"] = time.time()
+    # Emit our line right AFTER each tqdm update, so format_dict reflects the step just completed (the
+    # step_end callback above fires BEFORE the update, which would lag the figures by one step).
+    def hooked_progress_bar(*args, **kwargs_):
+        bar = original_progress_bar(p, *args, **kwargs_)
 
-        return original_progress_bar(p, *args, **kwargs_)
+        original_update = bar.update
 
-    p.progress_bar = timed_progress_bar
+        def update(n=1):
+            result = original_update(n)
+
+            try:
+                emit_step(bar)
+            except Exception:
+                pass
+
+            return result
+
+        bar.update = update
+
+        return bar
+
+    p.progress_bar = hooked_progress_bar
 
     try:
         # Per-generation load boundary for the offload backend (e.g. reload a managed text encoder to
