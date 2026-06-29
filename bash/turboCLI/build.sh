@@ -35,6 +35,24 @@ commit="7e0414ca049d623c38d20daff5f4f428fd242ac4"
 diffusers="784fa62652fb2719d415830f918fc32a49ecc7a1"
 
 #--------------------------------------------------------------------------------------------------
+
+# NOTE: Pinned versions validated against the bundled Python 3.14.2 so a build six months from now
+# resolves the same stack.
+
+torch_version="2.12.1"
+torchvision_version="0.27.1"
+torchaudio_version="2.11.0"
+
+transformers_version="5.12.1"
+accelerate_version="1.14.0"
+peft_version="0.19.1"
+
+huggingface_hub_version="1.21.0"
+hf_xet_version="1.5.1"
+hf_transfer_version="0.1.9"
+safetensors_version="0.8.0"
+
+#--------------------------------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------------------------------
 
@@ -150,17 +168,26 @@ fi
 
 if [ "$1" = "cuda" ]; then
 
-    uv pip install torch torchvision torchaudio \
+    uv pip install \
+        "torch==$torch_version" "torchvision==$torchvision_version" \
+        "torchaudio==$torchaudio_version" \
         --index-url https://download.pytorch.org/whl/cu130
 
 elif [ "$1" = "mps" ]; then
 
-    uv pip install torch torchvision torchaudio
+    uv pip install \
+        "torch==$torch_version" "torchvision==$torchvision_version" \
+        "torchaudio==$torchaudio_version"
 else
-    uv pip install torch torchvision torchaudio \
+    uv pip install \
+        "torch==$torch_version" "torchvision==$torchvision_version" \
+        "torchaudio==$torchaudio_version" \
         --index-url https://download.pytorch.org/whl/cpu
 fi
 
-uv pip install --upgrade hf_transfer safetensors accelerate transformers peft \
-                         "huggingface_hub[hf_xet]" \
-                         "git+https://github.com/huggingface/diffusers@$diffusers"
+uv pip install \
+    "hf_transfer==$hf_transfer_version" "hf_xet==$hf_xet_version" \
+    "safetensors==$safetensors_version" "accelerate==$accelerate_version" \
+    "transformers==$transformers_version" "peft==$peft_version" \
+    "huggingface_hub==$huggingface_hub_version" \
+    "git+https://github.com/huggingface/diffusers@$diffusers"

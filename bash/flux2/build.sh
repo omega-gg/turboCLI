@@ -30,6 +30,8 @@ engine="flux2-4b"
 
 model="FLUX.2-klein-4B"
 
+commit="e7b7dc27f91deacad38e78976d1f2b499d76a294"
+
 dtype="default"
 
 #--------------------------------------------------------------------------------------------------
@@ -201,4 +203,5 @@ echo "Install in progress... The progress output might freeze"
 python -m runner.install \
        --engine "$engine" \
        --output "$model_path" \
-       --dtype "$dtype"
+       --dtype "$dtype" \
+       --revision "$commit"

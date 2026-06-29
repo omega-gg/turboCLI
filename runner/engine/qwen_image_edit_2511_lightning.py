@@ -37,7 +37,10 @@ MODEL = {"repository": "Qwen", "model": "Qwen-Image-Edit-2511"}
 # LoRA applied on load, found inside the model folder (the same file the install fetches).
 LIGHTNING = "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
 
-LORAS = [{"repository": "lightx2v/Qwen-Image-Edit-2511-Lightning", "file": LIGHTNING}]
+LORAS = [
+    {"repository": "lightx2v/Qwen-Image-Edit-2511-Lightning", "file": LIGHTNING,
+     "revision": "d74eba145674fd7e31b949324e148e21e7118abd"},
+]
 
 
 def loras(params):

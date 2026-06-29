@@ -30,6 +30,8 @@ engine="qwen-image-edit-2511"
 
 model="Qwen-Image-Edit-2511"
 
+commit="6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9"
+
 dtype="default"
 
 #--------------------------------------------------------------------------------------------------
@@ -203,4 +205,5 @@ echo "Install in progress... The progress output might freeze"
 python -m runner.install \
        --engine "$engine" \
        --output "$model_path" \
-       --dtype "$dtype"
+       --dtype "$dtype" \
+       --revision "$commit"

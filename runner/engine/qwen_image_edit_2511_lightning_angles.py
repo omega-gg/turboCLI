@@ -42,8 +42,10 @@ LIGHTNING = "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
 ANGLES    = "qwen-image-edit-2511-multiple-angles-lora.safetensors"
 
 LORAS = [
-    {"repository": "lightx2v/Qwen-Image-Edit-2511-Lightning", "file": LIGHTNING},
-    {"repository": "fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA", "file": ANGLES},
+    {"repository": "lightx2v/Qwen-Image-Edit-2511-Lightning", "file": LIGHTNING,
+     "revision": "d74eba145674fd7e31b949324e148e21e7118abd"},
+    {"repository": "fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA", "file": ANGLES,
+     "revision": "e3066224ab74263f4a5b6179cd1a3b0a15577e44"},
 ]
 
 

@@ -30,6 +30,8 @@ engine="z-image-turbo"
 
 model="Z-Image-Turbo"
 
+commit="04cc4abb7c5069926f75c9bfde9ef43d49423021"
+
 dtype="default"
 
 #--------------------------------------------------------------------------------------------------
@@ -201,4 +203,5 @@ echo "Install in progress... The progress output might freeze"
 python -m runner.install \
        --engine "$engine" \
        --output "$model_path" \
-       --dtype "$dtype"
+       --dtype "$dtype" \
+       --revision "$commit"

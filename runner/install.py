@@ -23,7 +23,8 @@
 # Model install front-end -- the install-side mirror of the run engines. One command installs
 # everything an engine needs: its base model plus any LoRAs it declares, into the model dir.
 #
-#   python -m runner.install --engine <name> [--model <M>] --output <dir> [--dtype default]
+#   python -m runner.install --engine <name> [--model <M>] --output <dir> [--dtype default] \
+#                            [--revision <ref>]
 #
 # `--model` is optional for engines that fix their own model at the module level (e.g.
 # qwen-image-edit-2511 and flux2-4b each declare MODEL["model"]); an engine that omits it leaves
@@ -80,6 +81,9 @@ def main():
     # (core._device_dtype picks it from the renderer), so "default" is the right install choice
     # unless you specifically want a smaller/larger on-disk copy.
     parser.add_argument("--dtype", default="default")
+    # --revision: pin the base model to a specific HF commit (SHA, tag, or branch). HF repos are
+    # mutable, so a pin makes the install reproducible. Omitted -> latest on the default branch.
+    parser.add_argument("--revision", default=None)
 
     args = parser.parse_args()
 
@@ -121,8 +125,10 @@ def main():
     # "auto" -- is what keeps the stock dtype here.
     torch_dtype = None if args.dtype == "default" else getattr(torch, args.dtype)
 
+    # `or None` so a blank --revision "" (e.g. an unset build.sh setting) means latest, not ref "".
     pipe = PipelineCls.from_pretrained(
         repositories[0],
+        revision=args.revision or None,
         torch_dtype=torch_dtype,
         use_safetensors=True,
         low_cpu_mem_usage=True,
@@ -141,7 +147,8 @@ def main():
 
         print("Downloading LoRA: %s" % lora["file"], flush=True)
 
-        hf_hub_download(repo_id=lora["repository"], filename=lora["file"], local_dir=args.output)
+        hf_hub_download(repo_id=lora["repository"], filename=lora["file"],
+                        revision=lora.get("revision") or None, local_dir=args.output)
 
         repositories.append(lora["repository"])
 
