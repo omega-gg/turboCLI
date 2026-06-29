@@ -3,7 +3,7 @@
 [![Discord](https://img.shields.io/discord/705770212485496852)](https://omega.gg/discord)
 [![LGPLv3](https://img.shields.io/badge/License-LGPLv3-blue.svg)](https://www.gnu.org/licenses/lgpl.html)
 
-turboCLI is a high-performance runner for generative models, with a focus on efficiency,
+turboCLI is a high performance runner for generative models, with a focus on efficiency,
 maintainability and simplicity.
 
 It can be used via CLI or embedded in a python application. It works sequentially or behind a
@@ -17,6 +17,10 @@ That's actually the original motivation for it. However, licensing this under LG
 right thing to do.
 
 - [Bash scripts](bash/README.md)
+
+## Custom backends
+
+- [turbo-comfy](https://omega.gg/turboCLI): CUDA high performance offloader
 
 ## Supported engines
 
