@@ -30,7 +30,7 @@ engine="flux2-4b"
 
 model="FLUX.2-klein-4B"
 
-dtype="bfloat16"
+dtype="default"
 
 #--------------------------------------------------------------------------------------------------
 # Functions
@@ -105,7 +105,8 @@ getPath()
 
 if [ $# -gt 3 ] \
    || \
-   [ $# -ge 2 -a "$2" != "bfloat16" -a "$2" != "float16" -a "$2" != "float32" ] \
+   [ $# -ge 2 -a "$2" != "default" \
+              -a "$2" != "bfloat16" -a "$2" != "float16" -a "$2" != "float32" ] \
    || \
    [ $# -ge 3 -a "$3" != "fast" ]; then
 
@@ -113,7 +114,7 @@ if [ $# -gt 3 ] \
     echo ""
     echo "engine: flux2-4b"
     echo ""
-    echo "dtype: bfloat16, float16, float32"
+    echo "dtype: default, bfloat16, float16, float32"
     echo ""
     echo "example:"
     echo "    build flux2-4b"

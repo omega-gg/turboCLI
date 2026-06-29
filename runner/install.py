@@ -23,7 +23,7 @@
 # Model install front-end -- the install-side mirror of the run engines. One command installs
 # everything an engine needs: its base model plus any LoRAs it declares, into the model dir.
 #
-#   python -m runner.install --engine <name> [--model <M>] --output <dir> [--dtype bfloat16]
+#   python -m runner.install --engine <name> [--model <M>] --output <dir> [--dtype default]
 #
 # `--model` is optional for engines that fix their own model at the module level (e.g.
 # qwen-image-edit-2511 and flux2-4b each declare MODEL["model"]); an engine that omits it leaves
@@ -75,7 +75,11 @@ def main():
     # --model: model name, e.g. FLUX.2-klein-4B; optional when the engine declares its own
     parser.add_argument("--model", default=None)
     parser.add_argument("--output", required=True)            # destination dir
-    parser.add_argument("--dtype", default="bfloat16")
+    # --dtype: "default" keeps the checkpoint's native dtype (no cast on save); a concrete dtype
+    # (bfloat16/float16/float32) re-casts the weights on disk. Run-time dtype is independent of this
+    # (core._device_dtype picks it from the renderer), so "default" is the right install choice
+    # unless you specifically want a smaller/larger on-disk copy.
+    parser.add_argument("--dtype", default="default")
 
     args = parser.parse_args()
 
@@ -112,9 +116,14 @@ def main():
 
     print("Prefetching model: %s" % name, flush=True)
 
+    # "default" -> None: diffusers loads each weight in its saved dtype (no cast). NOTE: this
+    # diffusers coerces a non-torch.dtype value (e.g. the string "auto") to float32, so None -- not
+    # "auto" -- is what keeps the stock dtype here.
+    torch_dtype = None if args.dtype == "default" else getattr(torch, args.dtype)
+
     pipe = PipelineCls.from_pretrained(
         repositories[0],
-        torch_dtype=getattr(torch, args.dtype),
+        torch_dtype=torch_dtype,
         use_safetensors=True,
         low_cpu_mem_usage=True,
     )
