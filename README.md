@@ -7,7 +7,7 @@ turboCLI is a high performance runner for generative models, with a focus on eff
 maintainability and simplicity.
 
 It can be used via CLI or embedded in a python application. It works sequentially or behind a
-server with fast starting times, cold or warm.
+server with fast starting times and inference speeds, cold or warm.
 
 Adding a new model should be just a few lines of code, in particular when it has a similar
 structure to what we already support.
