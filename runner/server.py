@@ -26,9 +26,10 @@
 # (load-or-reuse + run + save) lives in core.generate, shared with cli.py; this file owns only the
 # server-specific concerns: HTTP, locks, the latest-wins preemption id, and the idle watcher.
 #
-# Run as: python -m runner.server  (reads SKY_TURBOCLI_* env, set by server.sh).
+# Run as: python -m runner.server [--host H] [--port P] [--timeout S] [--range N] [--scan]
+# (server.sh passes these from its own settings).
 
-import os
+import argparse
 import time
 import socket
 import threading
@@ -43,14 +44,21 @@ from runner import core
 
 log = core.log
 
-HOST = os.environ["SKY_TURBOCLI_HOST"]
-PORT = int(os.environ["SKY_TURBOCLI_PORT"])
-
+_parser = argparse.ArgumentParser(prog="server", description="turboCLI generation server.")
+_parser.add_argument("--host", default="127.0.0.1")
+_parser.add_argument("--port", type=int, default=8080)
 # Clear the resident model after this many idle seconds (0 disables it).
-TIMEOUT = float(os.environ["SKY_TURBOCLI_TIMEOUT"])
+_parser.add_argument("--timeout", type=float, default=600.0)
+# Number of ports to try (starting at --port) when scanning for a free one.
+_parser.add_argument("--range", type=int, default=20)
+# Bind the first free port in [--port, --port + --range - 1] if the requested one is taken.
+_parser.add_argument("--scan", action="store_true")
+_args = _parser.parse_args()
 
-# Number of ports to try (starting at PORT) when scanning for a free one.
-RANGE = int(os.environ["SKY_TURBOCLI_RANGE"])
+HOST = _args.host
+PORT = _args.port
+TIMEOUT = _args.timeout
+RANGE = _args.range
 
 # Concurrency: requests run in their own threads (ThreadingHTTPServer) but only one generation
 # touches the GPU at a time (gpu_lock). Each request takes the next latest_id; an in-flight job
@@ -251,7 +259,7 @@ class Server(ThreadingHTTPServer):
 # [PORT, PORT + RANGE - 1]. The probe is a plain socket (no SO_REUSEADDR) so an in-use port
 # reliably fails, including on Windows where the server's allow_reuse_address would otherwise let
 # it bind a live port.
-if os.environ.get("SKY_TURBOCLI_SCAN") == "1":
+if _args.scan:
     for candidate in range(PORT, PORT + RANGE):
         probe = socket.socket()
 
