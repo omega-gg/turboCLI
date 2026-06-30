@@ -124,7 +124,7 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_Z_IMAGE:-$sky/turboCLI}"
+bin="${SKY_PATH_Z_IMAGE:-$sky/turbo}"
 
 bin_model="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image}"
 

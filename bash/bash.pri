@@ -1,5 +1,5 @@
 include(python/python.pri)
-include(turboCLI/turboCLI.pri)
+include(turbo/turbo.pri)
 include(z-image/z-image.pri)
 include(flux2/flux2.pri)
 include(qwen-image/qwen-image.pri)

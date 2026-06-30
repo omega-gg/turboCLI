@@ -26,7 +26,7 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-name="turboCLI"
+name="turbo"
 
 repository="https://github.com/omega-gg/turboCLI.git"
 

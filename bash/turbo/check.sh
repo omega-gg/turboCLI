@@ -100,7 +100,7 @@ fi
 # Check
 #--------------------------------------------------------------------------------------------------
 
-path="${SKY_PATH_TURBOCLI:-$sky/turboCLI}"
+path="${SKY_PATH_TURBOCLI:-$sky/turbo}"
 
 if [ ! -f "$path/.commit" ]; then
 
