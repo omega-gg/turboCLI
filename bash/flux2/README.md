@@ -1,6 +1,6 @@
-# [Bash](../README.md) flux2
+﻿# [Bash](../README.md) flux2
 
-### [build.sh](build.sh): Install a model into the model folder
+### [build.sh](build.sh) - Install a model into the model folder
 
 ```
 Usage: build [engine = flux2-4b] [dtype = bfloat16] [fast]
@@ -13,13 +13,13 @@ example:
     build flux2-4b
 ```
 
-### [check.sh](check.sh): Check the installed models
+### [check.sh](check.sh) - Check the installed models
 
 ```
 Usage: check [model]
 ```
 
-### [run.sh](run.sh): Generate an image from a text prompt
+### [run.sh](run.sh) - Generate an image from a text prompt
 
 ```
 Usage: run <prompt> <output image> [width = 512] [height = 512]
@@ -43,7 +43,7 @@ examples:
     run "knight in armor" output.png 512 512 cuda -1 4 sequential_cpu none none 8080
 ```
 
-### [run-image.sh](run-image.sh): Generate an image from a text prompt and reference images
+### [run-image.sh](run-image.sh) - Generate an image from a text prompt and reference images
 
 ```
 Usage: run-image <prompt> <input images> <output image>

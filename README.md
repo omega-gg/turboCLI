@@ -9,8 +9,8 @@ maintainability and simplicity.
 It can be used via CLI or embedded in a python application. It works sequentially or behind a
 server with fast starting times and inference speeds, cold or warm.
 
-Adding a new model should be just a few lines of code, in particular when it has a similar
-structure to what we already support.
+Adding a new model is a few lines of code, in particular when it has a similar structure to what we
+already support.
 
 turboCLI is a good baseline for client based applications like [turbopixel](https://omega.gg/turbopixel/sources).
 That's actually the original motivation for it. However, licensing this under LGPL sounds like the

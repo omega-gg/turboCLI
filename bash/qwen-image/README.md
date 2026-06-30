@@ -1,6 +1,6 @@
-# [Bash](../README.md) qwen-image
+﻿# [Bash](../README.md) qwen-image
 
-### [build.sh](build.sh): Install a model into the model folder
+### [build.sh](build.sh) - Install a model into the model folder
 
 ```
 Usage: build [engine = qwen-image-edit-2511] [dtype = bfloat16] [fast]
@@ -15,13 +15,13 @@ example:
     build qwen-image-edit-2511
 ```
 
-### [check.sh](check.sh): Check the installed models
+### [check.sh](check.sh) - Check the installed models
 
 ```
 Usage: check [model]
 ```
 
-### [run-image.sh](run-image.sh): Generate an image from a text prompt and reference images
+### [run-image.sh](run-image.sh) - Generate an image from a text prompt and reference images
 
 ```
 Usage: run-image <prompt> <input images> <output image>

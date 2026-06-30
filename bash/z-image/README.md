@@ -1,6 +1,6 @@
-# [Bash](../README.md) Z-Image
+﻿# [Bash](../README.md) Z-Image
 
-### [build.sh](build.sh): Install a model into the model folder
+### [build.sh](build.sh) - Install a model into the model folder
 
 ```
 Usage: build [engine = z-image-turbo] [dtype = bfloat16] [fast]
@@ -13,13 +13,13 @@ example:
     build z-image-turbo
 ```
 
-### [check.sh](check.sh): Check the installed models
+### [check.sh](check.sh) - Check the installed models
 
 ```
 Usage: check [model]
 ```
 
-### [run.sh](run.sh): Generate an image from a text prompt
+### [run.sh](run.sh) - Generate an image from a text prompt
 
 ```
 Usage: run <prompt> <output image> [width = 512] [height = 512]
