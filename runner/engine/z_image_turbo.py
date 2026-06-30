@@ -30,4 +30,6 @@ MODES    = ("generate",)
 CFG      = ("guidance_scale", 0.0)
 
 # Install (python -m runner.install): base model HF repo = "<repository>/<model>". No LoRAs.
-MODEL    = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo"}
+# "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.
+MODEL    = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo",
+            "revision": "04cc4abb7c5069926f75c9bfde9ef43d49423021"}

@@ -18,7 +18,11 @@ example:
 ### [check.sh](check.sh) - Check the installed models
 
 ```
-Usage: check [model]
+Usage: check [engine = qwen-image-edit-2511]
+
+engine: qwen-image-edit-2511
+        qwen-image-edit-2511-lightning
+        qwen-image-edit-2511-lightning-angles
 ```
 
 ### [run-image.sh](run-image.sh) - Generate an image from a text prompt and reference images

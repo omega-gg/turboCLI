@@ -33,4 +33,6 @@ MODES    = ("edit",)
 CFG      = ("true_cfg_scale", 1.0)
 
 # Install (python -m runner.install): the base model only, no LoRA.
-MODEL = {"repository": "Qwen", "model": "Qwen-Image-Edit-2511"}
+# "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.
+MODEL = {"repository": "Qwen", "model": "Qwen-Image-Edit-2511",
+         "revision": "6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9"}

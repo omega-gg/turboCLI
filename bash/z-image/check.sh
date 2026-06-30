@@ -23,6 +23,12 @@ set -e
 #==================================================================================================
 
 #--------------------------------------------------------------------------------------------------
+# Settings
+#--------------------------------------------------------------------------------------------------
+
+engine="z-image-turbo"
+
+#--------------------------------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------------------------------
 
@@ -43,18 +49,49 @@ getSky()
     esac
 }
 
-check()
+getOs()
 {
-    if [ ! -d "$1" ]; then
+    case `uname` in
+    MINGW*|MSYS*|CYGWIN*) os="windows";;
+    Darwin*)              os="macOS";;
+    Linux*)               os="linux";;
+    *)                    os="other";;
+    esac
 
-        return
+    type=`uname -m`
+
+    if [ $type = "x86_64" ]; then
+
+        if [ $os = "windows" ]; then
+
+            echo win64
+        else
+            echo $os
+        fi
+
+    elif [ $os = "windows" ]; then
+
+        echo win32
+    else
+        echo $os
+    fi
+}
+
+getPath()
+{
+    path="$1"
+
+    if [ "${path#/}" = "$path" ] && [ "${path#?:[\\/]}" = "$path" ]; then
+
+        path="$PWD/$path"
     fi
 
-    if [ -n "$models" ]; then
+    if [ "$os" = "windows" ]; then
 
-        models="$models,$1"
+        # NOTE: Python does not handle backslash.
+        cygpath -w "$path" | sed 's|\\|/|g'
     else
-        models="$1"
+        echo "$path"
     fi
 }
 
@@ -62,9 +99,13 @@ check()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# != 0 -a $# != 1 ]; then
+if [ $# -gt 1 ]; then
 
-    echo "Usage: check [model]"
+    echo "Usage: check [engine = $engine]"
+    echo ""
+    echo "engine: z-image-turbo"
+
+    exit 1
 fi
 
 #--------------------------------------------------------------------------------------------------
@@ -73,41 +114,40 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image}"
+bin="${SKY_PATH_Z_IMAGE:-$sky/turboCLI}"
+
+bin_model="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image}"
+
+python="${SKY_PATH_PYTHON:-$sky/python}"
+
+if [ $# -ge 1 ]; then engine="$1"; fi
+
+host=$(getOs)
+
+if [ $host = "win32" -o $host = "win64" ]; then
+
+    os="windows"
+else
+    os="default"
+fi
+
+output=$(getPath "$bin_model")
+
+#--------------------------------------------------------------------------------------------------
+# Environment
+#--------------------------------------------------------------------------------------------------
+
+case `uname` in
+    MINGW*|MSYS*|CYGWIN*) export PATH="$python:$PATH";;
+    *)                    export PATH="$python/bin:$PATH";;
+esac
+
+cd "$bin"
 
 #--------------------------------------------------------------------------------------------------
 # Check
 #--------------------------------------------------------------------------------------------------
 
-cd "$bin"
-
-models=""
-
-if [ $# = 1 ]; then
-
-    check "$1"
-
-    if [ -z "$models" ]; then
-
-        echo "$1 is not installed"
-
-        exit 1
-    else
-        echo "$1 is installed"
-
-        exit 0
-    fi
-fi
-
-check "Z-Image-Turbo"
-
-if [ -z "$models" ]; then
-
-    echo "No model is installed"
-
-    exit 1
-fi
-
-echo "$models"
-
-exit 0
+# NOTE: The model name and pinned revision live in the engine module; runner.check resolves them
+#       and validates the install on disk (no torch, so the bundled python is enough).
+python -m runner.check --engine "$engine" --output "$output"

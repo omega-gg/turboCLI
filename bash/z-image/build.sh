@@ -28,10 +28,6 @@ set -e
 
 engine="z-image-turbo"
 
-model="Z-Image-Turbo"
-
-commit="04cc4abb7c5069926f75c9bfde9ef43d49423021"
-
 dtype="default"
 
 #--------------------------------------------------------------------------------------------------
@@ -155,7 +151,7 @@ if [ $dtype = "float32" ]; then
     dtype="bfloat16"
 fi
 
-model_path=$(getPath "$bin_model/$model")
+output=$(getPath "$bin_model")
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -192,8 +188,6 @@ fi
 
 mkdir -p "$bin_model"
 
-rm -rf "$model_path"
-
 #--------------------------------------------------------------------------------------------------
 # Model
 #--------------------------------------------------------------------------------------------------
@@ -202,6 +196,5 @@ echo "Install in progress... The progress output might freeze"
 
 python -m runner.install \
        --engine "$engine" \
-       --output "$model_path" \
-       --dtype "$dtype" \
-       --revision "$commit"
+       --output "$output" \
+       --dtype "$dtype"

@@ -16,7 +16,9 @@ example:
 ### [check.sh](check.sh) - Check the installed models
 
 ```
-Usage: check [model]
+Usage: check [engine = flux2-4b]
+
+engine: flux2-4b
 ```
 
 ### [run.sh](run.sh) - Generate an image from a text prompt

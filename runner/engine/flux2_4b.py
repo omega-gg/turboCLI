@@ -31,4 +31,6 @@ MODES    = ("generate", "edit")             # wire values, same as the HTTP API
 CFG      = ("guidance_scale", 0.0)
 
 # Install (python -m runner.install): base model HF repo = "<repository>/<model>". No LoRAs.
-MODEL    = {"repository": "black-forest-labs", "model": "FLUX.2-klein-4B"}
+# "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.
+MODEL    = {"repository": "black-forest-labs", "model": "FLUX.2-klein-4B",
+            "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294"}

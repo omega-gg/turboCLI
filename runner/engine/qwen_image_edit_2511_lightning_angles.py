@@ -34,7 +34,9 @@ CFG      = ("true_cfg_scale", 1.0)
 
 # Install (python -m runner.install): the model + the lightning and angles LoRAs, into the model
 # folder.
-MODEL = {"repository": "Qwen", "model": "Qwen-Image-Edit-2511"}
+# "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.
+MODEL = {"repository": "Qwen", "model": "Qwen-Image-Edit-2511",
+         "revision": "6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9"}
 
 # LoRAs applied on load, found inside the model folder (the same files the install fetches).
 # "angles" only for <sks> prompts.

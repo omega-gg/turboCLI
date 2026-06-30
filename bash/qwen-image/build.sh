@@ -28,10 +28,6 @@ set -e
 
 engine="qwen-image-edit-2511"
 
-model="Qwen-Image-Edit-2511"
-
-commit="6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9"
-
 dtype="default"
 
 #--------------------------------------------------------------------------------------------------
@@ -157,7 +153,7 @@ if [ $dtype = "float32" ]; then
     dtype="bfloat16"
 fi
 
-model_path=$(getPath "$bin_model/$model")
+output=$(getPath "$bin_model")
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -194,8 +190,6 @@ fi
 
 mkdir -p "$bin_model"
 
-rm -rf "$model_path"
-
 #--------------------------------------------------------------------------------------------------
 # Model
 #--------------------------------------------------------------------------------------------------
@@ -204,6 +198,5 @@ echo "Install in progress... The progress output might freeze"
 
 python -m runner.install \
        --engine "$engine" \
-       --output "$model_path" \
-       --dtype "$dtype" \
-       --revision "$commit"
+       --output "$output" \
+       --dtype "$dtype"
