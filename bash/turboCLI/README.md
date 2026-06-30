@@ -1,4 +1,4 @@
-﻿# [Bash](../README.md) turboCLI
+# [Bash](../README.md) turboCLI
 
 ### [build.sh](build.sh) - Install turboCLI in the SKY_PATH_BIN folder
 

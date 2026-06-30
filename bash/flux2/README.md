@@ -1,4 +1,4 @@
-﻿# [Bash](../README.md) flux2
+# [Bash](../README.md) flux2
 
 ### [build.sh](build.sh) - Install a model into the model folder
 

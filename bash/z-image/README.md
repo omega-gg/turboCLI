@@ -1,4 +1,4 @@
-﻿# [Bash](../README.md) Z-Image
+# [Bash](../README.md) Z-Image
 
 ### [build.sh](build.sh) - Install a model into the model folder
 
