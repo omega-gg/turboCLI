@@ -3,11 +3,11 @@
 ### [build.sh](build.sh) - Install a model into the model folder
 
 ```
-Usage: build [engine = z-image-turbo] [dtype = bfloat16] [fast]
+Usage: build [engine = z-image-turbo] [dtype = default] [fast]
 
 engine: z-image-turbo
 
-dtype: bfloat16, float16, float32
+dtype: default, bfloat16, float16, float32
 
 example:
     build z-image-turbo

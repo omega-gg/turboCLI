@@ -3,13 +3,13 @@
 ### [build.sh](build.sh) - Install a model into the model folder
 
 ```
-Usage: build [engine = qwen-image-edit-2511] [dtype = bfloat16] [fast]
+Usage: build [engine = qwen-image-edit-2511] [dtype = default] [fast]
 
 engine: qwen-image-edit-2511
         qwen-image-edit-2511-lightning
         qwen-image-edit-2511-lightning-angles
 
-dtype: bfloat16, float16, float32
+dtype: default, bfloat16, float16, float32
 
 example:
     build qwen-image-edit-2511

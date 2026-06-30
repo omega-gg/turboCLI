@@ -3,11 +3,11 @@
 ### [build.sh](build.sh) - Install a model into the model folder
 
 ```
-Usage: build [engine = flux2-4b] [dtype = bfloat16] [fast]
+Usage: build [engine = flux2-4b] [dtype = default] [fast]
 
 engine: flux2-4b
 
-dtype: bfloat16, float16, float32
+dtype: default, bfloat16, float16, float32
 
 example:
     build flux2-4b
