@@ -148,6 +148,4 @@ cd "$bin"
 # Check
 #--------------------------------------------------------------------------------------------------
 
-# NOTE: The model name and pinned revision live in the engine module; runner.check resolves them
-#       and validates the install on disk (no torch, so the bundled python is enough).
 python -m runner.check --engine "$engine" --output "$output"
