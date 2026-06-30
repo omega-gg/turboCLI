@@ -24,6 +24,7 @@
 # everything an engine needs: its base model plus any LoRAs it declares, into the model dir.
 #
 #   python -m runner.install --engine <name> [--model <M>] --output <base-dir> [--dtype default]
+#   python -m runner.install --engine <name> --output <base-dir> --remove
 #
 # The base-model revision is pinned in the engine's MODEL["revision"] (not a CLI flag), and the
 # model is saved into "<base-dir>/<model>".
@@ -149,6 +150,8 @@ def main():
     # (core._device_dtype picks it from the renderer), so "default" is the right install choice
     # unless you specifically want a smaller/larger on-disk copy.
     parser.add_argument("--dtype", default="default")
+    # --remove: delete the engine's model directory (base model + any LoRAs in it) instead of installing.
+    parser.add_argument("--remove", action="store_true")
 
     args = parser.parse_args()
 
@@ -179,6 +182,16 @@ def main():
     revision = model.get("revision")
 
     out = os.path.join(args.output, name)
+
+    # --remove: drop the engine's model directory (the base model and any LoRAs it holds).
+    if args.remove:
+        if os.path.isdir(out):
+            shutil.rmtree(out, ignore_errors=True)
+            print("Removed %s" % name, flush=True)
+        else:
+            print("%s is not installed" % name, flush=True)
+
+        return
 
     # ".commit" is a small manifest: the base revision plus the LoRAs already installed (and their
     # revisions). It lets us keep an up-to-date base and fetch only the LoRAs an engine is missing.

@@ -18,6 +18,10 @@ right thing to do.
 
 - [Bash scripts](bash/README.md)
 
+## Contribute
+
+PR(s) are welcomed.
+
 ## Custom backends
 
 - [turbo-aimdo](https://omega.gg/turbo-aimdo) - High performance CUDA offloader
