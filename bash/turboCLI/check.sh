@@ -28,7 +28,7 @@ set -e
 
 version="3.14.2"
 
-commit="784fa62652fb2719d415830f918fc32a49ecc7a1"
+commit="b530bdf1ce969486d7c82eb3c172a180b43f1453"
 
 #--------------------------------------------------------------------------------------------------
 # Functions
@@ -102,18 +102,14 @@ fi
 
 path="${SKY_PATH_TURBOCLI:-$sky/turboCLI}"
 
-json=$(ls "$path"/.venv/Lib/site-packages/diffusers-*.dist-info/direct_url.json \
-          "$path"/.venv/lib/python*/site-packages/diffusers-*.dist-info/direct_url.json \
-          2>/dev/null | head -n 1)
-
-if [ ! -f "$json" ]; then
+if [ ! -f "$path/.commit" ]; then
 
     echo "turboCLI is not installed"
 
     exit 1
 fi
 
-install=$(sed -n 's/.*"commit_id":"\([^"]*\)".*/\1/p' "$json")
+install=$(cat "$path/.commit")
 
 if [ "$install" != "$commit" ]; then
 

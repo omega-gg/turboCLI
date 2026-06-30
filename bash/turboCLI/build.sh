@@ -32,7 +32,7 @@ repository="https://github.com/omega-gg/turboCLI.git"
 
 repository_aimdo="https://github.com/omega-gg/turbo-aimdo.git"
 
-commit="b530bdf1ce969486d7c82eb3c172a180b43f1453"
+commit="b530bdf1ce969486d7c82eb3c172a180b43f1453" # Also update in check.sh
 
 commit_aimdo="9cca3a2b1a39350fe57158d3af62ac3a077844ac"
 
@@ -74,6 +74,8 @@ clone()
     git fetch --depth 1 origin "$3"
 
     git checkout FETCH_HEAD
+
+    git rev-parse HEAD > .commit
 
     rm -rf .git
 
