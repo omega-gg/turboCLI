@@ -111,6 +111,10 @@ CFG      = ("guidance_scale", 0.0)
 MODEL    = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo"}
 ```
 
+## This is great, how can I support you ?
+
+Purchase turbopixel, activate auto-renew: https://get.omega.gg/turbopixel
+
 ## License
 
 Copyright (C) 2026-2026 turboCLI authors | https://omega.gg/turboCLI
