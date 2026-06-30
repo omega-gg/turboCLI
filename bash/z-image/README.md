@@ -3,7 +3,7 @@
 ### [build.sh](build.sh) - Install a model into the model folder
 
 ```
-Usage: build [engine = z-image-turbo] [dtype = default] [fast]
+Usage: build <engine> [dtype = default] [fast]
 
 engine: z-image-turbo
 

@@ -3,7 +3,7 @@
 ### [build.sh](build.sh) - Install a model into the model folder
 
 ```
-Usage: build [engine = qwen-image-edit-2511] [dtype = default] [fast]
+Usage: build <engine> [dtype = default] [fast]
 
 engine: qwen-image-edit-2511
         qwen-image-edit-2511-lightning

@@ -26,8 +26,6 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-engine="z-image-turbo"
-
 dtype="default"
 
 #--------------------------------------------------------------------------------------------------
@@ -101,14 +99,14 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -gt 3 ] \
+if [ $# -lt 1 -o $# -gt 3 ] \
    || \
    [ $# -ge 2 -a "$2" != "default" \
               -a "$2" != "bfloat16" -a "$2" != "float16" -a "$2" != "float32" ] \
    || \
    [ $# -ge 3 -a "$3" != "fast" ]; then
 
-    echo "Usage: build [engine = $engine] [dtype = $dtype] [fast]"
+    echo "Usage: build <engine> [dtype = $dtype] [fast]"
     echo ""
     echo "engine: z-image-turbo"
     echo ""
@@ -132,7 +130,7 @@ bin_model="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
-if [ $# -ge 1 ]; then engine="$1"; fi
+engine="$1"
 
 if [ $# -ge 2 ]; then dtype="$2"; fi
 
