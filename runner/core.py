@@ -477,8 +477,6 @@ def generate(params, emit, should_stop=None):
     except Exception:
         pass
 
-    emit("  0%%|step 0/%d (00:00)" % inference)
-
     # We want one clean line per step carrying the SAME elapsed/rate as diffusers own tqdm bar. A
     # disabled bar computes no stats, so we keep the bar fully alive but route its rendering
     # to a sink, then read its format_dict and mirror the native figures.
@@ -522,6 +520,10 @@ def generate(params, emit, should_stop=None):
     # The step_end callback above fires BEFORE the update, which would lag the figures by one step.
     def hooked_progress_bar(*args, **kwargs_):
         bar = original_progress_bar(p, *args, **kwargs_)
+
+        # Heartbeat emitted here (at bar creation = real loop start, after text-encoding) so its
+        # 00:00 is truthful and not inflated by encode/warm-up time.
+        emit("  0%%|step 0/%d (00:00)" % inference)
 
         original_update = bar.update
 

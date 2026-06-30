@@ -225,6 +225,14 @@ class Handler(BaseHTTPRequestHandler):
 
                         return "cancel" if last_was_cancel else "supersede"
 
+                prompt = params.get("prompt", "")
+
+                log('generation started from %s: "%s" (%sx%s, %s, %s steps, %s)'
+                    % (self.client_address[0], prompt[:60],
+                       params.get("width", "?"), params.get("height", "?"),
+                       params.get("engine", "?"), params.get("inference", "?"),
+                       params.get("renderer", "?")))
+
                 core.generate(params, emit, should_stop)
         except Exception:
             tb = traceback.format_exc()
