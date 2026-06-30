@@ -20,7 +20,7 @@ right thing to do.
 
 ## Contribute
 
-PR(s) are welcomed.
+PR(s) are welcomed
 
 ## Custom backends
 
