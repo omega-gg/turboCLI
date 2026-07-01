@@ -34,7 +34,7 @@ repository_aimdo="https://github.com/omega-gg/turbo-aimdo.git"
 
 commit="3c9f298045448c7077254ee418c92a53ed58aaea" # Also update in check.sh
 
-commit_aimdo="56d06f120713bf7fed35cb687d185ec8d40d2a09"
+commit_aimdo="4f8cc1ecec5f23c763bc3a62e39fb1c1bfd003f5"
 
 diffusers="784fa62652fb2719d415830f918fc32a49ecc7a1"
 
