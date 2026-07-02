@@ -34,7 +34,7 @@ repository_aimdo="https://github.com/omega-gg/turbo-aimdo.git"
 
 commit="6ad03b92984bd94f70d5dcbb35a6c1dd8bed4238" # Also update in check.sh
 
-commit_aimdo="4f8cc1ecec5f23c763bc3a62e39fb1c1bfd003f5"
+commit_aimdo="6180c0de4d62adb2ff3d775334b2223603eb2a79"
 
 diffusers="784fa62652fb2719d415830f918fc32a49ecc7a1"
 
@@ -57,6 +57,8 @@ hf_transfer_version="0.1.9"
 safetensors_version="0.8.0"
 
 comfy_aimdo_version="0.4.10"
+
+comfy_kitchen_version="0.2.16"
 
 #--------------------------------------------------------------------------------------------------
 # Functions
@@ -218,10 +220,12 @@ uv pip install \
     "git+https://github.com/huggingface/diffusers@$diffusers"
 
 #--------------------------------------------------------------------------------------------------
-# comfy-aimdo
+# comfy
 #--------------------------------------------------------------------------------------------------
 
 if [ "$1" = "cuda" ]; then
 
     uv pip install "comfy-aimdo==$comfy_aimdo_version"
 fi
+
+uv pip install "comfy-kitchen==$comfy_kitchen_version"
