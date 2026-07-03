@@ -32,7 +32,7 @@ repository="https://github.com/omega-gg/turboCLI.git"
 
 repository_aimdo="https://github.com/omega-gg/turbo-aimdo.git"
 
-commit="ee7790ef73d947bff01b6fc87177c3e97169d1fa" # Also update in check.sh
+commit="b767caa925c7845607b5eee12903a018170c20aa" # Also update in check.sh
 
 commit_aimdo="09438e402a772ac8b552ee70524ffc3ed75efabf"
 
