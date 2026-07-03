@@ -235,7 +235,7 @@ def _default_load(ctx, mod, params):
 
     if ctx.backend:
         return ctx.backend.load_pipe(
-            model, ctx.dtype, engine_type(mod), lora_files=lora_files or None
+            model, ctx.dtype, engine_type(mod), device=ctx.device, lora_files=lora_files or None
         )
 
     p = ctx.from_pretrained(mod.PIPELINE, params)
