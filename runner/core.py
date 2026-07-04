@@ -290,6 +290,108 @@ def release_pipe(reason):
     return True
 
 
+def install_encode_cache(pipe):
+    """Cache the text encoder's output by prompt: key each result on the encode call's full inputs,
+    hold it on CPU, and evict under host-RAM pressure. Host RAM is read via psutil --
+    psutil.virtual_memory().available below min(10GB, max(2GB, 10% of RAM)) triggers eviction, worst
+    entry first by 1.3**generation_age * cached_bytes with an LRU tiebreak. The embedding is kept on
+    the CPU and moved back to the compute device on a hit, which also frees the VRAM it would otherwise
+    pin and lets it count as host RAM for eviction.
+
+    diffusers encodes inside __call__ via self.encode_prompt; wrapping that one method means a repeated
+    prompt skips the encoder's forward entirely -- so with an idempotent model loader the un-run encoder
+    is never streamed in, leaving the diffusion model resident (a warm run spends ~0s on a cached
+    encode). The key is the call's FULL (args, kwargs): an argument that isn't cleanly hashable -- a
+    tensor/image, e.g. an image-conditioned edit encode -- makes the call uncacheable, so it never gets
+    a false hit. No-op if the pipe has no encode_prompt or the cache is already installed."""
+    real = getattr(pipe, "encode_prompt", None)
+
+    if real is None or getattr(pipe, "_encode_cache_installed", False):
+        return
+
+    import time
+    import bisect
+    import psutil
+
+    OLD_OOM_MULT = 1.3   # older generations weighted heavier for eviction
+    BASE_USAGE = 0.05    # floor per entry -- keeps zero-size entries LRU-ordered
+    cpu = torch.device("cpu")
+    target = min(10 * 1024 ** 3, max(2 * 1024 ** 3, psutil.virtual_memory().total * 0.10))
+
+    uncacheable = object()
+
+    def norm(v):
+        if v is None or isinstance(v, (str, int, float, bool)):
+            return v
+        if isinstance(v, (torch.device, torch.dtype)):
+            return str(v)
+        if isinstance(v, (list, tuple)):
+            parts = tuple(norm(x) for x in v)
+            return uncacheable if any(p is uncacheable for p in parts) else parts
+        return uncacheable
+
+    def key_of(args, kwargs):
+        a = tuple(norm(v) for v in args)
+        kw = tuple((k, norm(kwargs[k])) for k in sorted(kwargs))
+        if any(x is uncacheable for x in a) or any(v is uncacheable for _, v in kw):
+            return None
+        return (a, kw)
+
+    def move(obj, device):
+        if isinstance(obj, torch.Tensor):
+            return obj.to(device)
+        if isinstance(obj, (list, tuple)):
+            return type(obj)(move(o, device) for o in obj)
+        return obj
+
+    def nbytes(obj):
+        if isinstance(obj, torch.Tensor):
+            return obj.numel() * obj.element_size()
+        if isinstance(obj, (list, tuple)):
+            return sum(nbytes(o) for o in obj)
+        return 0
+
+    cache = {}   # key -> [cpu_value, bytes, timestamp, generation]
+    gen = [0]
+
+    def ram_release():
+        if psutil.virtual_memory().available >= target:
+            return
+        scored = []
+        for k, (_, sz, ts, g) in cache.items():
+            if g == gen[0]:                    # never evict this generation's own entries
+                continue
+            bisect.insort(scored, ((OLD_OOM_MULT ** (gen[0] - g)) * (sz + BASE_USAGE), ts, k))
+        while scored and psutil.virtual_memory().available < target:
+            cache.pop(scored.pop()[2], None)   # highest oom_score first
+
+    def cached_encode(*args, **kwargs):
+        key = key_of(args, kwargs)
+
+        if key is None:                        # tensor/image arg -> not safely cacheable
+            return real(*args, **kwargs)
+
+        gen[0] += 1
+        hit = cache.get(key)
+
+        if hit is not None:
+            cpu_value, sz, _, _ = hit
+            cache[key] = [cpu_value, sz, time.time(), gen[0]]
+            device = getattr(pipe, "_execution_device", None) or pipe.device
+            # embeds are read-only downstream (diffusers never mutates them), so hand back the stored
+            # tensor directly -- on a same-device hit this aliases it, deliberately, to skip a copy
+            return move(cpu_value, device)
+
+        out = real(*args, **kwargs)
+        cache[key] = [move(out, cpu), nbytes(out), time.time(), gen[0]]
+        ram_release()
+
+        return out
+
+    pipe.encode_prompt = cached_encode
+    pipe._encode_cache_installed = True
+
+
 def get_pipe(mod, params, emit):
     """Load-or-reuse the resident pipeline for this engine+config. Reuses when the key is
     unchanged, else releases and reloads (== server.sh get_pipe)."""
@@ -339,6 +441,11 @@ def get_pipe(mod, params, emit):
         p.enable_attention_slicing()
         p.vae.enable_slicing()
         p.vae.enable_tiling()
+
+    # Prompt-encode cache for the modes with no backend (none / model_cpu / sequential_cpu); a backend
+    # may install its own in prepare() instead.
+    if backend is None:
+        install_encode_cache(p)
 
     pipe = p
     pipe_key = key

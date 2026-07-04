@@ -55,6 +55,7 @@ huggingface_hub_version="1.21.0"
 hf_xet_version="1.5.1"
 hf_transfer_version="0.1.9"
 safetensors_version="0.8.0"
+psutil_version="7.2.2"
 
 comfy_aimdo_version="0.4.10"
 
@@ -162,14 +163,11 @@ clone "$name" "$repository" "$commit"
 
 cd "$name"
 
-if [ "$1" = "cuda" ]; then
+clone "temp" "$repository_aimdo" "$commit_aimdo"
 
-    clone "temp" "$repository_aimdo" "$commit_aimdo"
+mv "temp/aimdo" "backend"
 
-    mv "temp/aimdo" "backend"
-
-    rm -rf "temp"
-fi
+rm -rf "temp"
 
 #--------------------------------------------------------------------------------------------------
 # Activate
@@ -216,7 +214,7 @@ uv pip install \
     "hf_transfer==$hf_transfer_version" "hf_xet==$hf_xet_version" \
     "safetensors==$safetensors_version" "accelerate==$accelerate_version" \
     "transformers==$transformers_version" "peft==$peft_version" \
-    "huggingface_hub==$huggingface_hub_version" \
+    "huggingface_hub==$huggingface_hub_version" "psutil==$psutil_version" \
     "git+https://github.com/huggingface/diffusers@$diffusers"
 
 #--------------------------------------------------------------------------------------------------
