@@ -50,6 +50,9 @@ import traceback
 OFFLOAD_MODES = set()     # every backend/<mode>/ present (whether or not it initialised)
 OFFLOAD_BACKENDS = {}     # mode -> ready backend module (pre_torch_init succeeded + available())
 
+# Built-in (non-backend) placement strategies handled by Context.apply_offload().
+NATIVE_OFFLOADS = ("none", "model_cpu", "sequential_cpu")
+
 for _path in sorted(glob.glob(os.path.join("backend", "*", "__init__.py"))):
     _mode = os.path.basename(os.path.dirname(_path))
 
@@ -495,6 +498,14 @@ def generate(params, emit, should_stop=None):
             emit("ERROR: %s offload does not support engine '%s'" % (cuda_offload, engine))
 
             return False
+
+    elif cuda_offload not in NATIVE_OFFLOADS:
+        available = ", ".join(sorted(set(NATIVE_OFFLOADS) | OFFLOAD_MODES))
+
+        emit("ERROR: unknown cuda_offload '%s' (no backend/%s/ found; available: %s)"
+             % (cuda_offload, cuda_offload, available))
+
+        return False
 
     p = get_pipe(mod, params, emit)
 
