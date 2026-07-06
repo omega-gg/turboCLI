@@ -24,7 +24,7 @@ PR(s) are welcomed
 
 ## Custom backends
 
-- [turbo-aimdo](https://omega.gg/turbo-aimdo) - High performance CUDA offloader
+- [turbo-offloader](https://omega.gg/turbo-offloader) - High performance offloader
 
 ## Supported engines
 
