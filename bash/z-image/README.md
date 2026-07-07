@@ -42,5 +42,5 @@ server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
     run "knight in armor" output.png
-    run "knight in armor" output.png 512 512 cuda -1 8 sequential_cpu none none 8080
+    run "knight in armor" output.png 512 512 cuda -1 8 offloader none none 8080
 ```

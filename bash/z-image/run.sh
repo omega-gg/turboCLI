@@ -139,7 +139,7 @@ if [ $# -lt 2 -o $# -gt 11 ] \
     echo ""
     echo "examples:"
     echo "    run \"knight in armor\" output.png"
-    echo "    run \"knight in armor\" output.png 512 512 cuda -1 8 sequential_cpu none none 8080"
+    echo "    run \"knight in armor\" output.png 512 512 cuda -1 8 offloader none none 8080"
 
     exit 1
 fi
