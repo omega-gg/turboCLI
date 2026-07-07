@@ -150,9 +150,9 @@ def parse_loras(spec):
 def resolve_model(mod, params):
     """The engine's on-disk model directory: <folder>/<the engine's own model name>.
 
-    A front-end provides only the base `folder` (where models are installed) plus the `engine`; which
-    checkpoint to load is the engine's own business (its MODEL["model"]), so no caller ever names the
-    model. Mirrors install.py, which saves each engine's model to "<output>/<model>"."""
+    A front-end provides only the base `folder` (where models are installed) plus the `engine`;
+    which checkpoint to load is the engine's own business (its MODEL["model"]), so no caller ever
+    names the model. Mirrors install.py, which saves each engine's model to "<output>/<model>"."""
     folder = params.get("folder")
 
     if not folder:
