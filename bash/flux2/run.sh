@@ -26,6 +26,8 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
+engine="flux2-4b"
+
 width="512"
 
 height="512"
@@ -113,14 +115,15 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 2 -o $# -gt 11 ] \
+if [ $# -lt 2 -o $# -gt 12 ] \
    || \
    [ $# -ge 5 -a "$5" != "cpu" -a "$5" != "cuda" -a "$5" != "mps" ] \
    || \
-   [ $# -ge 9 -a "$9" != "none" -a "$9" != "slice" ]; then
+   [ $# -ge 10 -a "${10}" != "none" -a "${10}" != "slice" ]; then
 
     echo "Usage: run <prompt> <output image> [width = $width] [height = $height]"
-    echo "           [renderer = $renderer] [seed = $seed] [inference = $inference]"
+    echo "           [renderer = $renderer]"
+    echo "           [engine = $engine] [seed = $seed] [inference = $inference]"
     echo "           [offload = $offload] [slicing = $slicing]"
     echo "           [loras = $loras]"
     echo "           [server]"
@@ -137,7 +140,7 @@ if [ $# -lt 2 -o $# -gt 11 ] \
     echo ""
     echo "examples:"
     echo "    run \"knight in armor\" output.png"
-    echo "    run \"knight in armor\" output.png 512 512 cuda -1 4 offloader none none 8080"
+    echo "    run \"knight in armor\" output.png 512 512 cuda flux2-4b -1 4 offloader none none 8080"
 
     exit 1
 fi
@@ -160,17 +163,19 @@ if [ $# -ge 4 ]; then height="$4"; fi
 
 if [ $# -ge 5 ]; then renderer="$5"; fi
 
-if [ $# -ge 6 ]; then seed="$6"; fi
+if [ $# -ge 6 ]; then engine="$6"; fi
 
-if [ $# -ge 7 ]; then inference="$7"; fi
+if [ $# -ge 7 ]; then seed="$7"; fi
 
-if [ $# -ge 8 ]; then offload="$8"; fi
+if [ $# -ge 8 ]; then inference="$8"; fi
 
-if [ $# -ge 9 ]; then slicing="$9"; fi
+if [ $# -ge 9 ]; then offload="$9"; fi
 
-if [ $# -ge 10 ]; then loras="${10}"; fi
+if [ $# -ge 10 ]; then slicing="${10}"; fi
 
-if [ $# -ge 11 ]; then server="${11}"; fi
+if [ $# -ge 11 ]; then loras="${11}"; fi
+
+if [ $# -ge 12 ]; then server="${12}"; fi
 
 host=$(getOs)
 
@@ -236,7 +241,7 @@ if [ -n "$server" ]; then
     stream=$(mktemp)
 
     curl -sS -N --max-time "3600" \
-                --data-urlencode "engine=flux2-4b" \
+                --data-urlencode "engine=$engine" \
                 --data-urlencode "mode=generate" \
                 --data-urlencode "folder=$folder" \
                 --data-urlencode "prompt=$1" \
@@ -306,12 +311,10 @@ fi
 # Run
 #--------------------------------------------------------------------------------------------------
 
-# NOTE: The single-shot generation now lives in the shared engine (runner/cli.py -> runner/core.py),
-#       the same code the server runs, instead of an inlined heredoc. The prompt is passed via argv
-#       (--prompt="$1"), so arbitrary text reaches Python untouched; the equals form keeps a prompt
-#       that starts with '-' from being read as a flag.
+# NOTE: The prompt is passed via argv (--prompt="$1"), so arbitrary text reaches Python untouched;
+#       the equals form keeps a prompt that starts with '-' from being read as a flag.
 python -m runner.cli \
-       --engine "flux2-4b" \
+       --engine "$engine" \
        --mode "generate" \
        --folder "$folder" \
        --prompt="$1" \

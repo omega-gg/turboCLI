@@ -30,7 +30,8 @@ engine: qwen-image-edit-2511
 ```
 Usage: run-image <prompt> <input images> <output image>
                  [width = 512] [height = 512]
-                 [renderer = cpu] [seed = -1] [inference = 4]
+                 [renderer = cpu]
+                 [engine = qwen-image-edit-2511-lightning-angles] [seed = -1] [inference = 4]
                  [offload = offloader] [slicing = none]
                  [loras = none]
                  [server]
@@ -49,5 +50,5 @@ server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
     run "knight in armor" shield.png,helmet.png output.png
-    run "knight in armor" shield.png,helmet.png output.png 512 512 cuda -1 4 offloader none none 8080
+    run "knight in armor" shield.png,helmet.png output.png 512 512 cuda qwen-image-edit-2511-lightning-angles -1 4 offloader none none 8080
 ```
