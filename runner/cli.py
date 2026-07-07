@@ -27,7 +27,7 @@
 # Python untouched -- no shell/source interpolation. (The wrappers pass --prompt="$1" with the
 # equals form so a prompt starting with '-' is not read as a flag.)
 #
-# Run as: python -m runner.cli --engine flux2-4b --mode generate --model ... (from the deployed
+# Run as: python -m runner.cli --engine flux2-4b --mode generate --folder ... (from the deployed
 # diffusion dir, which the wrapper cd's into so `engine` and `backend` are importable).
 
 import sys
@@ -40,7 +40,7 @@ def main():
 
     parser.add_argument("--engine", required=True)
     parser.add_argument("--mode", default="generate")
-    parser.add_argument("--model", required=True)
+    parser.add_argument("--folder", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--prompt", default="")
     parser.add_argument("--images", default="")
@@ -59,7 +59,7 @@ def main():
     params = {
         "engine": args.engine,
         "mode": args.mode,
-        "model": args.model,
+        "folder": args.folder,
         "prompt": args.prompt,
         "images": args.images,
         "loras": args.loras,

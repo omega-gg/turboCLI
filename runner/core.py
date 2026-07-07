@@ -147,6 +147,26 @@ def parse_loras(spec):
     return out
 
 
+def resolve_model(mod, params):
+    """The engine's on-disk model directory: <folder>/<the engine's own model name>.
+
+    A front-end provides only the base `folder` (where models are installed) plus the `engine`; which
+    checkpoint to load is the engine's own business (its MODEL["model"]), so no caller ever names the
+    model. Mirrors install.py, which saves each engine's model to "<output>/<model>"."""
+    folder = params.get("folder")
+
+    if not folder:
+        raise ValueError("no model folder provided")
+
+    spec = getattr(mod, "MODEL", None)
+    name = spec.get("model") if spec else None
+
+    if not name:
+        raise ValueError("engine '%s' declares no model to load" % mod.NAME)
+
+    return os.path.join(folder, name)
+
+
 class Ctx:
     """The firewall handed to an engine's load(): core helpers only, never backend internals.
 
@@ -155,10 +175,11 @@ class Ctx:
     user-supplied LoRA list [(path, weight), ...] (empty if none); an engine merges with its own.
     """
 
-    def __init__(self, renderer, offload, backend, loras=()):
+    def __init__(self, renderer, offload, backend, model, loras=()):
         self.renderer = renderer
         self.offload = offload
         self.backend = backend
+        self.model = model
         self.loras = list(loras)
         self.device, self.dtype = _device_dtype(renderer)
 
@@ -185,11 +206,11 @@ class Ctx:
 
         return p
 
-    def from_pretrained(self, spec, params):
+    def from_pretrained(self, spec):
         cls = _resolve(spec)
 
         return cls.from_pretrained(
-            params["model"],
+            self.model,
             torch_dtype=self.dtype,
             use_safetensors=True,
             low_cpu_mem_usage=True,
@@ -231,7 +252,7 @@ def _default_load(ctx, mod, params):
     """Default load for engines with no load() hook: build + place via the standard diffusers path.
     A module's optional loras(params) -> [(filename, weight), ...] is resolved against the model
     folder and applied first, then any user-supplied LoRAs (ctx.loras)."""
-    model = params["model"]
+    model = ctx.model
 
     preset = mod.loras(params) if hasattr(mod, "loras") else []
     lora_files = [(os.path.join(model, name), weight) for name, weight in preset] + ctx.loras
@@ -241,7 +262,7 @@ def _default_load(ctx, mod, params):
             model, ctx.dtype, engine_type(mod), device=ctx.device, lora_files=lora_files or None
         )
 
-    p = ctx.from_pretrained(mod.PIPELINE, params)
+    p = ctx.from_pretrained(mod.PIPELINE)
     ctx.apply_loras(p, lora_files)
 
     return ctx.apply_offload(p)
@@ -257,7 +278,7 @@ def _engine_key(mod, params):
     # pipe).
     loras = tuple(parse_loras(params.get("loras", "")))
 
-    return (mod.NAME, params["model"], params["renderer"],
+    return (mod.NAME, resolve_model(mod, params), params["renderer"],
             params["offload"], params["slicing"]) + extra + (loras,)
 
 
@@ -422,7 +443,8 @@ def get_pipe(mod, params, emit):
     backend = OFFLOAD_BACKENDS.get(params["offload"])
 
     ctx = Ctx(
-        renderer, params["offload"], backend, loras=parse_loras(params.get("loras", "")),
+        renderer, params["offload"], backend, resolve_model(mod, params),
+        loras=parse_loras(params.get("loras", "")),
     )
 
     loader = getattr(mod, "load", None)
@@ -462,7 +484,7 @@ def generate(params, emit, should_stop=None):
     """Run one generation. Returns True if an image was saved, False otherwise (validation error,
     cancelled, or superseded). Unexpected errors propagate to the caller (cli/server wraps them).
 
-    params: the same plain dict the HTTP API builds (engine, mode, model, prompt, output, images,
+    params: the same plain dict the HTTP API builds (engine, mode, folder, prompt, output, images,
     width, height, seed, inference, renderer, offload, slicing).
     emit: a line sink (print for cli, the socket stream for server).
     should_stop: optional callable -> None | "cancel" | "supersede" (server preemption; None for

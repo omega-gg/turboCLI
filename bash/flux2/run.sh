@@ -26,8 +26,6 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-model="FLUX.2-klein-4B"
-
 width="512"
 
 height="512"
@@ -185,7 +183,7 @@ fi
 
 path=$(getPath "$2")
 
-model=$(getPath "$bin_model/$model")
+folder=$(getPath "$bin_model")
 
 #--------------------------------------------------------------------------------------------------
 # LoRAs
@@ -240,7 +238,7 @@ if [ -n "$server" ]; then
     curl -sS -N --max-time "3600" \
                 --data-urlencode "engine=flux2-4b" \
                 --data-urlencode "mode=generate" \
-                --data-urlencode "model=$model" \
+                --data-urlencode "folder=$folder" \
                 --data-urlencode "prompt=$1" \
                 --data-urlencode "output=$path" \
                 --data-urlencode "width=$width" \
@@ -315,7 +313,7 @@ fi
 python -m runner.cli \
        --engine "flux2-4b" \
        --mode "generate" \
-       --model "$model" \
+       --folder "$folder" \
        --prompt="$1" \
        --output "$path" \
        --width "$width" \

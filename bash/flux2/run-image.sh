@@ -26,8 +26,6 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-model="FLUX.2-klein-4B"
-
 width="512"
 
 height="512"
@@ -188,7 +186,7 @@ fi
 
 path=$(getPath "$3")
 
-model=$(getPath "$bin_model/$model")
+folder=$(getPath "$bin_model")
 
 #--------------------------------------------------------------------------------------------------
 # Images
@@ -262,7 +260,7 @@ if [ -n "$server" ]; then
     curl -sS -N --max-time "3600" \
                 --data-urlencode "engine=flux2-4b" \
                 --data-urlencode "mode=edit" \
-                --data-urlencode "model=$model" \
+                --data-urlencode "folder=$folder" \
                 --data-urlencode "prompt=$1" \
                 --data-urlencode "images=$images" \
                 --data-urlencode "output=$path" \
@@ -338,7 +336,7 @@ fi
 python -m runner.cli \
        --engine "flux2-4b" \
        --mode "edit" \
-       --model "$model" \
+       --folder "$folder" \
        --prompt="$1" \
        --images "$images" \
        --output "$path" \
