@@ -26,11 +26,11 @@
 #
 #   python -m runner.check --engine <name> --output <base-dir>
 #
-# A model is "installed" when "<base-dir>/<model>" exists, its ".commit" marker matches the engine's
-# MODEL["revision"], and every LoRA the engine declares is present. Anything else (missing, stale
-# revision, missing LoRA) reports "not installed" and exits 1, so a bumped revision triggers a
-# rebuild. Light by design: no torch/diffusers import, so it runs under the bundled python without
-# the venv. Run from the deployed diffusion dir so `engine` is importable.
+# A model is "installed" when "<base-dir>/<model>" exists, its ".commit" marker matches the
+# engine's MODEL["revision"], and every LoRA the engine declares is present. Anything else
+# (missing, stale revision, missing LoRA) reports "not installed" and exits 1, so a bumped
+# revision triggers a rebuild. Light by design: no torch/diffusers import, so it runs under the
+# bundled python without the venv. Run from the deployed diffusion dir so `engine` is importable.
 
 import os
 import sys
@@ -64,7 +64,8 @@ def main():
 
     path = os.path.join(args.output, name)
 
-    # Installed = model folder carries the expected revision (.commit) and every declared LoRA file.
+    # Installed = model folder carries the expected revision (.commit) and every declared LoRA
+    # file.
     if _installed(path, revision, getattr(mod, "LORAS", [])):
         print("%s is installed" % args.engine)
         sys.exit(0)

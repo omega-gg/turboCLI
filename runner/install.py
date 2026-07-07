@@ -37,10 +37,11 @@
 # LoRAs it uses (none / lightning / lightning + angles). Each engine module under runner/engine
 # declares its install needs (MODEL repo + optional LORAS list).
 #
-# Installs are selective via the "<model>/.commit" manifest (base revision + the installed LoRAs and
-# their revisions): a base already at the pinned revision is kept (no re-download, no torch import),
-# and only missing/stale LoRAs are fetched -- so installing qwen-image-edit-2511-lightning over an
-# existing qwen-image-edit-2511 just pulls the lightning LoRA. Removal is `rm -rf` on the model dir.
+# Installs are selective via the "<model>/.commit" manifest (base revision + the installed
+# LoRAs and their revisions): a base already at the pinned revision is kept (no re-download, no
+# torch import), and only missing/stale LoRAs are fetched -- so installing
+# qwen-image-edit-2511-lightning over an existing qwen-image-edit-2511 just pulls the lightning
+# LoRA. Removal is `rm -rf` on the model dir.
 #
 # Separate from the generation cli/server: install is ONLINE and needs no GPU, so this does NOT
 # import core (no offload-backend discovery / CUDA init). The wrapper install.sh keeps the env
@@ -144,13 +145,15 @@ def main():
     parser.add_argument("--engine", required=True)
     # --model: model name, e.g. FLUX.2-klein-4B; optional when the engine declares its own
     parser.add_argument("--model", default=None)
-    parser.add_argument("--output", required=True)            # base model dir; saved to <out>/<model>
+    # base model dir; saved to <out>/<model>
+    parser.add_argument("--output", required=True)
     # --dtype: "default" keeps the checkpoint's native dtype (no cast on save); a concrete dtype
-    # (bfloat16/float16/float32) re-casts the weights on disk. Run-time dtype is independent of this
-    # (core._device_dtype picks it from the renderer), so "default" is the right install choice
-    # unless you specifically want a smaller/larger on-disk copy.
+    # (bfloat16/float16/float32) re-casts the weights on disk. Run-time dtype is independent of
+    # this (core._device_dtype picks it from the renderer), so "default" is the right install
+    # choice unless you specifically want a smaller/larger on-disk copy.
     parser.add_argument("--dtype", default="default")
-    # --remove: delete the engine's model directory (base model + any LoRAs in it) instead of installing.
+    # --remove: delete the engine's model directory (base model + any LoRAs in it) instead of
+    # installing.
     parser.add_argument("--remove", action="store_true")
 
     args = parser.parse_args()
@@ -218,7 +221,8 @@ def main():
         shutil.rmtree(out, ignore_errors=True)
         os.makedirs(args.output, exist_ok=True)
 
-        # Heavy imports happen here (post argv-parse), so --help stays instant and bad args fail fast.
+        # Heavy imports happen here (post argv-parse), so --help stays instant and bad args fail
+        # fast.
         import gc
         import torch
 
@@ -233,7 +237,8 @@ def main():
         # not "auto" -- is what keeps the stock dtype here.
         torch_dtype = None if args.dtype == "default" else getattr(torch, args.dtype)
 
-        # `or None` so a blank revision (e.g. an engine that omits the pin) means latest, not ref "".
+        # `or None` so a blank revision (e.g. an engine that omits the pin) means latest, not ref
+        # "".
         pipe = PipelineCls.from_pretrained(
             base_repo,
             revision=revision or None,

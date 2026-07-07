@@ -317,17 +317,18 @@ def release_pipe(reason):
 def install_encode_cache(pipe):
     """Cache the text encoder's output by prompt: key each result on the encode call's full inputs,
     hold it on CPU, and evict under host-RAM pressure. Host RAM is read via psutil --
-    psutil.virtual_memory().available below min(10GB, max(2GB, 10% of RAM)) triggers eviction, worst
-    entry first by 1.3**generation_age * cached_bytes with an LRU tiebreak. The embedding is kept on
-    the CPU and moved back to the compute device on a hit, which also frees the VRAM it would otherwise
-    pin and lets it count as host RAM for eviction.
+    psutil.virtual_memory().available below min(10GB, max(2GB, 10% of RAM)) triggers eviction,
+    worst entry first by 1.3**generation_age * cached_bytes with an LRU tiebreak. The embedding
+    is kept on the CPU and moved back to the compute device on a hit, which also frees the VRAM
+    it would otherwise pin and lets it count as host RAM for eviction.
 
-    diffusers encodes inside __call__ via self.encode_prompt; wrapping that one method means a repeated
-    prompt skips the encoder's forward entirely -- so with an idempotent model loader the un-run encoder
-    is never streamed in, leaving the diffusion model resident (a warm run spends ~0s on a cached
-    encode). The key is the call's FULL (args, kwargs): an argument that isn't cleanly hashable -- a
-    tensor/image, e.g. an image-conditioned edit encode -- makes the call uncacheable, so it never gets
-    a false hit. No-op if the pipe has no encode_prompt or the cache is already installed."""
+    diffusers encodes inside __call__ via self.encode_prompt; wrapping that one method means a
+    repeated prompt skips the encoder's forward entirely -- so with an idempotent model loader
+    the un-run encoder is never streamed in, leaving the diffusion model resident (a warm run
+    spends ~0s on a cached encode). The key is the call's FULL (args, kwargs): an argument that
+    isn't cleanly hashable -- a tensor/image, e.g. an image-conditioned edit encode -- makes the
+    call uncacheable, so it never gets a false hit. No-op if the pipe has no encode_prompt or the
+    cache is already installed."""
     real = getattr(pipe, "encode_prompt", None)
 
     if real is None or getattr(pipe, "_encode_cache_installed", False):
@@ -402,8 +403,9 @@ def install_encode_cache(pipe):
             cpu_value, sz, _, _ = hit
             cache[key] = [cpu_value, sz, time.time(), gen[0]]
             device = getattr(pipe, "_execution_device", None) or pipe.device
-            # embeds are read-only downstream (diffusers never mutates them), so hand back the stored
-            # tensor directly -- on a same-device hit this aliases it, deliberately, to skip a copy
+            # embeds are read-only downstream (diffusers never mutates them), so hand back the
+            # stored tensor directly -- on a same-device hit this aliases it, deliberately, to skip
+            # a copy
             return move(cpu_value, device)
 
         out = real(*args, **kwargs)
@@ -467,8 +469,8 @@ def get_pipe(mod, params, emit):
         p.vae.enable_slicing()
         p.vae.enable_tiling()
 
-    # Prompt-encode cache for the modes with no backend (none / model_cpu / sequential_cpu); a backend
-    # may install its own in prepare() instead.
+    # Prompt-encode cache for the modes with no backend (none / model_cpu / sequential_cpu); a
+    # backend may install its own in prepare() instead.
     if backend is None:
         install_encode_cache(p)
 
