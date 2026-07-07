@@ -51,7 +51,7 @@ def main():
     parser.add_argument("--seed", default="-1")
     parser.add_argument("--inference", default="4")
     parser.add_argument("--renderer", default="cpu")
-    parser.add_argument("--cuda_offload", default="sequential_cpu")
+    parser.add_argument("--offload", default="sequential_cpu")
     parser.add_argument("--slicing", default="none")
 
     args = parser.parse_args()
@@ -69,7 +69,7 @@ def main():
         "seed": args.seed,
         "inference": args.inference,
         "renderer": args.renderer,
-        "cuda_offload": args.cuda_offload,
+        "offload": args.offload,
         "slicing": args.slicing,
     }
 

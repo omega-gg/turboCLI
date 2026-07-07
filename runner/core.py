@@ -96,7 +96,7 @@ def log(message):
 #--------------------------------------------------------------------------------------------------
 
 # The currently loaded pipeline and the key it was loaded with:
-# (name, model, renderer, cuda_offload, slicing) + engine.extra_key(params).
+# (name, model, renderer, offload, slicing) + engine.extra_key(params).
 pipe = None
 pipe_key = None
 
@@ -155,9 +155,9 @@ class Ctx:
     user-supplied LoRA list [(path, weight), ...] (empty if none); an engine merges with its own.
     """
 
-    def __init__(self, renderer, cuda_offload, backend, loras=()):
+    def __init__(self, renderer, offload, backend, loras=()):
         self.renderer = renderer
-        self.cuda_offload = cuda_offload
+        self.offload = offload
         self.backend = backend
         self.loras = list(loras)
         self.device, self.dtype = _device_dtype(renderer)
@@ -199,7 +199,7 @@ class Ctx:
     def apply_offload(self, p):
         """The shared non-backend placement (none / model_cpu / sequential_cpu). No-op intent for a
         backend pipe, which the backend already placed."""
-        device, offload = self.device, self.cuda_offload
+        device, offload = self.device, self.offload
 
         if device == "cuda":
             if offload == "model_cpu":
@@ -258,7 +258,7 @@ def _engine_key(mod, params):
     loras = tuple(parse_loras(params.get("loras", "")))
 
     return (mod.NAME, params["model"], params["renderer"],
-            params["cuda_offload"], params["slicing"]) + extra + (loras,)
+            params["offload"], params["slicing"]) + extra + (loras,)
 
 
 def release_pipe(reason):
@@ -410,7 +410,7 @@ def get_pipe(mod, params, emit):
     if reload:
         release_pipe("config changed")
 
-    emit("loading %s model (%s / %s)..." % (mod.NAME, params["renderer"], params["cuda_offload"]))
+    emit("loading %s model (%s / %s)..." % (mod.NAME, params["renderer"], params["offload"]))
 
     renderer = params["renderer"]
 
@@ -419,10 +419,10 @@ def get_pipe(mod, params, emit):
     elif renderer == "mps":
         log("GPU: Apple MPS")
 
-    backend = OFFLOAD_BACKENDS.get(params["cuda_offload"])
+    backend = OFFLOAD_BACKENDS.get(params["offload"])
 
     ctx = Ctx(
-        renderer, params["cuda_offload"], backend, loras=parse_loras(params.get("loras", "")),
+        renderer, params["offload"], backend, loras=parse_loras(params.get("loras", "")),
     )
 
     loader = getattr(mod, "load", None)
@@ -463,7 +463,7 @@ def generate(params, emit, should_stop=None):
     cancelled, or superseded). Unexpected errors propagate to the caller (cli/server wraps them).
 
     params: the same plain dict the HTTP API builds (engine, mode, model, prompt, output, images,
-    width, height, seed, inference, renderer, cuda_offload, slicing).
+    width, height, seed, inference, renderer, offload, slicing).
     emit: a line sink (print for cli, the socket stream for server).
     should_stop: optional callable -> None | "cancel" | "supersede" (server preemption; None for
     cli).
@@ -483,27 +483,27 @@ def generate(params, emit, should_stop=None):
 
         return False
 
-    cuda_offload = params["cuda_offload"]
+    offload = params["offload"]
 
     # Offload backends are validated generically so this names no specific backend.
-    if cuda_offload in OFFLOAD_MODES:
-        backend = OFFLOAD_BACKENDS.get(cuda_offload)
+    if offload in OFFLOAD_MODES:
+        backend = OFFLOAD_BACKENDS.get(offload)
 
         if backend is None:
-            emit("ERROR: %s offload unavailable (backend not installed)" % cuda_offload)
+            emit("ERROR: %s offload unavailable (backend not installed)" % offload)
 
             return False
 
         if not backend.supports(engine_type(mod)):
-            emit("ERROR: %s offload does not support engine '%s'" % (cuda_offload, engine))
+            emit("ERROR: %s offload does not support engine '%s'" % (offload, engine))
 
             return False
 
-    elif cuda_offload not in NATIVE_OFFLOADS:
+    elif offload not in NATIVE_OFFLOADS:
         available = ", ".join(sorted(set(NATIVE_OFFLOADS) | OFFLOAD_MODES))
 
-        emit("ERROR: unknown cuda_offload '%s' (no backend/%s/ found; available: %s)"
-             % (cuda_offload, cuda_offload, available))
+        emit("ERROR: unknown offload '%s' (no backend/%s/ found; available: %s)"
+             % (offload, offload, available))
 
         return False
 

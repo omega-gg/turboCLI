@@ -38,7 +38,7 @@ seed="-1"
 
 inference="4"
 
-cuda_offload="sequential_cpu"
+offload="sequential_cpu"
 
 slicing="none"
 
@@ -123,13 +123,13 @@ if [ $# -lt 2 -o $# -gt 11 ] \
 
     echo "Usage: run <prompt> <output image> [width = $width] [height = $height]"
     echo "           [renderer = $renderer] [seed = $seed] [inference = $inference]"
-    echo "           [cuda_offload = $cuda_offload] [slicing = $slicing]"
+    echo "           [offload = $offload] [slicing = $slicing]"
     echo "           [loras = $loras]"
     echo "           [server]"
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""
-    echo "cuda_offload: none, model_cpu, sequential_cpu, custom (turboCLI/backend folder)"
+    echo "offload: none, model_cpu, sequential_cpu, custom (turboCLI/backend folder)"
     echo ""
     echo "slicing: none, slice"
     echo ""
@@ -166,7 +166,7 @@ if [ $# -ge 6 ]; then seed="$6"; fi
 
 if [ $# -ge 7 ]; then inference="$7"; fi
 
-if [ $# -ge 8 ]; then cuda_offload="$8"; fi
+if [ $# -ge 8 ]; then offload="$8"; fi
 
 if [ $# -ge 9 ]; then slicing="$9"; fi
 
@@ -248,7 +248,7 @@ if [ -n "$server" ]; then
                 --data-urlencode "seed=$seed" \
                 --data-urlencode "inference=$inference" \
                 --data-urlencode "renderer=$renderer" \
-                --data-urlencode "cuda_offload=$cuda_offload" \
+                --data-urlencode "offload=$offload" \
                 --data-urlencode "slicing=$slicing" \
                 --data-urlencode "loras=$loras" \
                 "$base/generate" | tee "$stream"
@@ -323,6 +323,6 @@ python -m runner.cli \
        --seed "$seed" \
        --inference "$inference" \
        --renderer "$renderer" \
-       --cuda_offload "$cuda_offload" \
+       --offload "$offload" \
        --slicing "$slicing" \
        --loras "$loras"
