@@ -38,7 +38,7 @@ seed="-1"
 
 inference="4"
 
-offload="sequential_cpu"
+offload="offloader"
 
 slicing="none"
 
@@ -129,7 +129,7 @@ if [ $# -lt 2 -o $# -gt 11 ] \
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""
-    echo "offload: none, model_cpu, sequential_cpu, custom (turboCLI/backend folder)"
+    echo "offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)"
     echo ""
     echo "slicing: none, slice"
     echo ""

@@ -26,13 +26,13 @@ engine: flux2-4b
 ```
 Usage: run <prompt> <output image> [width = 512] [height = 512]
            [renderer = cpu] [seed = -1] [inference = 4]
-           [offload = sequential_cpu] [slicing = none]
+           [offload = offloader] [slicing = none]
            [loras = none]
            [server]
 
 renderer: cpu, cuda, mps
 
-offload: none, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
+offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
 
 slicing: none, slice
 
@@ -51,7 +51,7 @@ examples:
 Usage: run-image <prompt> <input images> <output image>
                  [width = 512] [height = 512]
                  [renderer = cpu] [seed = -1] [inference = 4]
-                 [offload = sequential_cpu] [slicing = none]
+                 [offload = offloader] [slicing = none]
                  [loras = none]
                  [server]
 
@@ -59,7 +59,7 @@ input images: separated by a comma, 4 maximum
 
 renderer: cpu, cuda, mps
 
-offload: none, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
+offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
 
 slicing: none, slice
 
