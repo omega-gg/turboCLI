@@ -264,7 +264,7 @@ if [ -n "$server" ]; then
 
     curl -sS -N --max-time "3600" \
                 --data-urlencode "engine=$engine" \
-                --data-urlencode "mode=edit" \
+                --data-urlencode "mode=image-to-image" \
                 --data-urlencode "folder=$folder" \
                 --data-urlencode "prompt=$1" \
                 --data-urlencode "images=$images" \
@@ -338,7 +338,7 @@ fi
 #       the equals form keeps a prompt that starts with '-' from being read as a flag.
 python -m runner.cli \
        --engine "$engine" \
-       --mode "edit" \
+       --mode "image-to-image" \
        --folder "$folder" \
        --prompt="$1" \
        --images "$images" \

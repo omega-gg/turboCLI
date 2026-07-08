@@ -569,7 +569,7 @@ def generate(params, emit, should_stop=None):
     cfg_name, cfg_value = mod.CFG
     kwargs[cfg_name] = cfg_value
 
-    if mode == "edit":
+    if mode == "image-to-image":
         from PIL import Image, ImageOps
 
         image_list = [s.strip() for s in params.get("images", "").split(",") if s.strip()]

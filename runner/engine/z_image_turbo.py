@@ -26,7 +26,7 @@
 NAME     = "z-image-turbo"
 TYPE     = "z-image"
 PIPELINE = "diffusers:ZImagePipeline"
-MODES    = ("generate",)
+MODES    = ("text-to-image",)
 CFG      = ("guidance_scale", 0.0)
 INFERENCE = 8
 

@@ -28,7 +28,7 @@
 NAME     = "qwen-image-edit-2511-lightning"
 TYPE     = "qwen-image-edit"
 PIPELINE = "diffusers:QwenImageEditPlusPipeline"
-MODES    = ("edit",)
+MODES    = ("image-to-image",)
 CFG      = ("true_cfg_scale", 1.0)
 INFERENCE = 4
 

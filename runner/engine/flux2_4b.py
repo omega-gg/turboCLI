@@ -27,7 +27,7 @@
 NAME     = "flux2-4b"
 TYPE     = "flux2"
 PIPELINE = "diffusers:Flux2KleinPipeline"   # resolved lazily by core on first load
-MODES    = ("generate", "edit")             # wire values, same as the HTTP API
+MODES    = ("text-to-image", "image-to-image")   # wire values, same as the HTTP API
 CFG      = ("guidance_scale", 0.0)
 INFERENCE = 4
 
