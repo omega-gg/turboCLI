@@ -26,8 +26,6 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-engine="qwen-image-edit-2511-lightning-angles"
-
 width="512"
 
 height="512"
@@ -115,16 +113,16 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 3 -o $# -gt 13 ] \
+if [ $# -lt 4 -o $# -gt 13 ] \
    || \
-   [ $# -ge 6 -a "$6" != "cpu" -a "$6" != "cuda" -a "$6" != "mps" ] \
+   [ $# -ge 7 -a "$7" != "cpu" -a "$7" != "cuda" -a "$7" != "mps" ] \
    || \
    [ $# -ge 11 -a "${11}" != "none" -a "${11}" != "slice" ]; then
 
-    echo "Usage: run-image <prompt> <input images> <output image>"
+    echo "Usage: run-image <engine> <prompt> <input images> <output image>"
     echo "                 [width = $width] [height = $height]"
     echo "                 [renderer = $renderer]"
-    echo "                 [engine = $engine] [seed = $seed] [inference = $inference]"
+    echo "                 [seed = $seed] [inference = $inference]"
     echo "                 [offload = $offload] [slicing = $slicing]"
     echo "                 [loras = $loras]"
     echo "                 [server]"
@@ -142,8 +140,8 @@ if [ $# -lt 3 -o $# -gt 13 ] \
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    run \"knight in armor\" shield.png,helmet.png output.png"
-    echo "    run \"knight in armor\" shield.png,helmet.png output.png 512 512 cuda qwen-image-edit-2511-lightning-angles -1 4 offloader none none 8080"
+    echo "    run qwen-image-edit-2511-lightning-angles \"knight in armor\" shield.png,helmet.png output.png"
+    echo "    run qwen-image-edit-2511-lightning-angles \"knight in armor\" shield.png,helmet.png output.png 512 512 cuda -1 4 offloader none none 8080"
 
     exit 1
 fi
@@ -160,13 +158,13 @@ bin_model="${SKY_PATH_QWEN_IMAGE_MODEL:-$sky/turbo-model}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
-if [ $# -ge 4 ]; then width="$4"; fi
+if [ $# -ge 1 ]; then engine="$1"; fi
 
-if [ $# -ge 5 ]; then height="$5"; fi
+if [ $# -ge 5 ]; then width="$5"; fi
 
-if [ $# -ge 6 ]; then renderer="$6"; fi
+if [ $# -ge 6 ]; then height="$6"; fi
 
-if [ $# -ge 7 ]; then engine="$7"; fi
+if [ $# -ge 7 ]; then renderer="$7"; fi
 
 if [ $# -ge 8 ]; then seed="$8"; fi
 
@@ -189,7 +187,7 @@ else
     os="default"
 fi
 
-path=$(getPath "$3")
+path=$(getPath "$4")
 
 folder=$(getPath "$bin_model")
 
@@ -203,7 +201,7 @@ temp=$IFS
 
 IFS="$separator"
 
-for p in $2; do
+for p in $3; do
 
     image=$(getPath "$p")
 
@@ -266,7 +264,7 @@ if [ -n "$server" ]; then
                 --data-urlencode "engine=$engine" \
                 --data-urlencode "mode=image-to-image" \
                 --data-urlencode "folder=$folder" \
-                --data-urlencode "prompt=$1" \
+                --data-urlencode "prompt=$2" \
                 --data-urlencode "images=$images" \
                 --data-urlencode "loras=$loras" \
                 --data-urlencode "output=$path" \
@@ -334,13 +332,13 @@ fi
 # Run
 #--------------------------------------------------------------------------------------------------
 
-# NOTE: The prompt is passed via argv (--prompt="$1"), so arbitrary text reaches Python untouched;
+# NOTE: The prompt is passed via argv (--prompt="$2"), so arbitrary text reaches Python untouched;
 #       the equals form keeps a prompt that starts with '-' from being read as a flag.
 python -m runner.cli \
        --engine "$engine" \
        --mode "image-to-image" \
        --folder "$folder" \
-       --prompt="$1" \
+       --prompt="$2" \
        --images "$images" \
        --loras "$loras" \
        --output "$path" \

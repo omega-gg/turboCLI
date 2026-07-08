@@ -24,9 +24,10 @@ engine: z-image-turbo
 ### [run.sh](run.sh) - Generate an image from a text prompt
 
 ```
-Usage: run <prompt> <output image> [width = 512] [height = 512]
+Usage: run <engine> <prompt> <output image>
+           [width = 512] [height = 512]
            [renderer = cpu]
-           [engine = z-image-turbo] [seed = -1] [inference = -1]
+           [seed = -1] [inference = -1]
            [offload = offloader] [slicing = none]
            [loras = none]
            [server]
@@ -42,6 +43,6 @@ loras: none, comma separated <path>@[weight]
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    run "knight in armor" output.png
-    run "knight in armor" output.png 512 512 cuda z-image-turbo -1 8 offloader none none 8080
+    run z-image-turbo "knight in armor" output.png
+    run z-image-turbo "knight in armor" output.png 512 512 cuda -1 8 offloader none none 8080
 ```
