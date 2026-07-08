@@ -40,7 +40,7 @@ def main():
 
     parser.add_argument("--engine", required=True)
     parser.add_argument("--mode", default="generate")
-    parser.add_argument("--folder", required=True)
+    parser.add_argument("--folder", default=None)
     parser.add_argument("--output", required=True)
     parser.add_argument("--prompt", default="")
     parser.add_argument("--images", default="")

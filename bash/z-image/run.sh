@@ -153,7 +153,7 @@ sky="$(getSky)"
 
 bin="${SKY_PATH_Z_IMAGE:-$sky/turbo}"
 
-bin_model="${SKY_PATH_Z_IMAGE_MODEL:-$sky/z-image}"
+bin_model="${SKY_PATH_Z_IMAGE_MODEL:-$sky/turbo-model}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 

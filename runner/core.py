@@ -147,16 +147,21 @@ def parse_loras(spec):
     return out
 
 
+def default_folder():
+    """The default model folder: `turbo-model` beside the `turbo` install dir (the runner lives in
+    <install>/runner/, so models sit at the install's sibling turbo-model)."""
+    install = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(os.path.dirname(install), "turbo-model")
+
+
 def resolve_model(mod, params):
     """The engine's on-disk model directory: <folder>/<the engine's own model name>.
 
     A front-end provides only the base `folder` (where models are installed) plus the `engine`;
     which checkpoint to load is the engine's own business (its MODEL["model"]), so no caller ever
-    names the model. Mirrors install.py, which saves each engine's model to "<output>/<model>"."""
-    folder = params.get("folder")
-
-    if not folder:
-        raise ValueError("no model folder provided")
+    names the model. `folder` defaults to default_folder() (turbo-model beside the install) when
+    unset. Mirrors install.py, which saves each engine's model to "<output>/<model>"."""
+    folder = params.get("folder") or default_folder()
 
     spec = getattr(mod, "MODEL", None)
     name = spec.get("model") if spec else None
