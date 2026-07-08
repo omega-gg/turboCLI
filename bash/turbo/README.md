@@ -70,9 +70,8 @@ example:
 ### [text-to-image.sh](text-to-image.sh) - Generate an image from a text prompt
 
 ```
-Usage: text-to-image <engine> <prompt> <output image>
+Usage: text-to-image <engine> <renderer> <prompt> <output image>
                      [width = 512] [height = 512]
-                     [renderer = cpu]
                      [seed = -1] [inference = -1]
                      [offload = offloader] [slicing = none]
                      [loras = none]
@@ -92,16 +91,15 @@ loras: none, comma separated <path>@[weight]
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    text-to-image flux2-4b "knight in armor" output.png
-    text-to-image flux2-4b "knight in armor" output.png 512 512 cuda -1 4 offloader none none 8080
+    text-to-image flux2-4b cpu "knight in armor" output.png
+    text-to-image flux2-4b cuda "knight in armor" output.png 512 512 -1 4 offloader none none 8080
 ```
 
 ### [image-to-image.sh](image-to-image.sh) - Generate an image from a text prompt and reference images
 
 ```
-Usage: image-to-image <engine> <prompt> <input images> <output image>
+Usage: image-to-image <engine> <renderer> <prompt> <input images> <output image>
                       [width = 512] [height = 512]
-                      [renderer = cpu]
                       [seed = -1] [inference = -1]
                       [offload = offloader] [slicing = none]
                       [loras = none]
@@ -112,9 +110,9 @@ engine: flux2-4b
         qwen-image-edit-2511-lightning
         qwen-image-edit-2511-lightning-angles
 
-input images: separated by a comma, 4 maximum
-
 renderer: cpu, cuda, mps
+
+input images: separated by a comma, 4 maximum
 
 offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
 
@@ -125,6 +123,6 @@ loras: none, comma separated <path>@[weight]
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    image-to-image flux2-4b "knight in armor" shield.png,helmet.png output.png
-    image-to-image flux2-4b "knight in armor" shield.png,helmet.png output.png 512 512 cuda -1 4 offloader none none 8080
+    image-to-image flux2-4b cpu "knight in armor" shield.png,helmet.png output.png
+    image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 4 offloader none none 8080
 ```

@@ -30,8 +30,6 @@ width="512"
 
 height="512"
 
-renderer="cpu"
-
 seed="-1"
 
 inference="-1"
@@ -113,15 +111,14 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 3 -o $# -gt 12 ] \
+if [ $# -lt 4 -o $# -gt 12 ] \
    || \
-   [ $# -ge 6 -a "$6" != "cpu" -a "$6" != "cuda" -a "$6" != "mps" ] \
+   [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ] \
    || \
    [ $# -ge 10 -a "${10}" != "none" -a "${10}" != "slice" ]; then
 
-    echo "Usage: text-to-image <engine> <prompt> <output image>"
+    echo "Usage: text-to-image <engine> <renderer> <prompt> <output image>"
     echo "                     [width = $width] [height = $height]"
-    echo "                     [renderer = $renderer]"
     echo "                     [seed = $seed] [inference = $inference]"
     echo "                     [offload = $offload] [slicing = $slicing]"
     echo "                     [loras = $loras]"
@@ -141,8 +138,8 @@ if [ $# -lt 3 -o $# -gt 12 ] \
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    text-to-image flux2-4b \"knight in armor\" output.png"
-    echo "    text-to-image flux2-4b \"knight in armor\" output.png 512 512 cuda -1 4 offloader none none 8080"
+    echo "    text-to-image flux2-4b cpu \"knight in armor\" output.png"
+    echo "    text-to-image flux2-4b cuda \"knight in armor\" output.png 512 512 -1 4 offloader none none 8080"
 
     exit 1
 fi
@@ -159,13 +156,13 @@ bin_model="${SKY_PATH_TURBOCLI_MODEL:-$sky/turbo-model}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
-if [ $# -ge 1 ]; then engine="$1"; fi
+engine="$1"
 
-if [ $# -ge 4 ]; then width="$4"; fi
+renderer="$2"
 
-if [ $# -ge 5 ]; then height="$5"; fi
+if [ $# -ge 5 ]; then width="$5"; fi
 
-if [ $# -ge 6 ]; then renderer="$6"; fi
+if [ $# -ge 6 ]; then height="$6"; fi
 
 if [ $# -ge 7 ]; then seed="$7"; fi
 
@@ -188,7 +185,7 @@ else
     os="default"
 fi
 
-path=$(getPath "$3")
+path=$(getPath "$4")
 
 folder=$(getPath "$bin_model")
 
@@ -246,7 +243,7 @@ if [ -n "$server" ]; then
                 --data-urlencode "engine=$engine" \
                 --data-urlencode "mode=text-to-image" \
                 --data-urlencode "folder=$folder" \
-                --data-urlencode "prompt=$2" \
+                --data-urlencode "prompt=$3" \
                 --data-urlencode "output=$path" \
                 --data-urlencode "width=$width" \
                 --data-urlencode "height=$height" \
@@ -313,13 +310,13 @@ fi
 # Run
 #--------------------------------------------------------------------------------------------------
 
-# NOTE: The prompt is passed via argv (--prompt="$2"), so arbitrary text reaches Python untouched;
+# NOTE: The prompt is passed via argv (--prompt="$3"), so arbitrary text reaches Python untouched;
 #       the equals form keeps a prompt that starts with '-' from being read as a flag.
 python -m runner.cli \
        --engine "$engine" \
        --mode "text-to-image" \
        --folder "$folder" \
-       --prompt="$2" \
+       --prompt="$3" \
        --output "$path" \
        --width "$width" \
        --height "$height" \
