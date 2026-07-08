@@ -54,6 +54,9 @@ import shutil
 import argparse
 import importlib
 
+# LoRAs install into a "lora/" subfolder of the model dir (apart from the base checkpoint files).
+LORA_DIR = "lora"
+
 
 def _discover():
     # name -> engine module (cheap: modules hold constants only, no torch/diffusers at top).
@@ -128,7 +131,7 @@ def _installed(out, revision, loras):
         return False
 
     for lora in loras:
-        if not os.path.isfile(os.path.join(out, lora["file"])):
+        if not os.path.isfile(os.path.join(out, LORA_DIR, lora["file"])):
             return False
 
         want = lora.get("revision")
@@ -263,13 +266,13 @@ def main():
         file = lora["file"]
         want = lora.get("revision")
 
-        if os.path.isfile(os.path.join(out, file)) and manifest.get(file) == want:
+        if os.path.isfile(os.path.join(out, LORA_DIR, file)) and manifest.get(file) == want:
             print("LoRA already present: %s" % file, flush=True)
         else:
             print("Downloading LoRA: %s" % file, flush=True)
 
             hf_hub_download(repo_id=lora["repository"], filename=file,
-                            revision=want or None, local_dir=out)
+                            revision=want or None, local_dir=os.path.join(out, LORA_DIR))
 
             repositories.append(lora["repository"])
 

@@ -53,6 +53,9 @@ OFFLOAD_BACKENDS = {}     # mode -> ready backend module (pre_torch_init succeed
 # Built-in (non-backend) placement strategies handled by Context.apply_offload().
 NATIVE_OFFLOADS = ("none", "model_cpu", "sequential_cpu")
 
+# Engine-declared LoRAs live in this subfolder of the model dir (apart from the checkpoint).
+LORA_DIR = "lora"
+
 for _path in sorted(glob.glob(os.path.join("backend", "*", "__init__.py"))):
     _mode = os.path.basename(os.path.dirname(_path))
 
@@ -260,7 +263,8 @@ def _default_load(ctx, mod, params):
     model = ctx.model
 
     preset = mod.loras(params) if hasattr(mod, "loras") else []
-    lora_files = [(os.path.join(model, name), weight) for name, weight in preset] + ctx.loras
+    lora_dir = os.path.join(model, LORA_DIR)
+    lora_files = [(os.path.join(lora_dir, name), weight) for name, weight in preset] + ctx.loras
 
     if ctx.backend:
         return ctx.backend.load_pipe(
