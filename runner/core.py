@@ -24,7 +24,7 @@
 #  LGPL shared diffusion engine. What both front-ends (cli.py one-shot, server.py HTTP) share:
 #  offload-backend discovery, engine discovery, the resident-pipe cache, and one generation.
 #
-#  Engine-specific knowledge lives in engine/<name>.py (NAME/PIPELINE/MODES/CFG + optional
+#  Engine-specific knowledge lives in engine/<name>.py (ID/PIPELINE/MODES/CFG + optional
 #  extra_key()/loras()/load()); placement strategy lives behind the ../backend/<mode>/ seam
 #  (external, may be GPL) -- reached here only by string name + the fixed seam methods, never by
 #  importing a backend.
@@ -87,7 +87,7 @@ for _path in sorted(glob.glob(os.path.join(os.path.dirname(__file__), "engine", 
 
     _emod = importlib.import_module("%s.engine.%s" % (__package__, _file[:-3]))
 
-    ENGINES[_emod.NAME] = _emod
+    ENGINES[_emod.ID] = _emod
 
 
 def log(message):
@@ -170,7 +170,7 @@ def resolve_model(mod, params):
     name = spec.get("model") if spec else None
 
     if not name:
-        raise ValueError("engine '%s' declares no model to load" % mod.NAME)
+        raise ValueError("engine '%s' declares no model to load" % mod.ID)
 
     return os.path.join(folder, name)
 
@@ -250,10 +250,10 @@ class Ctx:
 
 def engine_type(mod):
     """The engine identity the backend seam understands (it keys the pipeline class + supports()
-    off this string). Defaults to the registry NAME; a module variant -- e.g. a LoRA preset that
-    registers under its own NAME but reuses a base engine -- overrides TYPE to keep speaking the
+    off this string). Defaults to the registry ID; a module variant -- e.g. a LoRA preset that
+    registers under its own ID but reuses a base engine -- overrides TYPE to keep speaking the
     seam's vocabulary while staying selectable as a distinct engine."""
-    return getattr(mod, "TYPE", mod.NAME)
+    return getattr(mod, "TYPE", mod.ID)
 
 
 def _default_load(ctx, mod, params):
@@ -287,7 +287,7 @@ def _engine_key(mod, params):
     # pipe).
     loras = tuple(parse_loras(params.get("loras", "")))
 
-    return (mod.NAME, resolve_model(mod, params), params["renderer"],
+    return (mod.ID, resolve_model(mod, params), params["renderer"],
             params["offload"], params["slicing"]) + extra + (loras,)
 
 
@@ -442,7 +442,7 @@ def get_pipe(mod, params, emit):
     if reload:
         release_pipe("config changed")
 
-    emit("loading %s model (%s / %s)..." % (mod.NAME, params["renderer"], params["offload"]))
+    emit("loading %s model (%s / %s)..." % (mod.ID, params["renderer"], params["offload"]))
 
     renderer = params["renderer"]
 

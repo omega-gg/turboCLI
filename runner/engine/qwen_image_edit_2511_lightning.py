@@ -25,7 +25,7 @@
 # TYPE stays "qwen-image-edit" so the backend seam treats it as a normal qwen-image-edit.
 # Standalone by design.
 
-NAME     = "qwen-image-edit-2511-lightning"
+ID       = "qwen-image-edit-2511-lightning"
 TYPE     = "qwen-image-edit"
 PIPELINE = "diffusers:QwenImageEditPlusPipeline"
 MODES    = ("image-to-image",)

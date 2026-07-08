@@ -69,7 +69,7 @@ def _discover():
             continue
 
         m = importlib.import_module("%s.engine.%s" % (__package__, f[:-3]))
-        engines[m.NAME] = m
+        engines[m.ID] = m
 
     return engines
 

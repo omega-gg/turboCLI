@@ -26,7 +26,7 @@
 # selectable as "qwen-image-edit-2511". For LoRA presets over the SAME model, see
 # qwen_image_edit_2511_lightning.py and qwen_image_edit_2511_lightning_angles.py.
 
-NAME     = "qwen-image-edit-2511"
+ID       = "qwen-image-edit-2511"
 TYPE     = "qwen-image-edit"
 PIPELINE = "diffusers:QwenImageEditPlusPipeline"
 MODES    = ("image-to-image",)

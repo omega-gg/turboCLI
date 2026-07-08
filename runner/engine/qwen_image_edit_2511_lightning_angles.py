@@ -26,7 +26,7 @@
 # stays "qwen-image-edit" so the backend seam treats it as a normal qwen-image-edit. Standalone by
 # design.
 
-NAME     = "qwen-image-edit-2511-lightning-angles"
+ID       = "qwen-image-edit-2511-lightning-angles"
 TYPE     = "qwen-image-edit"
 PIPELINE = "diffusers:QwenImageEditPlusPipeline"
 MODES    = ("image-to-image",)

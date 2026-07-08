@@ -24,7 +24,7 @@
 # (from_pretrained + apply_offload) and run path cover it, so there is no code here. See
 # PLAN-engine.md.
 
-NAME     = "flux2-4b"
+ID       = "flux2-4b"
 TYPE     = "flux2"
 PIPELINE = "diffusers:Flux2KleinPipeline"   # resolved lazily by core on first load
 MODES    = ("text-to-image", "image-to-image")   # wire values, same as the HTTP API
