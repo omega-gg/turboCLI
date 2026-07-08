@@ -10,8 +10,8 @@ Adding a new model is a few lines of code, in particular when it has a similar s
 already support.
 
 turboCLI is a good baseline for client based applications like [turbopixel](https://omega.gg/turbopixel/sources).
-That's actually the original motivation for it. However, licensing this under LGPL sounds like the
-right thing to do.
+That's the original motivation for it. However, licensing this under LGPL sounds like the right
+thing to do.
 
 - [Bash scripts](bash/README.md)
 
