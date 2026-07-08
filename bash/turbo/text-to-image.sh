@@ -138,7 +138,7 @@ if [ $# -lt 4 -o $# -gt 12 ] \
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    text-to-image flux2-4b cpu \"knight in armor\" output.png"
+    echo "    text-to-image flux2-4b cpu  \"knight in armor\" output.png"
     echo "    text-to-image flux2-4b cuda \"knight in armor\" output.png 512 512 -1 4 offloader none none 8080"
 
     exit 1

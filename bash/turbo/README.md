@@ -93,7 +93,7 @@ loras: none, comma separated <path>@[weight]
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    text-to-image flux2-4b cpu "knight in armor" output.png
+    text-to-image flux2-4b cpu  "knight in armor" output.png
     text-to-image flux2-4b cuda "knight in armor" output.png 512 512 -1 4 offloader none none 8080
 ```
 
