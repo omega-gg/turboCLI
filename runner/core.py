@@ -28,7 +28,6 @@
 #  extra_key()/loras()/load()); placement strategy lives behind the ../backend/<mode>/ seam
 #  (external, may be GPL) -- reached here only by string name + the fixed seam methods, never by
 #  importing a backend.
-#  See PLAN-engine.md.
 #==================================================================================================
 
 import os

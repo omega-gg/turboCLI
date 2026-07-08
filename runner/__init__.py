@@ -23,4 +23,4 @@
 # LGPL diffusion runner package. The shared generation core (core.py) is driven by two thin
 # front-ends -- cli.py (one-shot) and server.py (HTTP) -- and discovers per-engine modules under
 # engine/ and offload backends under ../backend/ (the latter external, possibly GPL, reached only
-# through the seam). See PLAN-engine.md.
+# through the seam).

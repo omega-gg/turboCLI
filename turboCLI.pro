@@ -6,6 +6,7 @@ OTHER_FILES += README.md  \
                LICENSE.md \
 
 OTHER_FILES += runner/__init__.py \
+               runner/check.py \
                runner/cli.py \
                runner/core.py \
                runner/install.py \
