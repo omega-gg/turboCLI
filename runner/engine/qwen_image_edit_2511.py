@@ -31,6 +31,7 @@ TYPE     = "qwen-image-edit"
 PIPELINE = "diffusers:QwenImageEditPlusPipeline"
 MODES    = ("edit",)
 CFG      = ("true_cfg_scale", 1.0)
+INFERENCE = 40
 
 # Install (python -m runner.install): the base model only, no LoRA.
 # "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.

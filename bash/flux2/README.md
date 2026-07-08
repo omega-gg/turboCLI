@@ -26,7 +26,7 @@ engine: flux2-4b
 ```
 Usage: run <prompt> <output image> [width = 512] [height = 512]
            [renderer = cpu]
-           [engine = flux2-4b] [seed = -1] [inference = 4]
+           [engine = flux2-4b] [seed = -1] [inference = -1]
            [offload = offloader] [slicing = none]
            [loras = none]
            [server]
@@ -52,7 +52,7 @@ examples:
 Usage: run-image <prompt> <input images> <output image>
                  [width = 512] [height = 512]
                  [renderer = cpu]
-                 [engine = flux2-4b] [seed = -1] [inference = 4]
+                 [engine = flux2-4b] [seed = -1] [inference = -1]
                  [offload = offloader] [slicing = none]
                  [loras = none]
                  [server]

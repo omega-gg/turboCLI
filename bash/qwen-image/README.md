@@ -31,7 +31,7 @@ engine: qwen-image-edit-2511
 Usage: run-image <prompt> <input images> <output image>
                  [width = 512] [height = 512]
                  [renderer = cpu]
-                 [engine = qwen-image-edit-2511-lightning-angles] [seed = -1] [inference = 4]
+                 [engine = qwen-image-edit-2511-lightning-angles] [seed = -1] [inference = -1]
                  [offload = offloader] [slicing = none]
                  [loras = none]
                  [server]

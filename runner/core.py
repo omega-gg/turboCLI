@@ -552,6 +552,10 @@ def generate(params, emit, should_stop=None):
 
     inference = int(params["inference"])
 
+    # -1 (the run-script default) means "use this engine's own default step count".
+    if inference < 0:
+        inference = getattr(mod, "INFERENCE", 4)
+
     prompt = params["prompt"]
 
     kwargs = dict(

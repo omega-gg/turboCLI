@@ -28,6 +28,7 @@ TYPE     = "z-image"
 PIPELINE = "diffusers:ZImagePipeline"
 MODES    = ("generate",)
 CFG      = ("guidance_scale", 0.0)
+INFERENCE = 8
 
 # Install (python -m runner.install): base model HF repo = "<repository>/<model>". No LoRAs.
 # "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.

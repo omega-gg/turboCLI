@@ -29,6 +29,7 @@ TYPE     = "flux2"
 PIPELINE = "diffusers:Flux2KleinPipeline"   # resolved lazily by core on first load
 MODES    = ("generate", "edit")             # wire values, same as the HTTP API
 CFG      = ("guidance_scale", 0.0)
+INFERENCE = 4
 
 # Install (python -m runner.install): base model HF repo = "<repository>/<model>". No LoRAs.
 # "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.

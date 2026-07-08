@@ -26,7 +26,7 @@ engine: z-image-turbo
 ```
 Usage: run <prompt> <output image> [width = 512] [height = 512]
            [renderer = cpu]
-           [engine = z-image-turbo] [seed = -1] [inference = 8]
+           [engine = z-image-turbo] [seed = -1] [inference = -1]
            [offload = offloader] [slicing = none]
            [loras = none]
            [server]

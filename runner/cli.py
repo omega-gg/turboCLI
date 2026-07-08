@@ -49,7 +49,7 @@ def main():
     parser.add_argument("--width", default="512")
     parser.add_argument("--height", default="512")
     parser.add_argument("--seed", default="-1")
-    parser.add_argument("--inference", default="4")
+    parser.add_argument("--inference", default="-1")
     parser.add_argument("--renderer", default="cpu")
     parser.add_argument("--offload", default="offloader")
     parser.add_argument("--slicing", default="none")

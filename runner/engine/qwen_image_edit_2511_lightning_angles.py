@@ -31,6 +31,7 @@ TYPE     = "qwen-image-edit"
 PIPELINE = "diffusers:QwenImageEditPlusPipeline"
 MODES    = ("edit",)
 CFG      = ("true_cfg_scale", 1.0)
+INFERENCE = 4
 
 # Install (python -m runner.install): the model + the lightning and angles LoRAs, into the model
 # folder.

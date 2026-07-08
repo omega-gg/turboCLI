@@ -36,7 +36,7 @@ renderer="cpu"
 
 seed="-1"
 
-inference="8"
+inference="-1"
 
 offload="offloader"
 
