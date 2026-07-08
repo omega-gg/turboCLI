@@ -4,11 +4,8 @@
 [![LGPLv3](https://img.shields.io/badge/License-LGPLv3-blue.svg)](https://www.gnu.org/licenses/lgpl.html)
 
 turboCLI is a high performance runner for generative models, with a focus on efficiency,
-maintainability and simplicity.
-
-It can be used via CLI or embedded in a python application. It works sequentially or behind a
-server with fast starting times and inference speeds, cold or warm.
-
+maintainability and simplicity. It can be used via CLI or embedded in a python application. It
+works sequentially or behind a server with fast starting times and inference speeds, cold or warm.
 Adding a new model is a few lines of code, in particular when it has a similar structure to what we
 already support.
 
