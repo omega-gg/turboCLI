@@ -26,7 +26,7 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-engine="qwen-image-edit-2511"
+dtype="default"
 
 #--------------------------------------------------------------------------------------------------
 # Functions
@@ -99,13 +99,26 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -gt 1 ]; then
+if [ $# -lt 1 -o $# -gt 3 ] \
+   || \
+   [ $# -ge 2 -a "$2" != "default" \
+              -a "$2" != "bfloat16" -a "$2" != "float16" -a "$2" != "float32" ] \
+   || \
+   [ $# -ge 3 -a "$3" != "fast" ]; then
 
-    echo "Usage: check [engine = $engine]"
+    echo "Usage: install <engine> [dtype = $dtype] [fast]"
     echo ""
-    echo "engine: qwen-image-edit-2511"
+    echo "engine: flux2-4b"
+    echo "        z-image-turbo"
+    echo "        qwen-image-edit-2511"
     echo "        qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511-lightning-angles"
+    echo ""
+    echo "dtype: default, bfloat16, float16, float32"
+    echo "       (bfloat16 is recommended for CUDA, float16 for Apple MPS)"
+    echo ""
+    echo "example:"
+    echo "    install flux2-4b"
 
     exit 1
 fi
@@ -116,13 +129,15 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_QWEN_IMAGE:-$sky/turbo}"
+bin="${SKY_PATH_TURBOCLI:-$sky/turbo}"
 
-bin_model="${SKY_PATH_QWEN_IMAGE_MODEL:-$sky/turbo-model}"
+bin_model="${SKY_PATH_TURBOCLI_MODEL:-$sky/turbo-model}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
-if [ $# -ge 1 ]; then engine="$1"; fi
+engine="$1"
+
+if [ $# -ge 2 ]; then dtype="$2"; fi
 
 host=$(getOs)
 
@@ -131,6 +146,12 @@ if [ $host = "win32" -o $host = "win64" ]; then
     os="windows"
 else
     os="default"
+fi
+
+# NOTE: Enforce bfloat16 on a float32 architecture.
+if [ $dtype = "float32" ]; then
+
+    dtype="bfloat16"
 fi
 
 output=$(getPath "$bin_model")
@@ -144,10 +165,39 @@ case `uname` in
     *)                    export PATH="$python/bin:$PATH";;
 esac
 
+export HF_HOME="$sky/cache/huggingface"
+
+export HF_HUB_ENABLE_HF_TRANSFER=1
+
+if [ "$3" = "fast" ]; then
+
+    # NOTE: This should improve download speeds.
+    export HF_XET_HIGH_PERFORMANCE=1
+fi
+
 cd "$bin"
 
+if [ -f ".venv/Scripts/activate" ]; then
+
+    # Windows / Git Bash
+    . ".venv/Scripts/activate"
+else
+    . ".venv/bin/activate"
+fi
+
 #--------------------------------------------------------------------------------------------------
-# Check
+# Clean
 #--------------------------------------------------------------------------------------------------
 
-python -m runner.check --engine "$engine" --output "$output"
+mkdir -p "$bin_model"
+
+#--------------------------------------------------------------------------------------------------
+# Model
+#--------------------------------------------------------------------------------------------------
+
+echo "Install in progress... The progress output might freeze"
+
+python -m runner.install \
+       --engine "$engine" \
+       --output "$output" \
+       --dtype "$dtype"

@@ -56,13 +56,12 @@ export SKY_PATH_BIN="$PWD/bin"
 cd bash/python
 sh build.sh default
 
-cd ../turboCLI
+cd ../turbo
 sh build.sh cpu
 
-cd ../z-image
-sh build.sh z-image-turbo bfloat16 fast
+sh install.sh z-image-turbo bfloat16 fast
 
-sh run.sh "a beautiful knight" out.png 512 512 cpu
+sh text-to-image.sh z-image-turbo "a beautiful knight" out.png 512 512 cpu
 ```
 
 ### CUDA
@@ -74,13 +73,12 @@ export SKY_PATH_BIN="$PWD/bin"
 cd bash/python
 sh build.sh default
 
-cd ../turboCLI
+cd ../turbo
 sh build.sh cuda
 
-cd ../z-image
-sh build.sh z-image-turbo bfloat16 fast
+sh install.sh z-image-turbo bfloat16 fast
 
-sh run.sh "a beautiful knight" out.png 512 512 cuda
+sh text-to-image.sh z-image-turbo "a beautiful knight" out.png 512 512 cuda
 ```
 
 ### Apple MPS
@@ -92,14 +90,13 @@ export SKY_PATH_BIN="$PWD/bin"
 cd bash/python
 sh build.sh default
 
-cd ../turboCLI
+cd ../turbo
 sh build.sh mps
 
-cd ../z-image
 # MPS prefers float16 (bfloat16 support is patchy)
-sh build.sh z-image-turbo float16 fast
+sh install.sh z-image-turbo float16 fast
 
-sh run.sh "a beautiful knight" out.png 512 512 mps
+sh text-to-image.sh z-image-turbo "a beautiful knight" out.png 512 512 mps
 ```
 
 ## Sample model

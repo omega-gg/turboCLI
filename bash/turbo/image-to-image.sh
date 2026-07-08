@@ -119,13 +119,13 @@ if [ $# -lt 4 -o $# -gt 13 ] \
    || \
    [ $# -ge 11 -a "${11}" != "none" -a "${11}" != "slice" ]; then
 
-    echo "Usage: run-image <engine> <prompt> <input images> <output image>"
-    echo "                 [width = $width] [height = $height]"
-    echo "                 [renderer = $renderer]"
-    echo "                 [seed = $seed] [inference = $inference]"
-    echo "                 [offload = $offload] [slicing = $slicing]"
-    echo "                 [loras = $loras]"
-    echo "                 [server]"
+    echo "Usage: image-to-image <engine> <prompt> <input images> <output image>"
+    echo "                      [width = $width] [height = $height]"
+    echo "                      [renderer = $renderer]"
+    echo "                      [seed = $seed] [inference = $inference]"
+    echo "                      [offload = $offload] [slicing = $slicing]"
+    echo "                      [loras = $loras]"
+    echo "                      [server]"
     echo ""
     echo "engine: flux2-4b"
     echo "        qwen-image-edit-2511"
@@ -145,8 +145,8 @@ if [ $# -lt 4 -o $# -gt 13 ] \
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    run flux2-4b \"knight in armor\" shield.png,helmet.png output.png"
-    echo "    run flux2-4b \"knight in armor\" shield.png,helmet.png output.png 512 512 cuda -1 4 offloader none none 8080"
+    echo "    image-to-image flux2-4b \"knight in armor\" shield.png,helmet.png output.png"
+    echo "    image-to-image flux2-4b \"knight in armor\" shield.png,helmet.png output.png 512 512 cuda -1 4 offloader none none 8080"
 
     exit 1
 fi

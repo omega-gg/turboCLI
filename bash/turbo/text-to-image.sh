@@ -119,13 +119,13 @@ if [ $# -lt 3 -o $# -gt 12 ] \
    || \
    [ $# -ge 10 -a "${10}" != "none" -a "${10}" != "slice" ]; then
 
-    echo "Usage: run <engine> <prompt> <output image>"
-    echo "           [width = $width] [height = $height]"
-    echo "           [renderer = $renderer]"
-    echo "           [seed = $seed] [inference = $inference]"
-    echo "           [offload = $offload] [slicing = $slicing]"
-    echo "           [loras = $loras]"
-    echo "           [server]"
+    echo "Usage: text-to-image <engine> <prompt> <output image>"
+    echo "                     [width = $width] [height = $height]"
+    echo "                     [renderer = $renderer]"
+    echo "                     [seed = $seed] [inference = $inference]"
+    echo "                     [offload = $offload] [slicing = $slicing]"
+    echo "                     [loras = $loras]"
+    echo "                     [server]"
     echo ""
     echo "engine: flux2-4b"
     echo "        z-image-turbo"
@@ -141,8 +141,8 @@ if [ $# -lt 3 -o $# -gt 12 ] \
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    run flux2-4b \"knight in armor\" output.png"
-    echo "    run flux2-4b \"knight in armor\" output.png 512 512 cuda -1 4 offloader none none 8080"
+    echo "    text-to-image flux2-4b \"knight in armor\" output.png"
+    echo "    text-to-image flux2-4b \"knight in armor\" output.png 512 512 cuda -1 4 offloader none none 8080"
 
     exit 1
 fi
