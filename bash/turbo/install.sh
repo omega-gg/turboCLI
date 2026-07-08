@@ -99,14 +99,12 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 1 -o $# -gt 3 ] \
+if [ $# -lt 1 -o $# -gt 2 ] \
    || \
    [ $# -ge 2 -a "$2" != "default" \
-              -a "$2" != "bfloat16" -a "$2" != "float16" -a "$2" != "float32" ] \
-   || \
-   [ $# -ge 3 -a "$3" != "fast" ]; then
+              -a "$2" != "bfloat16" -a "$2" != "float16" -a "$2" != "float32" ]; then
 
-    echo "Usage: install <engine> [dtype = $dtype] [fast]"
+    echo "Usage: install <engine> [dtype = $dtype]"
     echo ""
     echo "engine: flux2-4b"
     echo "        z-image-turbo"
@@ -169,11 +167,8 @@ export HF_HOME="$sky/cache/huggingface"
 
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
-if [ "$3" = "fast" ]; then
-
-    # NOTE: This should improve download speeds.
-    export HF_XET_HIGH_PERFORMANCE=1
-fi
+# NOTE: This should improve download speeds.
+export HF_XET_HIGH_PERFORMANCE=1
 
 cd "$bin"
 

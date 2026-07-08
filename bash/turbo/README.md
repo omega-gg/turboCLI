@@ -52,7 +52,7 @@ examples:
 ### [install.sh](install.sh) - Install a model into the model folder
 
 ```
-Usage: install <engine> [dtype = default] [fast]
+Usage: install <engine> [dtype = default]
 
 engine: flux2-4b
         z-image-turbo

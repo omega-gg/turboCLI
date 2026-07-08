@@ -56,7 +56,7 @@ sh build.sh default
 cd ../turbo
 sh build.sh cpu
 
-sh install.sh z-image-turbo bfloat16 fast
+sh install.sh z-image-turbo
 
 sh text-to-image.sh z-image-turbo cpu "a beautiful knight" out.png
 ```
@@ -73,7 +73,8 @@ sh build.sh default
 cd ../turbo
 sh build.sh cuda
 
-sh install.sh z-image-turbo bfloat16 fast
+# CUDA prefers bfloat16
+sh install.sh z-image-turbo bfloat16
 
 sh text-to-image.sh z-image-turbo cuda "a beautiful knight" out.png
 ```
@@ -91,7 +92,7 @@ cd ../turbo
 sh build.sh mps
 
 # MPS prefers float16 (bfloat16 support is patchy)
-sh install.sh z-image-turbo float16 fast
+sh install.sh z-image-turbo float16
 
 sh text-to-image.sh z-image-turbo mps "a beautiful knight" out.png
 ```
