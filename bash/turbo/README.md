@@ -18,7 +18,9 @@ Usage: check
 ### [check-model.sh](check-model.sh) - Check the installed models
 
 ```
-Usage: check-model <engine>
+Usage: check-model <engine | list>
+
+list: lists the installed engine id(s)
 
 engine: flux2-4b
         z-image-turbo

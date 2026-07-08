@@ -24,7 +24,8 @@
 # model + pinned revision from the engine module (the single source of truth) and confirms the
 # install on disk is current:
 #
-#   python -m runner.check --engine <name> --output <base-dir>
+#   python -m runner.check --engine <name> --folder <base-dir>   # check one engine
+#   python -m runner.check --folder <base-dir>                   # list installed engine ids
 #
 # A model is "installed" when "<base-dir>/<model>" exists, its ".commit" marker matches the
 # engine's MODEL["revision"], and every LoRA the engine declares is present. Anything else
@@ -42,12 +43,30 @@ from runner.install import _discover, _installed
 def main():
     parser = argparse.ArgumentParser(prog="runner.check")
 
-    parser.add_argument("--engine", required=True)
-    parser.add_argument("--output", required=True)            # base model dir; <output>/<model>
+    parser.add_argument("--engine", default=None)
+    parser.add_argument("--folder", required=True)            # base model dir; <folder>/<model>
 
     args = parser.parse_args()
 
-    mod = _discover().get(args.engine)
+    engines = _discover()
+
+    # No engine: print the id of every installed engine (one per line).
+    if args.engine is None:
+        for eid in sorted(engines):
+            mod = engines[eid]
+            model = getattr(mod, "MODEL", None)
+
+            if not model or not model.get("model"):
+                continue
+
+            path = os.path.join(args.folder, model["model"])
+
+            if _installed(path, model.get("revision"), getattr(mod, "LORAS", [])):
+                print(eid)
+
+        sys.exit(0)
+
+    mod = engines.get(args.engine)
 
     if mod is None:
         print("unknown engine '%s'" % args.engine)
@@ -62,7 +81,7 @@ def main():
     name = model.get("model")
     revision = model.get("revision")
 
-    path = os.path.join(args.output, name)
+    path = os.path.join(args.folder, name)
 
     # Installed = model folder carries the expected revision (.commit) and every declared LoRA
     # file.

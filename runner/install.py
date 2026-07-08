@@ -23,8 +23,8 @@
 # Model install front-end -- the install-side mirror of the run engines. One command installs
 # everything an engine needs: its base model plus any LoRAs it declares, into the model dir.
 #
-#   python -m runner.install --engine <name> [--model <M>] --output <base-dir> [--dtype default]
-#   python -m runner.install --engine <name> --output <base-dir> --remove
+#   python -m runner.install --engine <name> [--model <M>] --folder <base-dir> [--dtype default]
+#   python -m runner.install --engine <name> --folder <base-dir> --remove
 #
 # The base-model revision is pinned in the engine's MODEL["revision"] (not a CLI flag), and the
 # model is saved into "<base-dir>/<model>".
@@ -149,7 +149,7 @@ def main():
     # --model: model name, e.g. FLUX.2-klein-4B; optional when the engine declares its own
     parser.add_argument("--model", default=None)
     # base model dir; saved to <out>/<model>
-    parser.add_argument("--output", required=True)
+    parser.add_argument("--folder", required=True)
     # --dtype: "default" keeps the checkpoint's native dtype (no cast on save); a concrete dtype
     # (bfloat16/float16/float32) re-casts the weights on disk. Run-time dtype is independent of
     # this (core._device_dtype picks it from the renderer), so "default" is the right install
@@ -184,10 +184,10 @@ def main():
     loras = getattr(mod, "LORAS", [])
 
     # The base-model revision is pinned in the engine's MODEL (mutable HF repos -> reproducible
-    # installs). The wrapper passes only the base dir; the model is saved into "<output>/<model>".
+    # installs). The wrapper passes only the base dir; the model is saved into "<folder>/<model>".
     revision = model.get("revision")
 
-    out = os.path.join(args.output, name)
+    out = os.path.join(args.folder, name)
 
     # --remove: drop the engine's model directory (the base model and any LoRAs it holds).
     if args.remove:
@@ -222,7 +222,7 @@ def main():
     else:
         # Clean base (re)install: drop any previous copy, then ensure the base dir exists.
         shutil.rmtree(out, ignore_errors=True)
-        os.makedirs(args.output, exist_ok=True)
+        os.makedirs(args.folder, exist_ok=True)
 
         # Heavy imports happen here (post argv-parse), so --help stays instant and bad args fail
         # fast.

@@ -152,7 +152,7 @@ if [ $dtype = "float32" ]; then
     dtype="bfloat16"
 fi
 
-output=$(getPath "$bin_model")
+folder=$(getPath "$bin_model")
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -194,5 +194,5 @@ echo "Install in progress... The progress output might freeze"
 
 python -m runner.install \
        --engine "$engine" \
-       --output "$output" \
+       --folder "$folder" \
        --dtype "$dtype"

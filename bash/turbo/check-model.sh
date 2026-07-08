@@ -95,7 +95,9 @@ getPath()
 
 if [ $# -ne 1 ]; then
 
-    echo "Usage: check-model <engine>"
+    echo "Usage: check-model <engine | list>"
+    echo ""
+    echo "list: show the installed engine id(s)"
     echo ""
     echo "engine: flux2-4b"
     echo "        z-image-turbo"
@@ -129,7 +131,7 @@ else
     os="default"
 fi
 
-output=$(getPath "$bin_model")
+folder=$(getPath "$bin_model")
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -146,4 +148,8 @@ cd "$bin"
 # Check
 #--------------------------------------------------------------------------------------------------
 
-python -m runner.check --engine "$engine" --output "$output"
+if [ "$engine" = "list" ]; then
+    python -m runner.check --folder "$folder"
+else
+    python -m runner.check --engine "$engine" --folder "$folder"
+fi
