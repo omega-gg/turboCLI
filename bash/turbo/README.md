@@ -9,6 +9,24 @@ example:
     build cuda
 ```
 
+### [install.sh](install.sh) - Install a model into the model folder
+
+```
+Usage: install <engine> [dtype = default]
+
+engine: flux2-4b
+        z-image-turbo
+        qwen-image-edit-2511
+        qwen-image-edit-2511-lightning
+        qwen-image-edit-2511-lightning-angles
+
+dtype: default, bfloat16, float16, float32
+       (bfloat16 is recommended for CUDA, float16 for Apple MPS)
+
+example:
+    install flux2-4b
+```
+
 ### [check.sh](check.sh) - Check the install validity
 
 ```
@@ -49,24 +67,6 @@ examples:
     server stop   9000
     server cancel 9000
     server clear  9000
-```
-
-### [install.sh](install.sh) - Install a model into the model folder
-
-```
-Usage: install <engine> [dtype = default]
-
-engine: flux2-4b
-        z-image-turbo
-        qwen-image-edit-2511
-        qwen-image-edit-2511-lightning
-        qwen-image-edit-2511-lightning-angles
-
-dtype: default, bfloat16, float16, float32
-       (bfloat16 is recommended for CUDA, float16 for Apple MPS)
-
-example:
-    install flux2-4b
 ```
 
 ### [text-to-image.sh](text-to-image.sh) - Generate an image from a text prompt
