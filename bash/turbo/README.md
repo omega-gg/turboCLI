@@ -20,7 +20,7 @@ Usage: check
 ```
 Usage: check-model <engine | list>
 
-list: lists the installed engine id(s)
+list: show the installed engine id(s)
 
 engine: flux2-4b
         z-image-turbo
