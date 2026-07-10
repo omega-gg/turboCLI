@@ -102,14 +102,21 @@ sh text-to-image.sh z-image-turbo mps "a beautiful knight" out.png
 Here is the z-image recipe:
 
 ```
-NAME     = "z-image-turbo"
-TYPE     = "z-image"
-PIPELINE = "diffusers:ZImagePipeline"
-MODES    = ("generate",)
-CFG      = ("guidance_scale", 0.0)
-MODEL    = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo",
-            "revision": "04cc4abb7c5069926f75c9bfde9ef43d49423021"}
+ID          = "z-image-turbo"
+TYPE        = "z-image"
+PIPELINE    = "diffusers:ZImagePipeline"
+TRANSFORMER = "diffusers:ZImageTransformer2DModel"
+MODES       = ("text-to-image",)
+CFG         = ("guidance_scale", 0.0)
+INFERENCE   = 8
+MODEL       = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo",
+               "revision": "04cc4abb7c5069926f75c9bfde9ef43d49423021"}
 ```
+
+`ID` names the engine and `TYPE` the pipeline family; `PIPELINE`/`TRANSFORMER` are the diffusers
+classes (`TRANSFORMER` also wires the model for the offload backend). `MODES` lists the render
+modes, `CFG` the guidance knob, `INFERENCE` the default step count, and `MODEL` pins the Hugging
+Face repo + revision the installer fetches.
 
 ## This is great, how can I support you ?
 
