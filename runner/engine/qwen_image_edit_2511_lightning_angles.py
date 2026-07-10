@@ -26,11 +26,15 @@
 # stays "qwen-image-edit" so the backend seam treats it as a normal qwen-image-edit. Standalone by
 # design.
 
-ID       = "qwen-image-edit-2511-lightning-angles"
-TYPE     = "qwen-image-edit"
-PIPELINE = "diffusers:QwenImageEditPlusPipeline"
-MODES    = ("image-to-image",)
-CFG      = ("true_cfg_scale", 1.0)
+ID   = "qwen-image-edit-2511-lightning-angles"
+TYPE = "qwen-image-edit"
+
+PIPELINE    = "diffusers:QwenImageEditPlusPipeline"
+TRANSFORMER = "diffusers:QwenImageTransformer2DModel" # offloader disk-stream meta-load
+
+MODES = ("image-to-image",)
+CFG   = ("true_cfg_scale", 1.0)
+
 INFERENCE = 4
 
 # Install (python -m runner.install): the model + the lightning and angles LoRAs, into the model

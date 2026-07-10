@@ -23,14 +23,18 @@
 # z-image-turbo engine -- text2img only on Z-Image-Turbo. Pure declaration; core's default load +
 # run path cover it.
 
-ID       = "z-image-turbo"
-TYPE     = "z-image"
-PIPELINE = "diffusers:ZImagePipeline"
-MODES    = ("text-to-image",)
-CFG      = ("guidance_scale", 0.0)
+ID   = "z-image-turbo"
+TYPE = "z-image"
+
+PIPELINE    = "diffusers:ZImagePipeline"
+TRANSFORMER = "diffusers:ZImageTransformer2DModel" # offloader disk-stream meta-load
+
+MODES = ("text-to-image",)
+CFG   = ("guidance_scale", 0.0)
+
 INFERENCE = 8
 
 # Install (python -m runner.install): base model HF repo = "<repository>/<model>". No LoRAs.
 # "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.
-MODEL    = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo",
-            "revision": "04cc4abb7c5069926f75c9bfde9ef43d49423021"}
+MODEL = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo",
+         "revision": "04cc4abb7c5069926f75c9bfde9ef43d49423021"}

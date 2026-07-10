@@ -26,11 +26,15 @@
 # selectable as "qwen-image-edit-2511". For LoRA presets over the SAME model, see
 # qwen_image_edit_2511_lightning.py and qwen_image_edit_2511_lightning_angles.py.
 
-ID       = "qwen-image-edit-2511"
-TYPE     = "qwen-image-edit"
-PIPELINE = "diffusers:QwenImageEditPlusPipeline"
-MODES    = ("image-to-image",)
-CFG      = ("true_cfg_scale", 1.0)
+ID   = "qwen-image-edit-2511"
+TYPE = "qwen-image-edit"
+
+PIPELINE    = "diffusers:QwenImageEditPlusPipeline"
+TRANSFORMER = "diffusers:QwenImageTransformer2DModel" # offloader disk-stream meta-load
+
+MODES = ("image-to-image",)
+CFG   = ("true_cfg_scale", 1.0)
+
 INFERENCE = 40
 
 # Install (python -m runner.install): the base model only, no LoRA.

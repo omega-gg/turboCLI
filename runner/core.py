@@ -266,8 +266,14 @@ def _default_load(ctx, mod, params):
     lora_files = [(os.path.join(lora_dir, name), weight) for name, weight in preset] + ctx.loras
 
     if ctx.backend:
+        # The backend keys placement off engine_type(mod) but needs the concrete diffusers classes
+        # to build/meta-load; hand it the engine's declared PIPELINE/TRANSFORMER (resolved lazily,
+        # same as the native path) so the class table lives here, not duplicated in the backend.
+        transformer = getattr(mod, "TRANSFORMER", None)
         return ctx.backend.load_pipe(
-            model, ctx.dtype, engine_type(mod), device=ctx.device, lora_files=lora_files or None
+            model, ctx.dtype,
+            _resolve(mod.PIPELINE), _resolve(transformer) if transformer else None,
+            device=ctx.device, lora_files=lora_files or None,
         )
 
     p = ctx.from_pretrained(mod.PIPELINE)
@@ -528,6 +534,14 @@ def generate(params, emit, should_stop=None):
 
         if not backend.supports(engine_type(mod)):
             emit("ERROR: %s offload does not support engine '%s'" % (offload, engine))
+
+            return False
+
+        # Offload eligibility is a turboCLI-side decision: the (model-agnostic) backend claims every
+        # engine, but the disk-stream path needs the engine's transformer class to meta-load, so an
+        # engine is offload-wired iff it declares TRANSFORMER (engine/<name>.py).
+        if getattr(mod, "TRANSFORMER", None) is None:
+            emit("ERROR: engine '%s' is not wired for offload (declares no TRANSFORMER)" % engine)
 
             return False
 

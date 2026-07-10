@@ -34,7 +34,7 @@ repository_offloader="https://github.com/omega-gg/turbo-offloader.git"
 
 commit="a391464c849aa97230e69954428492981814f7b3" # Also update in check.sh
 
-commit_offloader="f15dbafc18cda6abfa842e5b2ef4b5bd2ca49097"
+commit_offloader="7757176fd8a2140fb29dfaae2ec69b6361bc7a50"
 
 diffusers="784fa62652fb2719d415830f918fc32a49ecc7a1"
 
