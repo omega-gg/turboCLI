@@ -113,9 +113,13 @@ MODEL       = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo",
                "revision": "04cc4abb7c5069926f75c9bfde9ef43d49423021"}
 ```
 
-`ID` names the engine and `TYPE` the pipeline family; `PIPELINE`/`TRANSFORMER` are the diffusers
-classes. `MODES` lists the render modes, `CFG` the guidance knob, `INFERENCE` the default step
-count, and `MODEL` pins the Hugging Face repository + revision the installer fetches.
+- `ID` — names the engine
+- `TYPE` — the pipeline family
+- `PIPELINE` / `TRANSFORMER` — the diffusers classes
+- `MODES` — the render modes
+- `CFG` — the guidance knob
+- `INFERENCE` — the default step count
+- `MODEL` — pins the Hugging Face repository + revision the installer fetches
 
 ## This is great, how can I support you ?
 
