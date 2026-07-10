@@ -3,10 +3,13 @@
 ### [build.sh](build.sh) - Install turboCLI in the SKY_PATH_BIN folder
 
 ```
-Usage: build <cpu | cuda | mps | clean>
+Usage: build <cpu | cuda | mps | clean> [latest]
+
+latest: install the newest releases, ignoring the pinned versions (not reproducible)
 
 example:
     build cuda
+    build cuda latest
 ```
 
 ### [install.sh](install.sh) - Install a model into the model folder

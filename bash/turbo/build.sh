@@ -46,6 +46,7 @@ diffusers="784fa62652fb2719d415830f918fc32a49ecc7a1"
 torch_version="2.12.1"
 torchvision_version="0.27.1"
 torchaudio_version="2.11.0"
+torch_cuda="cu130"
 
 transformers_version="5.12.1"
 accelerate_version="1.14.0"
@@ -102,18 +103,47 @@ getSky()
     esac
 }
 
+require()
+{
+    if [ "$latest" = 1 ]; then
+
+        echo "$1"
+    else
+        echo "$1==$2"
+    fi
+}
+
 #--------------------------------------------------------------------------------------------------
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# != 1 ] || [ "$1" != "cpu" -a "$1" != "cuda" -a "$1" != "mps" -a "$1" != "clean" ]; then
+if [ $# -lt 1 -o $# -gt 2 ] \
+   || [ "$1" != "cpu" -a "$1" != "cuda" -a "$1" != "mps" -a "$1" != "clean" ] \
+   || [ "$2" != "" -a "$2" != "latest" ] \
+   || [ "$2" = "latest" -a "$1" = "clean" ]; then
 
-    echo "Usage: build <cpu | cuda | mps | clean>"
+    echo "Usage: build <cpu | cuda | mps | clean> [latest]"
+    echo ""
+    echo "latest: install the newest releases, ignoring the pinned versions (not reproducible)"
     echo ""
     echo "example:"
     echo "    build cuda"
+    echo "    build cuda latest"
 
     exit 1
+fi
+
+latest=0
+
+diffusers_ref="$diffusers"
+
+if [ "$2" = "latest" ]; then
+
+    latest=1
+
+    diffusers_ref="main"
+
+    echo "WARNING: building with 'latest' -- ignoring pinned versions, not reproducible."
 fi
 
 #--------------------------------------------------------------------------------------------------
@@ -194,28 +224,35 @@ fi
 if [ "$1" = "cuda" ]; then
 
     uv pip install \
-        "torch==$torch_version" "torchvision==$torchvision_version" \
-        "torchaudio==$torchaudio_version" \
-        --index-url https://download.pytorch.org/whl/cu130
+        "$(require torch $torch_version)" \
+        "$(require torchvision $torchvision_version)" \
+        "$(require torchaudio $torchaudio_version)" \
+        --index-url https://download.pytorch.org/whl/$torch_cuda
 
 elif [ "$1" = "mps" ]; then
 
     uv pip install \
-        "torch==$torch_version" "torchvision==$torchvision_version" \
-        "torchaudio==$torchaudio_version"
+        "$(require torch $torch_version)" \
+        "$(require torchvision $torchvision_version)" \
+        "$(require torchaudio $torchaudio_version)"
 else
     uv pip install \
-        "torch==$torch_version" "torchvision==$torchvision_version" \
-        "torchaudio==$torchaudio_version" \
+        "$(require torch $torch_version)" \
+        "$(require torchvision $torchvision_version)" \
+        "$(require torchaudio $torchaudio_version)" \
         --index-url https://download.pytorch.org/whl/cpu
 fi
 
 uv pip install \
-    "hf_transfer==$hf_transfer_version" "hf_xet==$hf_xet_version" \
-    "safetensors==$safetensors_version" "accelerate==$accelerate_version" \
-    "transformers==$transformers_version" "peft==$peft_version" \
-    "huggingface_hub==$huggingface_hub_version" "psutil==$psutil_version" \
-    "git+https://github.com/huggingface/diffusers@$diffusers"
+    "$(require hf_transfer $hf_transfer_version)" \
+    "$(require hf_xet $hf_xet_version)" \
+    "$(require safetensors $safetensors_version)" \
+    "$(require accelerate $accelerate_version)" \
+    "$(require transformers $transformers_version)" \
+    "$(require peft $peft_version)" \
+    "$(require huggingface_hub $huggingface_hub_version)" \
+    "$(require psutil $psutil_version)" \
+    "git+https://github.com/huggingface/diffusers@$diffusers_ref"
 
 #--------------------------------------------------------------------------------------------------
 # comfy
@@ -223,7 +260,7 @@ uv pip install \
 
 if [ "$1" = "cuda" ]; then
 
-    uv pip install "comfy-aimdo==$comfy_aimdo_version"
+    uv pip install "$(require comfy-aimdo $comfy_aimdo_version)"
 fi
 
-uv pip install "comfy-kitchen==$comfy_kitchen_version"
+uv pip install "$(require comfy-kitchen $comfy_kitchen_version)"
