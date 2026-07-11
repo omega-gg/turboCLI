@@ -133,10 +133,6 @@ if [ $# -lt 1 -o $# -gt 2 ] \
     exit 1
 fi
 
-latest=0
-
-diffusers_ref="$diffusers"
-
 if [ "$2" = "latest" ]; then
 
     latest=1
@@ -144,6 +140,10 @@ if [ "$2" = "latest" ]; then
     diffusers_ref="main"
 
     echo "WARNING: building with 'latest' -- ignoring pinned versions, not reproducible."
+else
+    latest=0
+
+    diffusers_ref="$diffusers"
 fi
 
 #--------------------------------------------------------------------------------------------------
