@@ -88,7 +88,7 @@ def main():
 
     path = os.path.join(args.folder, name)
 
-    # Installed = model folder carries the expected revision (.commit) and every declared LoRA file;
+    # Installed = model folder carries the expected revision (.commit) and every declared LoRA;
     # for a ComfyUI-reuse engine it carries the scaffold + comfy.json manifest + the reused files.
     if _installed_comfy(path) if hasattr(mod, "COMFY") else _installed(path, revision,
                                                                        getattr(mod, "LORAS", [])):

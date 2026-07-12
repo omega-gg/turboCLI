@@ -187,7 +187,7 @@ def _install_comfy(mod, comfy, out):
         else:
             print("Downloading component: %s/%s" % (c["subdir"], c["file"]), flush=True)
 
-            # In-repo path is split_files/<subdir>/<file>; land it in models/ then move to the subdir.
+            # In-repo path is split_files/<subdir>/<file>; land in models/ then move to the subdir.
             path = hf_hub_download(repo_id=comfy_cfg["repository"],
                                    filename="split_files/%s/%s" % (c["subdir"], c["file"]),
                                    revision=comfy_cfg.get("revision") or None, local_dir=models)
@@ -197,11 +197,12 @@ def _install_comfy(mod, comfy, out):
 
             repositories.append(comfy_cfg["repository"])
 
-        manifest.append({"role": c["role"], "subdir": c["subdir"], "file": c["file"], "path": dest})
+        manifest.append({"role": c["role"], "subdir": c["subdir"],
+                         "file": c["file"], "path": dest})
 
     shutil.rmtree(os.path.join(models, "split_files"), ignore_errors=True)
 
-    # Scaffold: the small diffusers configs/tokenizer/scheduler (no weights) needed to load offline.
+    # Scaffold: the small diffusers configs/tokenizer/scheduler (no weights) for offline load.
     scaffold = mod.SCAFFOLD
     repo = scaffold["repository"] + "/" + scaffold["model"]
 
@@ -210,7 +211,8 @@ def _install_comfy(mod, comfy, out):
     snapshot_download(repo_id=repo, revision=scaffold.get("revision") or None,
                       allow_patterns=scaffold["allow_patterns"], local_dir=out)
 
-    shutil.rmtree(os.path.join(out, ".cache"), ignore_errors=True)   # snapshot_download bookkeeping
+    # snapshot_download leaves a .cache/ bookkeeping dir in local_dir; drop it.
+    shutil.rmtree(os.path.join(out, ".cache"), ignore_errors=True)
 
     repositories.append(repo)
 
@@ -224,7 +226,8 @@ def _install_comfy(mod, comfy, out):
 
         for repo_entry in cache.repos:
             if repo_entry.repo_id in repositories:
-                cache.delete_revisions(*[rev.commit_hash for rev in repo_entry.revisions]).execute()
+                cache.delete_revisions(
+                    *[rev.commit_hash for rev in repo_entry.revisions]).execute()
     except CacheNotFound:
         pass
 
@@ -247,8 +250,8 @@ def main():
     # --remove: delete the engine's model directory (base model + any LoRAs in it) instead of
     # installing.
     parser.add_argument("--remove", action="store_true")
-    # --comfy: a ComfyUI install dir. Only for engines that declare COMFY -- they reuse that install's
-    # single files instead of downloading a base repo (see _install_comfy).
+    # --comfy: a ComfyUI install dir. Only for engines that declare COMFY -- they reuse that
+    # install's single files instead of downloading a base repo (see _install_comfy).
     parser.add_argument("--comfy", default=None)
 
     args = parser.parse_args()

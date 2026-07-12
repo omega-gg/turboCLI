@@ -23,19 +23,20 @@
 # comfy-z-image-turbo engine -- text2img on Z-Image-Turbo, REUSING a ComfyUI install's model files.
 #
 # Same weights as the z-image-turbo engine, but ComfyUI stores them as three split single-file
-# safetensors (a diffusion model, a Qwen3-4B text encoder, a VAE) rather than a diffusers repo. This
-# engine loads those single files straight into a diffusers ZImagePipeline, so a user who already
-# runs ComfyUI does not re-download ~20GB. The big weights live wherever ComfyUI keeps them; this
-# engine's own model dir (turbo-model/comfy-z-image-turbo/) holds only the tiny diffusers scaffolding
-# (configs + tokenizer + scheduler) plus a comfy.json manifest that points at the ComfyUI files.
+# safetensors (a diffusion model, a Qwen3-4B text encoder, a VAE) rather than a diffusers repo.
+# This engine loads those single files straight into a diffusers ZImagePipeline, so a user who
+# already runs ComfyUI does not re-download ~20GB. The big weights live wherever ComfyUI keeps
+# them; this engine's own model dir (turbo-model/comfy-z-image-turbo/) holds only the tiny
+# diffusers scaffolding (configs + tokenizer + scheduler) plus a comfy.json manifest that points
+# at the ComfyUI files.
 #
 # install:  runner.install --comfy <ComfyUI dir> resolves/downloads the components and writes
 #           comfy.json + scaffold (dispatched on this COMFY declaration).
-# check:    runner.check treats a COMFY engine as installed when comfy.json + its files + the scaffold
-#           are present (no HF revision marker).
+# check:    runner.check treats a COMFY engine as installed when comfy.json + its files + the
+#           scaffold are present (no HF revision marker).
 #
-# IMPORTANT (see engine/__init__.py): no torch/diffusers import at top level -- discovery stays cheap.
-# The heavy imports live inside load().
+# IMPORTANT (see engine/__init__.py): no torch/diffusers import at top level -- discovery stays
+# cheap. The heavy imports live inside load().
 
 import os
 import json
@@ -51,22 +52,25 @@ CFG   = ("guidance_scale", 0.0)
 
 INFERENCE = 8
 
-# This engine's own model dir under the base folder: turbo-model/comfy-z-image-turbo/. It carries the
-# scaffolding + comfy.json, NOT the big checkpoints (those stay in the ComfyUI install). No HF
+# This engine's own model dir under the base folder: turbo-model/comfy-z-image-turbo/. It carries
+# the scaffolding + comfy.json, NOT the big checkpoints (those stay in the ComfyUI install). No HF
 # "revision" -> check.py uses the COMFY presence test instead of the .commit marker.
 MODEL = {"model": "comfy-z-image-turbo"}
 
 # ComfyUI split single files reused by this engine. `subdir` is the ComfyUI models/ subfolder and
 # `file` the safetensors name (the pair is also the in-repo path under split_files/), `role` the
-# diffusers component it feeds. Fetched only when missing, from ComfyUI's own published repo -- same
-# {repository, revision} shape as the LORAS lists.
+# diffusers component it feeds. Fetched only when missing, from ComfyUI's own published repo --
+# same {repository, revision} shape as the LORAS lists.
 COMFY = {
     "repository": "Comfy-Org/z_image_turbo",
     "revision": "main",
     "components": [
-        {"role": "transformer",  "subdir": "diffusion_models", "file": "z_image_turbo_bf16.safetensors"},
-        {"role": "text_encoder", "subdir": "text_encoders",    "file": "qwen_3_4b.safetensors"},
-        {"role": "vae",          "subdir": "vae",              "file": "ae.safetensors"},
+        {"role": "transformer",  "subdir": "diffusion_models",
+         "file": "z_image_turbo_bf16.safetensors"},
+        {"role": "text_encoder", "subdir": "text_encoders",
+         "file": "qwen_3_4b.safetensors"},
+        {"role": "vae",          "subdir": "vae",
+         "file": "ae.safetensors"},
     ],
 }
 
@@ -77,7 +81,7 @@ SCAFFOLD = {
     "repository": "Tongyi-MAI",
     "model": "Z-Image-Turbo",
     "revision": "f332072aa78be7aecdf3ee76d5c247082da564a6",
-    # config/tokenizer/scheduler files only -- everything the pipeline needs except the big weights.
+    # config/tokenizer/scheduler files only -- all the pipeline needs except the big weights.
     "allow_patterns": [
         "model_index.json",
         "scheduler/*",
@@ -91,7 +95,7 @@ SCAFFOLD = {
 
 def components(model_dir):
     """Read comfy.json -> [{role, path, ...}, ...] with the absolute path of each ComfyUI single
-    file. Written by runner.install_comfy; the single source of truth for where the weights live."""
+    file. Written by install --comfy; the single source of truth for where the weights live."""
     with open(os.path.join(model_dir, "comfy.json")) as f:
         return json.load(f)["components"]
 
@@ -102,8 +106,8 @@ def _by_role(model_dir):
 
 def _build_text_encoder(scaffold, weight_file, dtype):
     """Instantiate the Qwen3 text encoder from the scaffold config and load ComfyUI's single-file
-    weights. ComfyUI prefixes every tensor with 'model.'; the bare transformers Qwen3Model does not,
-    so strip it (398 keys, identical shapes -- verified)."""
+    weights. ComfyUI prefixes every tensor with 'model.'; the bare transformers Qwen3Model does
+    not, so strip it (398 keys, identical shapes -- verified)."""
     import safetensors.torch as safetensors_torch
     from transformers import AutoConfig, Qwen3Model
 
@@ -120,16 +124,16 @@ def _build_text_encoder(scaffold, weight_file, dtype):
 
 def load(ctx, params):
     """Build a ZImagePipeline from ComfyUI's single files. The offload backend, when present, meta-
-    loads the big models straight from those files (disk-stream); otherwise every component is built
-    here and placed via the shared ctx helpers."""
+    loads the big models straight from those files (disk-stream); otherwise every component is
+    built here and placed via the shared ctx helpers."""
     from diffusers import (ZImagePipeline, ZImageTransformer2DModel, AutoencoderKL,
                            FlowMatchEulerDiscreteScheduler)
     from transformers import AutoTokenizer
 
-    scaffold = ctx.model                # turbo-model/comfy-z-image-turbo/ (scaffolding + comfy.json)
+    scaffold = ctx.model  # turbo-model/comfy-z-image-turbo/ (scaffolding + comfy.json)
     files    = _by_role(scaffold)
 
-    # Disk-stream path: hand the backend the scaffold (for meta-load configs) + the single-file paths.
+    # Disk-stream path: give the backend the scaffold (meta-load configs) + the single-file paths.
     if ctx.backend is not None:
         return ctx.backend.load_pipe_single_file(
             scaffold, files, ctx.dtype,
