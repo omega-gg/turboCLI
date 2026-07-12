@@ -209,11 +209,11 @@ if [ -n "$comfy" ]; then
     python -m runner.install \
            --engine "$engine" \
            --folder "$folder" \
-           --dtype "$dtype" \
-           --comfy "$comfy"
+           --dtype  "$dtype" \
+           --comfy  "$comfy"
 else
     python -m runner.install \
            --engine "$engine" \
            --folder "$folder" \
-           --dtype "$dtype"
+           --dtype  "$dtype"
 fi
