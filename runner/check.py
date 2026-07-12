@@ -24,10 +24,11 @@
 # model + pinned revision from the engine module (the single source of truth) and confirms the
 # install on disk is current:
 #
-#   python -m runner.check --engine <name> --folder <base-dir>   # check one engine
-#   python -m runner.check --folder <base-dir>                   # list installed engine ids
+#   python -m runner.check --engine <name>   # check one engine
+#   python -m runner.check                   # list installed engine ids
 #
-# A model is "installed" when "<base-dir>/<model>" exists, its ".commit" marker matches the
+# The model folder is deduced from the runner's path (default_folder(), <install>/model) -- no
+# --folder flag. A model is "installed" when "<folder>/<model>" exists, its ".commit" matches the
 # engine's MODEL["revision"], and every LoRA the engine declares is present. Anything else
 # (missing, stale revision, missing LoRA) reports "not installed" and exits 1, so a bumped
 # revision triggers a rebuild. Light by design: no torch/diffusers import, so it runs under the
@@ -37,16 +38,17 @@ import os
 import sys
 import argparse
 
-from runner.install import _discover, _installed, _installed_comfy
+from runner.install import _discover, _installed, _installed_comfy, default_folder
 
 
 def main():
     parser = argparse.ArgumentParser(prog="runner.check")
 
     parser.add_argument("--engine", default=None)
-    parser.add_argument("--folder", required=True)            # base model dir; <folder>/<model>
 
     args = parser.parse_args()
+
+    folder = default_folder()
 
     engines = _discover()
 
@@ -59,7 +61,7 @@ def main():
             if not model or not model.get("model"):
                 continue
 
-            path = os.path.join(args.folder, model["model"])
+            path = os.path.join(folder, model["model"])
 
             if hasattr(mod, "COMFY"):
                 ok = _installed_comfy(path)
@@ -86,7 +88,7 @@ def main():
     name = model.get("model")
     revision = model.get("revision")
 
-    path = os.path.join(args.folder, name)
+    path = os.path.join(folder, name)
 
     # Installed = model folder carries the expected revision (.commit) and every declared LoRA;
     # for a ComfyUI-reuse engine it carries the scaffold + comfy.json manifest + the reused files.

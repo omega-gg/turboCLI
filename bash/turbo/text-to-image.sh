@@ -153,8 +153,6 @@ sky="$(getSky)"
 
 bin="${SKY_PATH_TURBOCLI:-$sky/turbo}"
 
-bin_model="${SKY_PATH_TURBOCLI_MODEL:-$sky/turbo-model}"
-
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
 engine="$1"
@@ -187,8 +185,6 @@ else
 fi
 
 path=$(getPath "$4")
-
-folder=$(getPath "$bin_model")
 
 #--------------------------------------------------------------------------------------------------
 # LoRAs
@@ -243,7 +239,6 @@ if [ -n "$server" ]; then
     curl -sS -N --max-time "3600" \
                 --data-urlencode "engine=$engine" \
                 --data-urlencode "mode=text-to-image" \
-                --data-urlencode "folder=$folder" \
                 --data-urlencode "prompt=$3" \
                 --data-urlencode "output=$path" \
                 --data-urlencode "width=$width" \
@@ -316,7 +311,6 @@ fi
 python -m runner.cli \
        --engine "$engine" \
        --mode "text-to-image" \
-       --folder "$folder" \
        --prompt="$3" \
        --output "$path" \
        --width "$width" \

@@ -27,8 +27,9 @@
 # Python untouched -- no shell/source interpolation. (The wrappers pass --prompt="$1" with the
 # equals form so a prompt starting with '-' is not read as a flag.)
 #
-# Run as: python -m runner.cli --engine flux2-4b --mode text-to-image --folder ... (from the deployed
-# diffusion dir, which the wrapper cd's into so `engine` and `backend` are importable).
+# Run as: python -m runner.cli --engine flux2-4b --mode text-to-image ... (from the deployed
+# diffusion dir, which the wrapper cd's into so `engine` and `backend` are importable, and so the
+# model folder -- <install>/model, deduced from the runner's path -- resolves).
 
 import sys
 import argparse
@@ -40,7 +41,6 @@ def main():
 
     parser.add_argument("--engine", required=True)
     parser.add_argument("--mode", default="text-to-image")
-    parser.add_argument("--folder", default=None)
     parser.add_argument("--output", required=True)
     parser.add_argument("--prompt", default="")
     parser.add_argument("--images", default="")
@@ -59,7 +59,6 @@ def main():
     params = {
         "engine": args.engine,
         "mode": args.mode,
-        "folder": args.folder,
         "prompt": args.prompt,
         "images": args.images,
         "loras": args.loras,

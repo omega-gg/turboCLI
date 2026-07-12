@@ -23,11 +23,11 @@
 # Model install front-end -- the install-side mirror of the run engines. One command installs
 # everything an engine needs: its base model plus any LoRAs it declares, into the model dir.
 #
-#   python -m runner.install --engine <name> [--model <M>] --folder <base-dir> [--dtype default]
-#   python -m runner.install --engine <name> --folder <base-dir> --remove
+#   python -m runner.install --engine <name> [--model <M>] [--dtype default]
+#   python -m runner.install --engine <name> --remove
 #
 # The base-model revision is pinned in the engine's MODEL["revision"] (not a CLI flag), and the
-# model is saved into "<base-dir>/<model>".
+# model is saved into "<install>/model/<model>" (default_folder(), deduced from the runner's path).
 #
 # `--model` is optional for engines that fix their own model at the module level (e.g.
 # qwen-image-edit-2511 and flux2-4b each declare MODEL["model"]); an engine that omits it leaves
@@ -57,6 +57,15 @@ import importlib
 
 # LoRAs install into a "lora/" subfolder of the model dir (apart from the base checkpoint files).
 LORA_DIR = "lora"
+
+
+def default_folder():
+    """The model folder: `model` inside the install dir, side by side with runner/
+    (<install>/model; the runner lives in <install>/runner/). Deduced from this file's path -- no
+    --folder needed. Duplicated from core.default_folder() so install/check stay torch-free (core
+    imports torch)."""
+    install = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(install, "model")
 
 
 def _discover():
@@ -239,8 +248,6 @@ def main():
     parser.add_argument("--engine", required=True)
     # --model: model name, e.g. FLUX.2-klein-4B; optional when the engine declares its own
     parser.add_argument("--model", default=None)
-    # base model dir; saved to <out>/<model>
-    parser.add_argument("--folder", required=True)
     # --dtype: "default" keeps the checkpoint's native dtype (no cast on save); a concrete dtype
     # (bfloat16/float16/float32) re-casts the weights on disk. Run-time dtype is independent of
     # this (core._device_dtype picks it from the renderer), so "default" is the right install
@@ -278,10 +285,10 @@ def main():
     loras = getattr(mod, "LORAS", [])
 
     # The base-model revision is pinned in the engine's MODEL (mutable HF repos -> reproducible
-    # installs). The wrapper passes only the base dir; the model is saved into "<folder>/<model>".
+    # installs). The model is saved into "<install>/model/<model>" (default_folder()).
     revision = model.get("revision")
 
-    out = os.path.join(args.folder, name)
+    out = os.path.join(default_folder(), name)
 
     # --remove: drop the engine's model directory (the base model and any LoRAs it holds).
     if args.remove:
@@ -330,7 +337,7 @@ def main():
     else:
         # Clean base (re)install: drop any previous copy, then ensure the base dir exists.
         shutil.rmtree(out, ignore_errors=True)
-        os.makedirs(args.folder, exist_ok=True)
+        os.makedirs(default_folder(), exist_ok=True)
 
         # Heavy imports happen here (post argv-parse), so --help stays instant and bad args fail
         # fast.

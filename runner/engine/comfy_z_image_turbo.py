@@ -26,9 +26,9 @@
 # safetensors (a diffusion model, a Qwen3-4B text encoder, a VAE) rather than a diffusers repo.
 # This engine loads those single files straight into a diffusers ZImagePipeline, so a user who
 # already runs ComfyUI does not re-download ~20GB. The big weights live wherever ComfyUI keeps
-# them; this engine's own model dir (turbo-model/comfy-z-image-turbo/) holds only the tiny
-# diffusers scaffolding (configs + tokenizer + scheduler) plus a comfy.json manifest that points
-# at the ComfyUI files.
+# them; this engine's own model dir (model/comfy-z-image-turbo/) holds only the tiny diffusers
+# scaffolding (configs + tokenizer + scheduler) plus a comfy.json manifest that points at the
+# ComfyUI files.
 #
 # install:  runner.install --comfy <ComfyUI dir> resolves/downloads the components and writes
 #           comfy.json + scaffold (dispatched on this COMFY declaration).
@@ -52,8 +52,8 @@ CFG   = ("guidance_scale", 0.0)
 
 INFERENCE = 8
 
-# This engine's own model dir under the base folder: turbo-model/comfy-z-image-turbo/. It carries
-# the scaffolding + comfy.json, NOT the big checkpoints (those stay in the ComfyUI install). No HF
+# This engine's own model dir inside the install: model/comfy-z-image-turbo/. It carries the
+# scaffolding + comfy.json, NOT the big checkpoints (those stay in the ComfyUI install). No HF
 # "revision" -> check.py uses the COMFY presence test instead of the .commit marker.
 MODEL = {"model": "comfy-z-image-turbo"}
 
@@ -127,7 +127,7 @@ def load(ctx, params):
                            FlowMatchEulerDiscreteScheduler)
     from transformers import AutoTokenizer
 
-    scaffold = ctx.model  # turbo-model/comfy-z-image-turbo/ (scaffolding + comfy.json)
+    scaffold = ctx.model  # model/comfy-z-image-turbo/ (scaffolding + comfy.json)
     files    = _by_role(scaffold)
 
     # Disk-stream path: give the backend the scaffold (meta-load configs) + the single-file paths.

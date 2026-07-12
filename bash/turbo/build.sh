@@ -174,6 +174,11 @@ export GIT_CONFIG_PARAMETERS="'core.longpaths=true'"
 mkdir -p "$sky"
 cd       "$sky"
 
+# Detach the model cache (turbo/model) so the wipe below never destroys the downloaded models (they
+# can be ~20GB); it is reattached after the fresh clone. On 'clean' it is left detached at
+# <sky>/.turbo-model so the next build restores it.
+if [ -d "$name/model" ]; then mv "$name/model" ".turbo-model"; fi
+
 rm -rf "$name"
 
 if [ "$1" = "clean" ]; then
@@ -198,6 +203,9 @@ clone "temp" "$repository_offloader" "$commit_offloader"
 mv "temp/offloader" "backend"
 
 rm -rf "temp"
+
+# Reattach the detached model cache into the fresh install (cwd is <sky>/turbo here).
+if [ -d "$sky/.turbo-model" ]; then mv "$sky/.turbo-model" "model"; fi
 
 #--------------------------------------------------------------------------------------------------
 # Activate

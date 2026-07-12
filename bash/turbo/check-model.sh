@@ -43,52 +43,6 @@ getSky()
     esac
 }
 
-getOs()
-{
-    case `uname` in
-    MINGW*|MSYS*|CYGWIN*) os="windows";;
-    Darwin*)              os="macOS";;
-    Linux*)               os="linux";;
-    *)                    os="other";;
-    esac
-
-    type=`uname -m`
-
-    if [ $type = "x86_64" ]; then
-
-        if [ $os = "windows" ]; then
-
-            echo win64
-        else
-            echo $os
-        fi
-
-    elif [ $os = "windows" ]; then
-
-        echo win32
-    else
-        echo $os
-    fi
-}
-
-getPath()
-{
-    path="$1"
-
-    if [ "${path#/}" = "$path" ] && [ "${path#?:[\\/]}" = "$path" ]; then
-
-        path="$PWD/$path"
-    fi
-
-    if [ "$os" = "windows" ]; then
-
-        # NOTE: Python does not handle backslash.
-        cygpath -w "$path" | sed 's|\\|/|g'
-    else
-        echo "$path"
-    fi
-}
-
 #--------------------------------------------------------------------------------------------------
 # Syntax
 #--------------------------------------------------------------------------------------------------
@@ -117,22 +71,9 @@ sky="$(getSky)"
 
 bin="${SKY_PATH_TURBOCLI:-$sky/turbo}"
 
-bin_model="${SKY_PATH_TURBOCLI_MODEL:-$sky/turbo-model}"
-
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
 engine="$1"
-
-host=$(getOs)
-
-if [ $host = "win32" -o $host = "win64" ]; then
-
-    os="windows"
-else
-    os="default"
-fi
-
-folder=$(getPath "$bin_model")
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -151,7 +92,7 @@ cd "$bin"
 
 if [ "$engine" = "list" ]; then
 
-    python -m runner.check --folder "$folder"
+    python -m runner.check
 else
-    python -m runner.check --engine "$engine" --folder "$folder"
+    python -m runner.check --engine "$engine"
 fi

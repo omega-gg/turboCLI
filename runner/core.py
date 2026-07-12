@@ -150,20 +150,21 @@ def parse_loras(spec):
 
 
 def default_folder():
-    """The default model folder: `turbo-model` beside the `turbo` install dir (the runner lives in
-    <install>/runner/, so models sit at the install's sibling turbo-model)."""
+    """The model folder: `model` inside the `turbo` install dir, side by side with runner/ (the
+    runner lives in <install>/runner/, so models sit at <install>/model). Deduced from the runner's
+    own path -- no caller ever names it."""
     install = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(os.path.dirname(install), "turbo-model")
+    return os.path.join(install, "model")
 
 
 def resolve_model(mod, params):
-    """The engine's on-disk model directory: <folder>/<the engine's own model name>.
+    """The engine's on-disk model directory: <model-folder>/<the engine's own model name>.
 
-    A front-end provides only the base `folder` (where models are installed) plus the `engine`;
-    which checkpoint to load is the engine's own business (its MODEL["model"]), so no caller ever
-    names the model. `folder` defaults to default_folder() (turbo-model beside the install) when
-    unset. Mirrors install.py, which saves each engine's model to "<output>/<model>"."""
-    folder = params.get("folder") or default_folder()
+    The model folder is always default_folder() (<install>/model) -- deduced from the runner's
+    path, never passed in. Which checkpoint to load is the engine's own business (its
+    MODEL["model"]), so no caller ever names the model. Mirrors install.py, which saves each
+    engine's model to "<folder>/<model>"."""
+    folder = default_folder()
 
     spec = getattr(mod, "MODEL", None)
     name = spec.get("model") if spec else None
@@ -500,8 +501,9 @@ def generate(params, emit, should_stop=None):
     """Run one generation. Returns True if an image was saved, False otherwise (validation error,
     cancelled, or superseded). Unexpected errors propagate to the caller (cli/server wraps them).
 
-    params: the same plain dict the HTTP API builds (engine, mode, folder, prompt, output, images,
-    width, height, seed, inference, renderer, offload, slicing).
+    params: the same plain dict the HTTP API builds (engine, mode, prompt, output, images,
+    width, height, seed, inference, renderer, offload, slicing). The model folder is not a param --
+    resolve_model() derives it from the runner's path (default_folder()).
     emit: a line sink (print for cli, the socket stream for server).
     should_stop: optional callable -> None | "cancel" | "supersede" (server preemption; None for
     cli).

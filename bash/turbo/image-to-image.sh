@@ -156,8 +156,6 @@ sky="$(getSky)"
 
 bin="${SKY_PATH_TURBOCLI:-$sky/turbo}"
 
-bin_model="${SKY_PATH_TURBOCLI_MODEL:-$sky/turbo-model}"
-
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
 engine="$1"
@@ -190,8 +188,6 @@ else
 fi
 
 path=$(getPath "$5")
-
-folder=$(getPath "$bin_model")
 
 #--------------------------------------------------------------------------------------------------
 # Images
@@ -265,7 +261,6 @@ if [ -n "$server" ]; then
     curl -sS -N --max-time "3600" \
                 --data-urlencode "engine=$engine" \
                 --data-urlencode "mode=image-to-image" \
-                --data-urlencode "folder=$folder" \
                 --data-urlencode "prompt=$3" \
                 --data-urlencode "images=$images" \
                 --data-urlencode "output=$path" \
@@ -339,7 +334,6 @@ fi
 python -m runner.cli \
        --engine "$engine" \
        --mode "image-to-image" \
-       --folder "$folder" \
        --prompt="$3" \
        --images "$images" \
        --output "$path" \

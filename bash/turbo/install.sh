@@ -136,8 +136,6 @@ sky="$(getSky)"
 
 bin="${SKY_PATH_TURBOCLI:-$sky/turbo}"
 
-bin_model="${SKY_PATH_TURBOCLI_MODEL:-$sky/turbo-model}"
-
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
 engine="$1"
@@ -160,8 +158,6 @@ if [ $dtype = "float32" ]; then
 
     dtype="bfloat16"
 fi
-
-folder=$(getPath "$bin_model")
 
 if [ -n "$comfy" ]; then comfy=$(getPath "$comfy"); fi
 
@@ -192,12 +188,6 @@ else
 fi
 
 #--------------------------------------------------------------------------------------------------
-# Clean
-#--------------------------------------------------------------------------------------------------
-
-mkdir -p "$bin_model"
-
-#--------------------------------------------------------------------------------------------------
 # Model
 #--------------------------------------------------------------------------------------------------
 
@@ -208,12 +198,10 @@ if [ -n "$comfy" ]; then
     # Reuse a ComfyUI install's model files (comfy-* engines).
     python -m runner.install \
            --engine "$engine" \
-           --folder "$folder" \
            --dtype  "$dtype" \
            --comfy  "$comfy"
 else
     python -m runner.install \
            --engine "$engine" \
-           --folder "$folder" \
            --dtype  "$dtype"
 fi
