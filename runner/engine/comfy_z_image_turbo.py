@@ -57,20 +57,17 @@ INFERENCE = 8
 # "revision" -> check.py uses the COMFY presence test instead of the .commit marker.
 MODEL = {"model": "comfy-z-image-turbo"}
 
-# ComfyUI split single files reused by this engine. `subdir` is the ComfyUI models/ subfolder and
-# `file` the safetensors name (the pair is also the in-repo path under split_files/), `role` the
-# diffusers component it feeds. Fetched only when missing, from ComfyUI's own published repo --
-# same {repository, revision} shape as the LORAS lists.
+# ComfyUI split single files reused by this engine. `path` is the file's location under ComfyUI's
+# models/ (and, under split_files/, its in-repo path too), `role` the diffusers component it feeds.
+# Fetched only when missing, from ComfyUI's own published repo -- same {repository, revision} shape
+# as the LORAS lists.
 COMFY = {
     "repository": "Comfy-Org/z_image_turbo",
     "revision": "main",
     "components": [
-        {"role": "transformer",  "subdir": "diffusion_models",
-         "file": "z_image_turbo_bf16.safetensors"},
-        {"role": "text_encoder", "subdir": "text_encoders",
-         "file": "qwen_3_4b.safetensors"},
-        {"role": "vae",          "subdir": "vae",
-         "file": "ae.safetensors"},
+        {"role": "transformer",  "path": "diffusion_models/z_image_turbo_bf16.safetensors"},
+        {"role": "text_encoder", "path": "text_encoders/qwen_3_4b.safetensors"},
+        {"role": "vae",          "path": "vae/ae.safetensors"},
     ],
 }
 

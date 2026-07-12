@@ -178,27 +178,26 @@ def _install_comfy(mod, comfy, out):
     repositories = []
     manifest = []
 
-    # Components: reuse each file already in ComfyUI's models/<subdir>/, download the rest there.
+    # Components: reuse each file already under ComfyUI's models/, download the rest there.
     for c in comfy_cfg["components"]:
-        dest = os.path.join(models, c["subdir"], c["file"])
+        dest = os.path.join(models, *c["path"].split("/"))
 
         if os.path.isfile(dest):
-            print("Component present: %s/%s" % (c["subdir"], c["file"]), flush=True)
+            print("Component present: %s" % c["path"], flush=True)
         else:
-            print("Downloading component: %s/%s" % (c["subdir"], c["file"]), flush=True)
+            print("Downloading component: %s" % c["path"], flush=True)
 
-            # In-repo path is split_files/<subdir>/<file>; land in models/ then move to the subdir.
-            path = hf_hub_download(repo_id=comfy_cfg["repository"],
-                                   filename="split_files/%s/%s" % (c["subdir"], c["file"]),
-                                   revision=comfy_cfg.get("revision") or None, local_dir=models)
+            # In-repo path is split_files/<path>; land it in models/ then move to its subdir.
+            src = hf_hub_download(repo_id=comfy_cfg["repository"],
+                                  filename="split_files/" + c["path"],
+                                  revision=comfy_cfg.get("revision") or None, local_dir=models)
 
             os.makedirs(os.path.dirname(dest), exist_ok=True)
-            shutil.move(path, dest)
+            shutil.move(src, dest)
 
             repositories.append(comfy_cfg["repository"])
 
-        manifest.append({"role": c["role"], "subdir": c["subdir"],
-                         "file": c["file"], "path": dest})
+        manifest.append({"role": c["role"], "path": dest})
 
     shutil.rmtree(os.path.join(models, "split_files"), ignore_errors=True)
 
