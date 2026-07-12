@@ -15,10 +15,11 @@ example:
 ### [install.sh](install.sh) - Install a model into the model folder
 
 ```
-Usage: install <engine> [dtype = default]
+Usage: install <engine> [dtype = default] [ComfyUI folder]
 
 engine: flux2-4b
         z-image-turbo
+        comfy-z-image-turbo (needs a ComfyUI folder; reuses its models)
         qwen-image-edit-2511
         qwen-image-edit-2511-lightning
         qwen-image-edit-2511-lightning-angles
@@ -26,8 +27,12 @@ engine: flux2-4b
 dtype: default, bfloat16, float16, float32
        (bfloat16 is recommended for CUDA, float16 for Apple MPS)
 
-example:
+ComfyUI folder: reuse an existing ComfyUI install's model files (comfy-* engines).
+                Missing components are fetched into ComfyUI's own models hierarchy.
+
+examples:
     install flux2-4b
+    install comfy-z-image-turbo default C:/dev/test/ComfyUI_windows_portable
 ```
 
 ### [check.sh](check.sh) - Check the install validity
@@ -45,6 +50,7 @@ list: show the installed engine id(s)
 
 engine: flux2-4b
         z-image-turbo
+        comfy-z-image-turbo
         qwen-image-edit-2511
         qwen-image-edit-2511-lightning
         qwen-image-edit-2511-lightning-angles
@@ -84,6 +90,7 @@ Usage: text-to-image <engine> <renderer> <prompt> <output image>
 
 engine: flux2-4b
         z-image-turbo
+        comfy-z-image-turbo
 
 renderer: cpu, cuda, mps
 

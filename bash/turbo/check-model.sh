@@ -150,6 +150,7 @@ cd "$bin"
 #--------------------------------------------------------------------------------------------------
 
 if [ "$engine" = "list" ]; then
+
     python -m runner.check --folder "$folder"
 else
     python -m runner.check --engine "$engine" --folder "$folder"
