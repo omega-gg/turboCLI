@@ -256,8 +256,8 @@ def main():
     # --remove: delete the engine's model directory (base model + any LoRAs in it) instead of
     # installing.
     parser.add_argument("--remove", action="store_true")
-    # --comfy: a ComfyUI install dir. Only for engines that declare COMFY -- they reuse that
-    # install's single files instead of downloading a base repo (see _install_comfy).
+    # --comfy: optional ComfyUI install dir to reuse (COMFY engines only). Omitted -> a self-
+    # contained model/ComfyUI/ layout in our model dir (see the COMFY dispatch / _install_comfy).
     parser.add_argument("--comfy", default=None)
 
     args = parser.parse_args()
@@ -300,13 +300,14 @@ def main():
 
         return
 
-    # ComfyUI-reuse engines don't download a base repo; they reuse a ComfyUI install's files.
+    # ComfyUI-reuse engines don't download a base repo; they reuse a ComfyUI install's split single
+    # files. With --comfy they reuse an existing ComfyUI install; without it they default to a
+    # self-contained ComfyUI-style layout in our model dir (model/ComfyUI/models/...). So a user
+    # with no ComfyUI still gets a working install (missing components download there).
     if hasattr(mod, "COMFY"):
-        if not args.comfy:
-            print("ERROR: engine '%s' requires --comfy <ComfyUI folder>" % args.engine)
-            sys.exit(1)
+        comfy = args.comfy or os.path.join(default_folder(), "ComfyUI")
 
-        _install_comfy(mod, args.comfy, out)
+        _install_comfy(mod, comfy, out)
         return
 
     if args.comfy:

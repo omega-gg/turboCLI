@@ -110,7 +110,7 @@ if [ $# -lt 1 -o $# -gt 3 ] \
     echo ""
     echo "engine: flux2-4b"
     echo "        z-image-turbo"
-    echo "        comfy-z-image-turbo (needs a ComfyUI folder; reuses its models)"
+    echo "        comfy-z-image-turbo"
     echo "        qwen-image-edit-2511"
     echo "        qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511-lightning-angles"
@@ -118,11 +118,12 @@ if [ $# -lt 1 -o $# -gt 3 ] \
     echo "dtype: default, bfloat16, float16, float32"
     echo "       (bfloat16 is recommended for CUDA, float16 for Apple MPS)"
     echo ""
-    echo "ComfyUI folder: reuse an existing ComfyUI install's model files (comfy-* engines)."
-    echo "                Missing components are fetched into ComfyUI's own models hierarchy."
+    echo "ComfyUI folder: optional. Reuse an existing ComfyUI install's model files;"
+    echo "                if omitted, components download into turbo/model/ComfyUI/models/."
     echo ""
     echo "examples:"
     echo "    install flux2-4b"
+    echo "    install comfy-z-image-turbo"
     echo "    install comfy-z-image-turbo default C:/dev/test/ComfyUI_windows_portable"
 
     exit 1
