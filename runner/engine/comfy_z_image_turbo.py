@@ -26,13 +26,13 @@
 # safetensors (a diffusion model, a Qwen3-4B text encoder, a VAE) rather than a diffusers repo.
 # This engine loads those single files straight into a diffusers ZImagePipeline, so a user who
 # already runs ComfyUI does not re-download ~20GB. The big weights live wherever ComfyUI keeps
-# them; this engine's own model dir (model/comfy-z-image-turbo/) holds only the tiny diffusers
-# scaffolding (configs + tokenizer + scheduler) plus a comfy.json manifest that points at the
+# them; this engine's registry dir (engine/comfy-z-image-turbo/) holds only the tiny diffusers
+# scaffolding (configs + tokenizer + scheduler) plus an engine.json manifest that points at the
 # ComfyUI files.
 #
 # install:  runner.install --comfy <ComfyUI dir> resolves/downloads the components and writes
-#           comfy.json + scaffold (dispatched on this COMFY declaration).
-# check:    runner.check treats a COMFY engine as installed when comfy.json + its files + the
+#           engine.json + scaffold into engine/<id> (dispatched on this COMFY declaration).
+# check:    runner.check treats a COMFY engine as installed when engine.json + its files + the
 #           scaffold are present (no HF revision marker).
 #
 # IMPORTANT (see engine/__init__.py): no torch/diffusers import at top level -- discovery stays
@@ -52,9 +52,9 @@ CFG   = ("guidance_scale", 0.0)
 
 INFERENCE = 8
 
-# This engine's own model dir inside the install: model/comfy-z-image-turbo/. It carries the
-# scaffolding + comfy.json, NOT the big checkpoints (those stay in the ComfyUI install). No HF
-# "revision" -> check.py uses the COMFY presence test instead of the .commit marker.
+# This engine's registry dir inside the install: engine/comfy-z-image-turbo/ (where resolve_model
+# sends a COMFY engine). It carries the scaffolding + engine.json, NOT the big checkpoints (those
+# stay in the ComfyUI install). No HF "revision" -> check uses the COMFY presence test.
 MODEL = {"model": "comfy-z-image-turbo"}
 
 # ComfyUI split single files reused by this engine. `path` is the file's location under ComfyUI's
@@ -90,11 +90,11 @@ SCAFFOLD = {
 }
 
 
-def components(model_dir):
-    """Read comfy.json -> [{role, path, ...}, ...] with the absolute path of each ComfyUI single
-    file. Written by install --comfy; the single source of truth for where the weights live."""
-    with open(os.path.join(model_dir, "comfy.json")) as f:
-        return json.load(f)["components"]
+def components(engine_dir):
+    """Read engine.json -> comfy.components ([{role, path}, ...]) with the absolute path of each
+    ComfyUI single file. Written by install; the source of truth for where the weights live."""
+    with open(os.path.join(engine_dir, "engine.json")) as f:
+        return json.load(f)["comfy"]["components"]
 
 
 def _by_role(model_dir):
@@ -127,7 +127,7 @@ def load(ctx, params):
                            FlowMatchEulerDiscreteScheduler)
     from transformers import AutoTokenizer
 
-    scaffold = ctx.model  # model/comfy-z-image-turbo/ (scaffolding + comfy.json)
+    scaffold = ctx.model  # engine/comfy-z-image-turbo/ (scaffolding + engine.json)
     files    = _by_role(scaffold)
 
     # Disk-stream path: give the backend the scaffold (meta-load configs) + the single-file paths.

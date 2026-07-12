@@ -41,7 +41,13 @@
 # LoRAs and their revisions): a base already at the pinned revision is kept (no re-download, no
 # torch import), and only missing/stale LoRAs are fetched -- so installing
 # qwen-image-edit-2511-lightning over an existing qwen-image-edit-2511 just pulls the lightning
-# LoRA. Removal is `rm -rf` on the model dir.
+# LoRA.
+#
+# Each install also writes a per-engine registry entry engine/<id>/engine.json (its model + LoRAs +
+# revisions; for a comfy engine its component refs + loader scaffold). This is the source of truth
+# for "installed", separate from the canonical (shared) weights under model/. Removal is
+# reference-counted: --remove drops the registry entry, then deletes the model / LoRAs / comfy
+# components only when no other installed engine still references them (see _remove).
 #
 # Separate from the generation cli/server: install is ONLINE and needs no GPU, so this does NOT
 # import core (no offload-backend discovery / CUDA init). The wrapper install.sh keeps the env
@@ -63,9 +69,74 @@ def default_folder():
     """The model folder: `model` inside the install dir, side by side with runner/
     (<install>/model; the runner lives in <install>/runner/). Deduced from this file's path -- no
     --folder needed. Duplicated from core.default_folder() so install/check stay torch-free (core
-    imports torch)."""
+    imports torch). Holds only canonical weights, shared across engines."""
     install = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(install, "model")
+
+
+def engine_folder():
+    """The engine registry: `engine` inside the install (beside model/, runner/). One dir per
+    installed engine holds its engine.json manifest and, for a comfy engine, its loader scaffold.
+    Duplicated from core.engine_folder() so install/check stay torch-free."""
+    install = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(install, "engine")
+
+
+def _engine_dir(engine_id):
+    return os.path.join(engine_folder(), engine_id)
+
+
+def _read_engine(engine_id):
+    """Read engine/<id>/engine.json -> the registry record, or None when absent."""
+    path = os.path.join(_engine_dir(engine_id), "engine.json")
+
+    if not os.path.isfile(path):
+        return None
+
+    with open(path) as f:
+        return json.load(f)
+
+
+def _write_engine(record):
+    """Write engine/<record["id"]>/engine.json -- the per-engine registry manifest."""
+    out = _engine_dir(record["id"])
+
+    os.makedirs(out, exist_ok=True)
+
+    with open(os.path.join(out, "engine.json"), "w") as f:
+        json.dump(record, f, indent=2)
+
+
+def _registry():
+    """Every installed engine's registry record (each engine/<id>/engine.json)."""
+    root = engine_folder()
+
+    if not os.path.isdir(root):
+        return []
+
+    records = []
+
+    for eid in sorted(os.listdir(root)):
+        record = _read_engine(eid)
+
+        if record is not None:
+            records.append(record)
+
+    return records
+
+
+def _under(path, root):
+    """True when `path` is `root` or lives inside it (normalized, case-insensitive on Windows)."""
+    path = os.path.normcase(os.path.abspath(path))
+    root = os.path.normcase(os.path.abspath(root))
+
+    return path == root or path.startswith(root + os.sep)
+
+
+def _stock_record(engine_id, model, revision, loras):
+    """The registry record for a stock engine: the model dir it uses + its own declared LoRAs."""
+    return {"id": engine_id, "model": model, "revision": revision,
+            "loras": [{"file": lora["file"], "revision": lora.get("revision")} for lora in loras]}
 
 
 def _discover():
@@ -152,18 +223,34 @@ def _installed(out, revision, loras):
     return True
 
 
-def _installed_comfy(out):
-    """True when a ComfyUI-reuse engine (install --comfy) is in place: the scaffold, the comfy.json
-    manifest, and every reused single file it names all exist."""
-    marker = os.path.join(out, "comfy.json")
+def _engine_installed(mod):
+    """True when this engine has a registry entry (engine/<id>/engine.json) whose referenced files
+    are all present -- the source of truth for check.py. Comfy: the scaffold's model_index.json +
+    every component path exist. Stock: the model dir carries the recorded revision (.commit) and
+    every recorded LoRA file exists."""
+    record = _read_engine(mod.ID)
 
-    if not os.path.isfile(marker) or not os.path.isfile(os.path.join(out, "model_index.json")):
+    if record is None:
         return False
 
-    with open(marker) as f:
-        components = json.load(f).get("components", [])
+    comfy = record.get("comfy")
 
-    return bool(components) and all(os.path.isfile(c["path"]) for c in components)
+    if comfy is not None:
+        if not os.path.isfile(os.path.join(_engine_dir(mod.ID), "model_index.json")):
+            return False
+
+        components = comfy.get("components", [])
+
+        return bool(components) and all(os.path.isfile(c["path"]) for c in components)
+
+    model_dir = os.path.join(default_folder(), record["model"])
+    base, _ = _read_manifest(model_dir)
+
+    if base != record.get("revision"):
+        return False
+
+    return all(os.path.isfile(os.path.join(model_dir, LORA_DIR, lora["file"]))
+               for lora in record.get("loras", []))
 
 
 def _models_root(comfy):
@@ -176,8 +263,9 @@ def _models_root(comfy):
 def _install_comfy(mod, comfy, out):
     """Install a ComfyUI-reuse engine (--comfy): keep each COMFY component already in the ComfyUI
     install, download only the missing ones there, fetch the tiny SCAFFOLD (configs/tokenizer/
-    scheduler, no weights) into `out`, and write out/comfy.json naming the reused files. No base
-    repo, no GPU -- so a user who already runs ComfyUI does not re-download the big weights."""
+    scheduler, no weights) into the engine registry dir `out`, and write out/engine.json naming the
+    reused files. No base repo, no GPU -- so a user who already runs ComfyUI does not re-download
+    the big weights. `out` is the engine registry dir (engine/<id>), not a model dir."""
     from huggingface_hub import scan_cache_dir, hf_hub_download, snapshot_download
     from huggingface_hub.errors import CacheNotFound
 
@@ -224,9 +312,16 @@ def _install_comfy(mod, comfy, out):
 
     repositories.append(repo)
 
-    # comfy.json: the manifest generation + check read to find the reused single files.
-    with open(os.path.join(out, "comfy.json"), "w") as f:
-        json.dump({"comfy": models, "components": manifest}, f, indent=2)
+    # engine.json: the registry record -- component refs (for load + reference-counted GC) and the
+    # loader scaffold's source. `external` = weights outside our model folder (a user's own ComfyUI
+    # install), so remove.sh only unregisters them, never deletes them.
+    _write_engine({
+        "id": mod.ID, "model": None, "revision": None, "loras": [],
+        "comfy": {"root": models, "external": not _under(models, default_folder()),
+                  "components": manifest,
+                  "scaffold": {"repository": scaffold["repository"], "model": scaffold["model"],
+                               "revision": scaffold.get("revision")}},
+    })
 
     # Trim the HF cache for anything pulled (a pure reuse pulls nothing, so it may not exist).
     try:
@@ -240,6 +335,96 @@ def _install_comfy(mod, comfy, out):
         pass
 
     print("Done.", flush=True)
+
+
+def _prune_empty(top):
+    """Remove empty directories under `top` bottom-up (including `top` if it ends up empty)."""
+    if not os.path.isdir(top):
+        return
+
+    for dirpath, _dirnames, _filenames in os.walk(top, topdown=False):
+        if not os.listdir(dirpath):
+            try:
+                os.rmdir(dirpath)
+            except OSError:
+                pass
+
+
+def _remove(engine_id):
+    """Remove an engine: delete its registry entry (engine/<id>), then GC the model / LoRAs / comfy
+    components it referenced that no *remaining* installed engine still needs -- and only files
+    under our model folder (a user's external ComfyUI is never touched)."""
+    record = _read_engine(engine_id)
+    edir = _engine_dir(engine_id)
+
+    if record is None and not os.path.isdir(edir):
+        print("%s is not installed" % engine_id, flush=True)
+        return
+
+    # Drop the registry entry first, so the survivor scan below excludes this engine.
+    shutil.rmtree(edir, ignore_errors=True)
+
+    if record is None:
+        print("Removed %s" % engine_id, flush=True)
+        return
+
+    # What every remaining engine still references (models, (model, lora) pairs, component paths).
+    models_kept, loras_kept, comps_kept = set(), set(), set()
+
+    for other in _registry():
+        if other.get("model"):
+            models_kept.add(other["model"])
+
+        for lora in other.get("loras", []):
+            loras_kept.add((other["model"], lora["file"]))
+
+        for comp in (other.get("comfy") or {}).get("components", []):
+            comps_kept.add(os.path.normcase(os.path.abspath(comp["path"])))
+
+    # Stock model + LoRA GC.
+    model = record.get("model")
+
+    if model:
+        model_dir = os.path.join(default_folder(), model)
+
+        if model not in models_kept:
+            shutil.rmtree(model_dir, ignore_errors=True)
+            print("Removed model %s" % model, flush=True)
+        else:
+            # Base still used -> drop only this engine's now-orphaned LoRAs + rewrite .commit.
+            base, have = _read_manifest(model_dir)
+
+            for lora in record.get("loras", []):
+                if (model, lora["file"]) in loras_kept:
+                    continue
+
+                path = os.path.join(model_dir, LORA_DIR, lora["file"])
+
+                if os.path.isfile(path):
+                    os.remove(path)
+                    print("Removed LoRA %s" % lora["file"], flush=True)
+
+                have.pop(lora["file"], None)
+
+            if base:
+                _write_manifest(model_dir, base, have)
+
+    # Comfy component GC -- only files under our model folder; never a user's external ComfyUI.
+    root = default_folder()
+
+    for comp in (record.get("comfy") or {}).get("components", []):
+        path = os.path.abspath(comp["path"])
+
+        if os.path.normcase(path) in comps_kept:
+            continue
+
+        if _under(path, root) and os.path.isfile(path):
+            os.remove(path)
+            print("Removed component %s" % os.path.basename(path), flush=True)
+
+    _prune_empty(os.path.join(root, "ComfyUI"))
+
+    print("Removed %s" % engine_id, flush=True)
 
 
 def main():
@@ -274,6 +459,27 @@ def main():
         print("ERROR: engine '%s' is not installable (no MODEL)" % args.engine)
         sys.exit(1)
 
+    # --remove: reference-counted -- drop the registry entry, then GC any model/LoRAs/comfy
+    # components no other installed engine still references (see _remove).
+    if args.remove:
+        _remove(mod.ID)
+        return
+
+    # ComfyUI-reuse engines reuse a ComfyUI install's split single files: with --comfy an existing
+    # install, else a self-contained model/ComfyUI/ layout. The scaffold + registry entry live in
+    # engine/<id>, referencing the (canonical, shared) weights under model/.
+    if hasattr(mod, "COMFY"):
+        comfy = args.comfy or os.path.join(default_folder(), "ComfyUI")
+
+        _install_comfy(mod, comfy, _engine_dir(mod.ID))
+        return
+
+    if args.comfy:
+        print("ERROR: engine '%s' does not reuse a ComfyUI install (--comfy not supported)"
+              % args.engine)
+        sys.exit(1)
+
+    # --- stock install: canonical diffusers repo into model/<name> (shared across engines) ---
     # The model name comes from --model, or from the engine's own MODEL["model"] when it declares
     # one (e.g. qwen-image-edit-2511, a single fixed model). One of the two must be present.
     name = args.model or model.get("model")
@@ -290,40 +496,17 @@ def main():
 
     out = os.path.join(default_folder(), name)
 
-    # --remove: drop the engine's model directory (the base model and any LoRAs it holds).
-    if args.remove:
-        if os.path.isdir(out):
-            shutil.rmtree(out, ignore_errors=True)
-            print("Removed %s" % name, flush=True)
-        else:
-            print("%s is not installed" % name, flush=True)
-
-        return
-
-    # ComfyUI-reuse engines don't download a base repo; they reuse a ComfyUI install's split single
-    # files. With --comfy they reuse an existing ComfyUI install; without it they default to a
-    # self-contained ComfyUI-style layout in our model dir (model/ComfyUI/models/...). So a user
-    # with no ComfyUI still gets a working install (missing components download there).
-    if hasattr(mod, "COMFY"):
-        comfy = args.comfy or os.path.join(default_folder(), "ComfyUI")
-
-        _install_comfy(mod, comfy, out)
-        return
-
-    if args.comfy:
-        print("ERROR: engine '%s' does not reuse a ComfyUI install (--comfy not supported)"
-              % args.engine)
-        sys.exit(1)
-
     # ".commit" is a small manifest: the base revision plus the LoRAs already installed (and their
     # revisions). It lets us keep an up-to-date base and fetch only the LoRAs an engine is missing.
     base_existing, installed_loras = _read_manifest(out)
 
     base_ok = bool(revision) and os.path.isdir(out) and base_existing == revision
 
-    # Fully installed for this engine already -> nothing to do.
+    # Fully installed already -> just ensure the registry entry (this is also the migration path:
+    # re-running install over a present model writes engine.json without re-downloading).
     if base_ok and _installed(out, revision, loras):
         print("%s already installed at %s" % (name, revision), flush=True)
+        _write_engine(_stock_record(mod.ID, name, revision, loras))
         return
 
     # hf_hub_download is all we need to add a LoRA; torch/diffusers only for a base (re)install.
@@ -394,16 +577,25 @@ def main():
 
         manifest[file] = want
 
-    # Trim the HF cache for everything we just pulled (the saved copies are self-contained).
-    cache = scan_cache_dir()
+    # Trim the HF cache for everything we just pulled (the saved copies are self-contained). The
+    # cache dir may not exist (nothing cached, or already pruned) -> nothing to trim.
+    from huggingface_hub.errors import CacheNotFound
 
-    for repo in cache.repos:
-        if repo.repo_id in repositories:
-            cache.delete_revisions(*[rev.commit_hash for rev in repo.revisions]).execute()
+    try:
+        cache = scan_cache_dir()
+
+        for repo in cache.repos:
+            if repo.repo_id in repositories:
+                cache.delete_revisions(*[rev.commit_hash for rev in repo.revisions]).execute()
+    except CacheNotFound:
+        pass
 
     # Record the base revision and installed LoRAs so check / future installs stay selective.
     if revision:
         _write_manifest(out, revision, manifest)
+
+    # Register this engine (its model + own declared LoRAs) for listing + reference-counted remove.
+    _write_engine(_stock_record(mod.ID, name, revision, loras))
 
     print("Done.", flush=True)
 

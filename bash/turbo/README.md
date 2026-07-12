@@ -35,6 +35,25 @@ examples:
     install comfy-z-image-turbo default C:/dev/test/ComfyUI_windows_portable
 ```
 
+### [remove.sh](remove.sh) - Remove an installed engine (reference-counted)
+
+```
+Usage: remove <engine>
+
+Remove an engine and garbage-collect its model / LoRAs / comfy components once no other
+installed engine references them (a real ComfyUI install's files are never deleted).
+
+engine: flux2-4b
+        z-image-turbo
+        comfy-z-image-turbo
+        qwen-image-edit-2511
+        qwen-image-edit-2511-lightning
+        qwen-image-edit-2511-lightning-angles
+
+example:
+    remove comfy-z-image-turbo
+```
+
 ### [check.sh](check.sh) - Check the install validity
 
 ```

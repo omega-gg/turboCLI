@@ -152,19 +152,26 @@ def parse_loras(spec):
 def default_folder():
     """The model folder: `model` inside the `turbo` install dir, side by side with runner/ (the
     runner lives in <install>/runner/, so models sit at <install>/model). Deduced from the runner's
-    own path -- no caller ever names it."""
+    own path -- no caller ever names it. Holds only canonical weights, shared across engines."""
     install = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(install, "model")
 
 
-def resolve_model(mod, params):
-    """The engine's on-disk model directory: <model-folder>/<the engine's own model name>.
+def engine_folder():
+    """The engine registry folder: `engine` inside the install, beside model/ and runner/. Holds
+    one dir per installed engine -- its engine.json manifest, and (for a comfy engine) its loader
+    scaffold. Deduced from the runner's own path (mirrors default_folder())."""
+    install = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(install, "engine")
 
-    The model folder is always default_folder() (<install>/model) -- deduced from the runner's
-    path, never passed in. Which checkpoint to load is the engine's own business (its
-    MODEL["model"]), so no caller ever names the model. Mirrors install.py, which saves each
-    engine's model to "<folder>/<model>"."""
-    folder = default_folder()
+
+def resolve_model(mod, params):
+    """The engine's on-disk dir. A comfy engine (declares COMFY) resolves to its registry entry
+    engine/<id> -- its scaffold + engine.json live there, referencing the reused ComfyUI weights. A
+    stock engine resolves to model/<its MODEL["model"]>, the canonical diffusers repo. Both folders
+    are deduced from the runner's path, never passed in."""
+    if hasattr(mod, "COMFY"):
+        return os.path.join(engine_folder(), mod.ID)
 
     spec = getattr(mod, "MODEL", None)
     name = spec.get("model") if spec else None
@@ -172,7 +179,7 @@ def resolve_model(mod, params):
     if not name:
         raise ValueError("engine '%s' declares no model to load" % mod.ID)
 
-    return os.path.join(folder, name)
+    return os.path.join(default_folder(), name)
 
 
 class Ctx:

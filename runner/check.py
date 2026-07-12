@@ -20,25 +20,24 @@
 #
 #==================================================================================================
 
-# Model install check -- the verify-side mirror of runner.install. Given an engine, it resolves the
-# model + pinned revision from the engine module (the single source of truth) and confirms the
-# install on disk is current:
+# Model install check -- the verify-side mirror of runner.install. It reads the engine registry
+# (engine/<id>/engine.json, the source of truth for "installed") and confirms every file that
+# record references is present on disk:
 #
 #   python -m runner.check --engine <name>   # check one engine
 #   python -m runner.check                   # list installed engine ids
 #
-# The model folder is deduced from the runner's path (default_folder(), <install>/model) -- no
-# --folder flag. A model is "installed" when "<folder>/<model>" exists, its ".commit" matches the
-# engine's MODEL["revision"], and every LoRA the engine declares is present. Anything else
-# (missing, stale revision, missing LoRA) reports "not installed" and exits 1, so a bumped
-# revision triggers a rebuild. Light by design: no torch/diffusers import, so it runs under the
-# bundled python without the venv. Run from the deployed diffusion dir so `engine` is importable.
+# An engine is "installed" when it has a registry entry AND its referenced files exist: for a stock
+# engine the model dir carries the recorded revision (.commit) and every recorded LoRA; for a comfy
+# engine the scaffold (model_index.json) + every reused single file exist (see
+# install._engine_installed). Anything else reports "not installed" and exits 1, so a bumped
+# revision or a removed file triggers a rebuild. Light by design: no torch/diffusers import, so it
+# runs under the bundled python without the venv. Run from the deployed dir so `engine` imports.
 
-import os
 import sys
 import argparse
 
-from runner.install import _discover, _installed, _installed_comfy, default_folder
+from runner.install import _discover, _engine_installed
 
 
 def main():
@@ -48,27 +47,12 @@ def main():
 
     args = parser.parse_args()
 
-    folder = default_folder()
-
     engines = _discover()
 
-    # No engine: print the id of every installed engine (one per line).
+    # No engine: print the id of every installed engine (one per line), from the registry.
     if args.engine is None:
         for eid in sorted(engines):
-            mod = engines[eid]
-            model = getattr(mod, "MODEL", None)
-
-            if not model or not model.get("model"):
-                continue
-
-            path = os.path.join(folder, model["model"])
-
-            if hasattr(mod, "COMFY"):
-                ok = _installed_comfy(path)
-            else:
-                ok = _installed(path, model.get("revision"), getattr(mod, "LORAS", []))
-
-            if ok:
+            if _engine_installed(engines[eid]):
                 print(eid)
 
         sys.exit(0)
@@ -79,21 +63,9 @@ def main():
         print("unknown engine '%s'" % args.engine)
         sys.exit(1)
 
-    model = getattr(mod, "MODEL", None)
-
-    if model is None:
-        print("%s is not installable" % args.engine)
-        sys.exit(1)
-
-    name = model.get("model")
-    revision = model.get("revision")
-
-    path = os.path.join(folder, name)
-
-    # Installed = model folder carries the expected revision (.commit) and every declared LoRA;
-    # for a ComfyUI-reuse engine it carries the scaffold + comfy.json manifest + the reused files.
-    if _installed_comfy(path) if hasattr(mod, "COMFY") else _installed(path, revision,
-                                                                       getattr(mod, "LORAS", [])):
+    # Installed = the engine has a registry entry (engine/<id>/engine.json) and every file it
+    # references is present (model .commit revision + LoRAs, or comfy scaffold + components).
+    if _engine_installed(mod):
         print("%s is installed" % args.engine)
         sys.exit(0)
 

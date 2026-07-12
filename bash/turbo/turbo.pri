@@ -1,6 +1,7 @@
 OTHER_FILES += bash/turbo/README.md \
                bash/turbo/build.sh \
                bash/turbo/install.sh \
+               bash/turbo/remove.sh \
                bash/turbo/check.sh \
                bash/turbo/check-model.sh \
                bash/turbo/server.sh \
