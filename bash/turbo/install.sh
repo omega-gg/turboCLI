@@ -28,6 +28,8 @@ set -e
 
 dtype="default"
 
+comfy=""
+
 #--------------------------------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------------------------------
@@ -99,15 +101,16 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 1 -o $# -gt 2 ] \
+if [ $# -lt 1 -o $# -gt 3 ] \
    || \
    [ $# -ge 2 -a "$2" != "default" \
               -a "$2" != "bfloat16" -a "$2" != "float16" -a "$2" != "float32" ]; then
 
-    echo "Usage: install <engine> [dtype = $dtype]"
+    echo "Usage: install <engine> [dtype = $dtype] [ComfyUI folder]"
     echo ""
     echo "engine: flux2-4b"
     echo "        z-image-turbo"
+    echo "        comfy-z-image-turbo (needs a ComfyUI folder; reuses its models)"
     echo "        qwen-image-edit-2511"
     echo "        qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511-lightning-angles"
@@ -115,8 +118,12 @@ if [ $# -lt 1 -o $# -gt 2 ] \
     echo "dtype: default, bfloat16, float16, float32"
     echo "       (bfloat16 is recommended for CUDA, float16 for Apple MPS)"
     echo ""
-    echo "example:"
+    echo "ComfyUI folder: reuse an existing ComfyUI install's model files (comfy-* engines)."
+    echo "                Missing components are fetched into ComfyUI's own models hierarchy."
+    echo ""
+    echo "examples:"
     echo "    install flux2-4b"
+    echo "    install comfy-z-image-turbo default C:/dev/test/ComfyUI_windows_portable"
 
     exit 1
 fi
@@ -137,6 +144,8 @@ engine="$1"
 
 if [ $# -ge 2 ]; then dtype="$2"; fi
 
+if [ $# -ge 3 ]; then comfy="$3"; fi
+
 host=$(getOs)
 
 if [ $host = "win32" -o $host = "win64" ]; then
@@ -153,6 +162,8 @@ if [ $dtype = "float32" ]; then
 fi
 
 folder=$(getPath "$bin_model")
+
+if [ -n "$comfy" ]; then comfy=$(getPath "$comfy"); fi
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -192,7 +203,17 @@ mkdir -p "$bin_model"
 
 echo "Install in progress... The progress output might freeze"
 
-python -m runner.install \
-       --engine "$engine" \
-       --folder "$folder" \
-       --dtype "$dtype"
+if [ -n "$comfy" ]; then
+
+    # Reuse a ComfyUI install's model files (comfy-* engines).
+    python -m runner.install \
+           --engine "$engine" \
+           --folder "$folder" \
+           --dtype "$dtype" \
+           --comfy "$comfy"
+else
+    python -m runner.install \
+           --engine "$engine" \
+           --folder "$folder" \
+           --dtype "$dtype"
+fi

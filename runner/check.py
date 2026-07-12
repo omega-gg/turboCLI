@@ -37,7 +37,7 @@ import os
 import sys
 import argparse
 
-from runner.install import _discover, _installed
+from runner.install import _discover, _installed, _installed_comfy
 
 
 def main():
@@ -61,7 +61,12 @@ def main():
 
             path = os.path.join(args.folder, model["model"])
 
-            if _installed(path, model.get("revision"), getattr(mod, "LORAS", [])):
+            if hasattr(mod, "COMFY"):
+                ok = _installed_comfy(path)
+            else:
+                ok = _installed(path, model.get("revision"), getattr(mod, "LORAS", []))
+
+            if ok:
                 print(eid)
 
         sys.exit(0)
@@ -83,9 +88,10 @@ def main():
 
     path = os.path.join(args.folder, name)
 
-    # Installed = model folder carries the expected revision (.commit) and every declared LoRA
-    # file.
-    if _installed(path, revision, getattr(mod, "LORAS", [])):
+    # Installed = model folder carries the expected revision (.commit) and every declared LoRA file;
+    # for a ComfyUI-reuse engine it carries the scaffold + comfy.json manifest + the reused files.
+    if _installed_comfy(path) if hasattr(mod, "COMFY") else _installed(path, revision,
+                                                                       getattr(mod, "LORAS", [])):
         print("%s is installed" % args.engine)
         sys.exit(0)
 

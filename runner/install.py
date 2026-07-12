@@ -49,6 +49,7 @@
 
 import os
 import sys
+import json
 import glob
 import shutil
 import argparse
@@ -142,6 +143,94 @@ def _installed(out, revision, loras):
     return True
 
 
+def _installed_comfy(out):
+    """True when a ComfyUI-reuse engine (install --comfy) is in place: the scaffold, the comfy.json
+    manifest, and every reused single file it names all exist."""
+    marker = os.path.join(out, "comfy.json")
+
+    if not os.path.isfile(marker) or not os.path.isfile(os.path.join(out, "model_index.json")):
+        return False
+
+    with open(marker) as f:
+        components = json.load(f).get("components", [])
+
+    return bool(components) and all(os.path.isfile(c["path"]) for c in components)
+
+
+def _models_root(comfy):
+    """ComfyUI's models/ dir: <comfy>/ComfyUI/models (portable build) or <comfy>/models."""
+    nested = os.path.join(comfy, "ComfyUI", "models")
+
+    return nested if os.path.isdir(nested) else os.path.join(comfy, "models")
+
+
+def _install_comfy(mod, comfy, out):
+    """Install a ComfyUI-reuse engine (--comfy): keep each COMFY component already in the ComfyUI
+    install, download only the missing ones there, fetch the tiny SCAFFOLD (configs/tokenizer/
+    scheduler, no weights) into `out`, and write out/comfy.json naming the reused files. No base
+    repo, no GPU -- so a user who already runs ComfyUI does not re-download the big weights."""
+    from huggingface_hub import scan_cache_dir, hf_hub_download, snapshot_download
+    from huggingface_hub.errors import CacheNotFound
+
+    comfy_cfg = mod.COMFY
+    models = _models_root(comfy)
+
+    repositories = []
+    manifest = []
+
+    # Components: reuse each file already in ComfyUI's models/<subdir>/, download the rest there.
+    for c in comfy_cfg["components"]:
+        dest = os.path.join(models, c["subdir"], c["file"])
+
+        if os.path.isfile(dest):
+            print("Component present: %s/%s" % (c["subdir"], c["file"]), flush=True)
+        else:
+            print("Downloading component: %s/%s" % (c["subdir"], c["file"]), flush=True)
+
+            # In-repo path is split_files/<subdir>/<file>; land it in models/ then move to the subdir.
+            path = hf_hub_download(repo_id=comfy_cfg["repository"],
+                                   filename="split_files/%s/%s" % (c["subdir"], c["file"]),
+                                   revision=comfy_cfg.get("revision") or None, local_dir=models)
+
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            shutil.move(path, dest)
+
+            repositories.append(comfy_cfg["repository"])
+
+        manifest.append({"role": c["role"], "subdir": c["subdir"], "file": c["file"], "path": dest})
+
+    shutil.rmtree(os.path.join(models, "split_files"), ignore_errors=True)
+
+    # Scaffold: the small diffusers configs/tokenizer/scheduler (no weights) needed to load offline.
+    scaffold = mod.SCAFFOLD
+    repo = scaffold["repository"] + "/" + scaffold["model"]
+
+    print("Fetching scaffold: %s" % repo, flush=True)
+
+    snapshot_download(repo_id=repo, revision=scaffold.get("revision") or None,
+                      allow_patterns=scaffold["allow_patterns"], local_dir=out)
+
+    shutil.rmtree(os.path.join(out, ".cache"), ignore_errors=True)   # snapshot_download bookkeeping
+
+    repositories.append(repo)
+
+    # comfy.json: the manifest generation + check read to find the reused single files.
+    with open(os.path.join(out, "comfy.json"), "w") as f:
+        json.dump({"comfy": models, "components": manifest}, f, indent=2)
+
+    # Trim the HF cache for anything pulled (a pure reuse pulls nothing, so it may not exist).
+    try:
+        cache = scan_cache_dir()
+
+        for repo_entry in cache.repos:
+            if repo_entry.repo_id in repositories:
+                cache.delete_revisions(*[rev.commit_hash for rev in repo_entry.revisions]).execute()
+    except CacheNotFound:
+        pass
+
+    print("Done.", flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(prog="runner.install")
 
@@ -158,6 +247,9 @@ def main():
     # --remove: delete the engine's model directory (base model + any LoRAs in it) instead of
     # installing.
     parser.add_argument("--remove", action="store_true")
+    # --comfy: a ComfyUI install dir. Only for engines that declare COMFY -- they reuse that install's
+    # single files instead of downloading a base repo (see _install_comfy).
+    parser.add_argument("--comfy", default=None)
 
     args = parser.parse_args()
 
@@ -198,6 +290,20 @@ def main():
             print("%s is not installed" % name, flush=True)
 
         return
+
+    # ComfyUI-reuse engines don't download a base repo; they reuse a ComfyUI install's files.
+    if hasattr(mod, "COMFY"):
+        if not args.comfy:
+            print("ERROR: engine '%s' requires --comfy <ComfyUI folder>" % args.engine)
+            sys.exit(1)
+
+        _install_comfy(mod, args.comfy, out)
+        return
+
+    if args.comfy:
+        print("ERROR: engine '%s' does not reuse a ComfyUI install (--comfy not supported)"
+              % args.engine)
+        sys.exit(1)
 
     # ".commit" is a small manifest: the base revision plus the LoRAs already installed (and their
     # revisions). It lets us keep an up-to-date base and fetch only the LoRAs an engine is missing.

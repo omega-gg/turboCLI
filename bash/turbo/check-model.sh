@@ -101,6 +101,7 @@ if [ $# -ne 1 ]; then
     echo ""
     echo "engine: flux2-4b"
     echo "        z-image-turbo"
+    echo "        comfy-z-image-turbo"
     echo "        qwen-image-edit-2511"
     echo "        qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511-lightning-angles"
