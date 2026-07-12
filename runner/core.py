@@ -539,9 +539,9 @@ def generate(params, emit, should_stop=None):
 
             return False
 
-        # Offload eligibility is a turboCLI-side decision: the (model-agnostic) backend claims every
-        # engine, but the disk-stream path needs the engine's transformer class to meta-load, so an
-        # engine is offload-wired iff it declares TRANSFORMER (engine/<name>.py).
+        # Offload eligibility is a turboCLI-side decision: the (model-agnostic) backend claims
+        # every engine, but the disk-stream path needs the engine's transformer class to meta-load,
+        # so an engine is offload-wired iff it declares TRANSFORMER (engine/<name>.py).
         if getattr(mod, "TRANSFORMER", None) is None:
             emit("ERROR: engine '%s' is not wired for offload (declares no TRANSFORMER)" % engine)
 
