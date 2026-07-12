@@ -28,11 +28,11 @@
 #   python -m runner.check                   # list installed engine ids
 #
 # An engine is "installed" when it has a registry entry AND its referenced files exist: for a stock
-# engine the model dir carries the recorded revision (.commit) and every recorded LoRA; for a comfy
-# engine the scaffold (model_index.json) + every reused single file exist (see
-# install._engine_installed). Anything else reports "not installed" and exits 1, so a bumped
-# revision or a removed file triggers a rebuild. Light by design: no torch/diffusers import, so it
-# runs under the bundled python without the venv. Run from the deployed dir so `engine` imports.
+# engine the model dir's model_index.json + every recorded LoRA (the record carries the revision);
+# for a comfy engine the scaffold (model_index.json) + every reused single file (see
+# install._engine_installed). Anything else reports "not installed" and exits 1, so a removed file
+# triggers a rebuild. Light by design: no torch/diffusers import, so it runs under the bundled
+# python without the venv. Run from the deployed dir so `engine` imports.
 
 import sys
 import argparse
@@ -64,7 +64,7 @@ def main():
         sys.exit(1)
 
     # Installed = the engine has a registry entry (engine/<id>/engine.json) and every file it
-    # references is present (model .commit revision + LoRAs, or comfy scaffold + components).
+    # references is present (stock: model_index.json + LoRAs; comfy: scaffold + components).
     if _engine_installed(mod):
         print("%s is installed" % args.engine)
         sys.exit(0)

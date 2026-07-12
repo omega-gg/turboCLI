@@ -37,9 +37,9 @@
 # LoRAs it uses (none / lightning / lightning + angles). Each engine module under runner/engine
 # declares its install needs (MODEL repo + optional LORAS list).
 #
-# Installs are selective via the "<model>/.commit" manifest (base revision + the installed
-# LoRAs and their revisions): a base already at the pinned revision is kept (no re-download, no
-# torch import), and only missing/stale LoRAs are fetched -- so installing
+# Installs are selective via the engine registry (engine/<id>/engine.json records each install's
+# revision): a base already at the pinned revision -- per any engine record for that model -- is
+# kept (no re-download, no torch import), and only missing LoRAs are fetched, so installing
 # qwen-image-edit-2511-lightning over an existing qwen-image-edit-2511 just pulls the lightning
 # LoRA.
 #
@@ -162,72 +162,22 @@ def _resolve(spec):
     return getattr(importlib.import_module(module_name), cls_name)
 
 
-def _read_manifest(out):
-    """Parse <out>/.commit -> (base_revision, {lora_file: revision}); (None, {}) when absent.
+def _model_revision(model):
+    """The revision recorded for a shared model dir by any installed engine (they agree -- engines
+    sharing a model pin the same MODEL["revision"]); None when no engine records it. Lets install /
+    check derive the physical dir's revision from the registry, so model dirs need no .commit."""
+    for record in _registry():
+        if record.get("model") == model:
+            return record.get("revision")
 
-    Line-based and backward compatible: line 1 is the base revision, each later line is
-    "<lora_file> <revision>" (revision optional). A legacy revision-only marker yields no LoRAs.
-    """
-    marker = os.path.join(out, ".commit")
-
-    if not os.path.isfile(marker):
-        return None, {}
-
-    base = None
-    loras = {}
-
-    with open(marker) as f:
-        for line in f:
-            parts = line.split()
-
-            if not parts:
-                continue
-
-            if base is None:
-                base = parts[0]
-            else:
-                loras[parts[0]] = parts[1] if len(parts) > 1 else None
-
-    return base, loras
-
-
-def _write_manifest(out, revision, loras):
-    """Write <out>/.commit: the base revision then one "<file> <revision>" line per LoRA."""
-    lines = [revision]
-
-    for file in sorted(loras):
-        rev = loras[file]
-
-        lines.append("%s %s" % (file, rev) if rev else file)
-
-    with open(os.path.join(out, ".commit"), "w") as f:
-        f.write("\n".join(lines) + "\n")
-
-
-def _installed(out, revision, loras):
-    """True when <out> holds this base revision and every required LoRA at its pinned revision."""
-    base, have = _read_manifest(out)
-
-    if base != revision:
-        return False
-
-    for lora in loras:
-        if not os.path.isfile(os.path.join(out, LORA_DIR, lora["file"])):
-            return False
-
-        want = lora.get("revision")
-
-        if want is not None and have.get(lora["file"]) != want:
-            return False
-
-    return True
+    return None
 
 
 def _engine_installed(mod):
     """True when this engine has a registry entry (engine/<id>/engine.json) whose referenced files
     are all present -- the source of truth for check.py. Comfy: the scaffold's model_index.json +
-    every component path exist. Stock: the model dir carries the recorded revision (.commit) and
-    every recorded LoRA file exists."""
+    every component path exist. Stock: the model dir's model_index.json + every recorded LoRA file
+    exist (the record itself carries the installed revision)."""
     record = _read_engine(mod.ID)
 
     if record is None:
@@ -244,9 +194,8 @@ def _engine_installed(mod):
         return bool(components) and all(os.path.isfile(c["path"]) for c in components)
 
     model_dir = os.path.join(default_folder(), record["model"])
-    base, _ = _read_manifest(model_dir)
 
-    if base != record.get("revision"):
+    if not os.path.isfile(os.path.join(model_dir, "model_index.json")):
         return False
 
     return all(os.path.isfile(os.path.join(model_dir, LORA_DIR, lora["file"]))
@@ -391,9 +340,7 @@ def _remove(engine_id):
             shutil.rmtree(model_dir, ignore_errors=True)
             print("Removed model %s" % model, flush=True)
         else:
-            # Base still used -> drop only this engine's now-orphaned LoRAs + rewrite .commit.
-            base, have = _read_manifest(model_dir)
-
+            # Base still used -> drop only this engine's now-orphaned LoRA files.
             for lora in record.get("loras", []):
                 if (model, lora["file"]) in loras_kept:
                     continue
@@ -403,11 +350,6 @@ def _remove(engine_id):
                 if os.path.isfile(path):
                     os.remove(path)
                     print("Removed LoRA %s" % lora["file"], flush=True)
-
-                have.pop(lora["file"], None)
-
-            if base:
-                _write_manifest(model_dir, base, have)
 
     # Comfy component GC -- only files under our model folder; never a user's external ComfyUI.
     root = default_folder()
@@ -496,15 +438,19 @@ def main():
 
     out = os.path.join(default_folder(), name)
 
-    # ".commit" is a small manifest: the base revision plus the LoRAs already installed (and their
-    # revisions). It lets us keep an up-to-date base and fetch only the LoRAs an engine is missing.
-    base_existing, installed_loras = _read_manifest(out)
+    # base_ok: the shared model dir is present and already at the pinned revision, per the registry
+    # (any engine record for this model). If so, skip the heavy base re-download and only add
+    # missing LoRAs. No per-dir .commit -- the registry carries the revision.
+    base_ok = (bool(revision)
+               and os.path.isfile(os.path.join(out, "model_index.json"))
+               and _model_revision(name) == revision)
 
-    base_ok = bool(revision) and os.path.isdir(out) and base_existing == revision
+    loras_present = all(os.path.isfile(os.path.join(out, LORA_DIR, lora["file"]))
+                        for lora in loras)
 
     # Fully installed already -> just ensure the registry entry (this is also the migration path:
     # re-running install over a present model writes engine.json without re-downloading).
-    if base_ok and _installed(out, revision, loras):
+    if base_ok and loras_present:
         print("%s already installed at %s" % (name, revision), flush=True)
         _write_engine(_stock_record(mod.ID, name, revision, loras))
         return
@@ -516,8 +462,6 @@ def main():
 
     if base_ok:
         print("Base model present; installing missing LoRAs only.", flush=True)
-
-        manifest = dict(installed_loras)
     else:
         # Clean base (re)install: drop any previous copy, then ensure the base dir exists.
         shutil.rmtree(out, ignore_errors=True)
@@ -557,25 +501,21 @@ def main():
 
         repositories.append(base_repo)
 
-        # A fresh base wipes any previous LoRAs, so the manifest starts empty.
-        manifest = {}
-
-    # Fetch each LoRA the engine needs, unless its file is already present at the pinned revision.
+    # Fetch each LoRA the engine needs, unless its file is already present (a fresh base install
+    # above wiped the dir, so all its LoRAs are missing and get pulled).
     for lora in loras:
         file = lora["file"]
-        want = lora.get("revision")
 
-        if os.path.isfile(os.path.join(out, LORA_DIR, file)) and manifest.get(file) == want:
+        if os.path.isfile(os.path.join(out, LORA_DIR, file)):
             print("LoRA already present: %s" % file, flush=True)
         else:
             print("Downloading LoRA: %s" % file, flush=True)
 
             hf_hub_download(repo_id=lora["repository"], filename=file,
-                            revision=want or None, local_dir=os.path.join(out, LORA_DIR))
+                            revision=lora.get("revision") or None,
+                            local_dir=os.path.join(out, LORA_DIR))
 
             repositories.append(lora["repository"])
-
-        manifest[file] = want
 
     # Trim the HF cache for everything we just pulled (the saved copies are self-contained). The
     # cache dir may not exist (nothing cached, or already pruned) -> nothing to trim.
@@ -590,11 +530,8 @@ def main():
     except CacheNotFound:
         pass
 
-    # Record the base revision and installed LoRAs so check / future installs stay selective.
-    if revision:
-        _write_manifest(out, revision, manifest)
-
-    # Register this engine (its model + own declared LoRAs) for listing + reference-counted remove.
+    # Register this engine (its model + revision + own declared LoRAs) for listing + reference-
+    # counted remove. This record carries the revision, so the model dir needs no .commit marker.
     _write_engine(_stock_record(mod.ID, name, revision, loras))
 
     print("Done.", flush=True)
