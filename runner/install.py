@@ -191,7 +191,7 @@ def _engine_installed(mod):
 
         components = comfy.get("components", [])
 
-        return bool(components) and all(os.path.isfile(c["path"]) for c in components)
+        return bool(components) and all(os.path.isfile(_comp_path(comfy, c)) for c in components)
 
     model_dir = os.path.join(default_folder(), record["model"])
 
@@ -209,6 +209,12 @@ def _models_root(comfy):
     return nested if os.path.isdir(nested) else os.path.join(comfy, "models")
 
 
+def _comp_path(comfy, comp):
+    """Absolute path of a comfy component = its record's `root` (the reused ComfyUI install) joined
+    with the component's root-relative `path` (e.g. models/vae/qwen_image_vae.safetensors)."""
+    return os.path.join(comfy["root"], *comp["path"].split("/"))
+
+
 def _install_comfy(mod, comfy, out):
     """Install a ComfyUI-reuse engine (--comfy): keep each COMFY component already in the ComfyUI
     install, download only the missing ones there, fetch the tiny SCAFFOLD (configs/tokenizer/
@@ -220,6 +226,7 @@ def _install_comfy(mod, comfy, out):
 
     comfy_cfg = mod.COMFY
     models = _models_root(comfy)
+    root = os.path.dirname(models)  # the ComfyUI install dir; components are stored relative to it
 
     repositories = []
     manifest = []
@@ -233,17 +240,24 @@ def _install_comfy(mod, comfy, out):
         else:
             print("Downloading component: %s" % c["path"], flush=True)
 
-            # In-repo path is split_files/<path>; land it in models/ then move to its subdir.
-            src = hf_hub_download(repo_id=comfy_cfg["repository"],
-                                  filename="split_files/" + c["path"],
-                                  revision=comfy_cfg.get("revision") or None, local_dir=models)
+            # A component may name its own repo (engines whose files live in different Comfy-Org
+            # repos); else the engine's top-level COMFY repo. In-repo path defaults to
+            # split_files/<path> (Comfy-Org repackaged layout) but a component may set `filename`
+            # explicitly (e.g. a LoRA whose file sits at a plain repo's root). Land it in models/
+            # then move to its subdir.
+            repo = c.get("repository") or comfy_cfg.get("repository")
+            src = hf_hub_download(repo_id=repo,
+                                  filename=c.get("filename") or ("split_files/" + c["path"]),
+                                  revision=c.get("revision") or comfy_cfg.get("revision") or None,
+                                  local_dir=models)
 
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             shutil.move(src, dest)
 
-            repositories.append(comfy_cfg["repository"])
+            repositories.append(repo)
 
-        manifest.append({"role": c["role"], "path": dest})
+        rel = os.path.relpath(dest, root).replace(os.sep, "/")  # e.g. models/vae/qwen_image_vae...
+        manifest.append({"role": c["role"], "path": rel})
 
     shutil.rmtree(os.path.join(models, "split_files"), ignore_errors=True)
 
@@ -262,11 +276,12 @@ def _install_comfy(mod, comfy, out):
     repositories.append(repo)
 
     # engine.json: the registry record -- component refs (for load + reference-counted GC) and the
-    # loader scaffold's source. `external` = weights outside our model folder (a user's own ComfyUI
-    # install), so remove.sh only unregisters them, never deletes them.
+    # loader scaffold's source. `root` is the reused ComfyUI install dir; components store their
+    # path relative to it. `external` = weights outside our model folder (a user's ComfyUI), so
+    # remove.sh only unregisters them, never deletes them.
     _write_engine({
         "id": mod.ID, "model": None, "revision": None, "loras": [],
-        "comfy": {"root": models, "external": not _under(models, default_folder()),
+        "comfy": {"root": root, "external": not _under(models, default_folder()),
                   "components": manifest,
                   "scaffold": {"repository": scaffold["repository"], "model": scaffold["model"],
                                "revision": scaffold.get("revision")}},
@@ -327,8 +342,9 @@ def _remove(engine_id):
         for lora in other.get("loras", []):
             loras_kept.add((other["model"], lora["file"]))
 
-        for comp in (other.get("comfy") or {}).get("components", []):
-            comps_kept.add(os.path.normcase(os.path.abspath(comp["path"])))
+        other_comfy = other.get("comfy") or {}
+        for comp in other_comfy.get("components", []):
+            comps_kept.add(os.path.normcase(_comp_path(other_comfy, comp)))
 
     # Stock model + LoRA GC.
     model = record.get("model")
@@ -354,8 +370,9 @@ def _remove(engine_id):
     # Comfy component GC -- only files under our model folder; never a user's external ComfyUI.
     root = default_folder()
 
-    for comp in (record.get("comfy") or {}).get("components", []):
-        path = os.path.abspath(comp["path"])
+    rec_comfy = record.get("comfy") or {}
+    for comp in rec_comfy.get("components", []):
+        path = _comp_path(rec_comfy, comp)
 
         if os.path.normcase(path) in comps_kept:
             continue

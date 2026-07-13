@@ -90,15 +90,19 @@ SCAFFOLD = {
 }
 
 
-def components(engine_dir):
-    """Read engine.json -> comfy.components ([{role, path}, ...]) with the absolute path of each
-    ComfyUI single file. Written by install; the source of truth for where the weights live."""
+def _comfy(engine_dir):
+    """Read engine.json -> the comfy record {root, external, components, scaffold}. Written by
+    install; the source of truth for the reused ComfyUI install and the files under it."""
     with open(os.path.join(engine_dir, "engine.json")) as f:
-        return json.load(f)["comfy"]["components"]
+        return json.load(f)["comfy"]
 
 
-def _by_role(model_dir):
-    return {c["role"]: c["path"] for c in components(model_dir)}
+def _by_role(engine_dir):
+    """{role: absolute path} for each reused ComfyUI file, resolving the component's root-relative
+    `path` (e.g. models/vae/ae.safetensors) against the record's `root`."""
+    comfy = _comfy(engine_dir)
+    return {c["role"]: os.path.join(comfy["root"], *c["path"].split("/"))
+            for c in comfy["components"]}
 
 
 def _build_text_encoder(scaffold, weight_file, dtype):
@@ -119,6 +123,32 @@ def _build_text_encoder(scaffold, weight_file, dtype):
     return model.to(dtype).eval()
 
 
+def _transformer_meta(scaffold, dtype):
+    """Meta-build (no weight RAM) the ZImage transformer from the scaffold config, for the
+    offloader to stream the ComfyUI single file into."""
+    from accelerate import init_empty_weights
+    from diffusers import ZImageTransformer2DModel
+
+    cfg = ZImageTransformer2DModel.load_config(os.path.join(scaffold, "transformer"))
+    with init_empty_weights():
+        return ZImageTransformer2DModel.from_config(cfg).to(dtype)
+
+
+def _strip_model(sd):
+    """ComfyUI prefixes every text-encoder key with 'model.'; strip it so the bare Qwen3Model binds
+    (the single-file key remap handed to the offloader stream)."""
+    return {(k[len("model."):] if k.startswith("model.") else k): v for k, v in sd.items()}
+
+
+def _text_encoder_meta(scaffold, dtype):
+    from accelerate import init_empty_weights
+    from transformers import AutoConfig, Qwen3Model
+
+    cfg = AutoConfig.from_pretrained(os.path.join(scaffold, "text_encoder"))
+    with init_empty_weights():
+        return Qwen3Model(cfg).to(dtype)
+
+
 def load(ctx, params):
     """Build a ZImagePipeline from ComfyUI's single files. The offload backend, when present, meta-
     loads the big models straight from those files (disk-stream); otherwise every component is
@@ -130,25 +160,33 @@ def load(ctx, params):
     scaffold = ctx.model  # engine/comfy-z-image-turbo/ (scaffolding + engine.json)
     files    = _by_role(scaffold)
 
-    # Disk-stream path: give the backend the scaffold (meta-load configs) + the single-file paths.
+    # Small resident components come from the scaffold; the comfy VAE is reused (from_single_file).
+    scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(scaffold, subfolder="scheduler")
+    tokenizer = AutoTokenizer.from_pretrained(os.path.join(scaffold, "tokenizer"))
+    vae = AutoencoderKL.from_single_file(files["vae"], config=scaffold, subfolder="vae",
+                                         torch_dtype=ctx.dtype, local_files_only=True)
+
+    # Disk-stream path: hand the backend model-agnostic specs -- the two big models' meta-builders
+    # + single-file paths + key remaps (transformer via the diffusers converter, TE via `model.`
+    # strip) -- plus the pre-built small components. All ZImage specifics stay in this engine file.
     if ctx.backend is not None:
-        return ctx.backend.load_pipe_single_file(
-            scaffold, files, ctx.dtype,
-            ZImagePipeline, ZImageTransformer2DModel,
-            device=ctx.device, lora_files=ctx.loras or None,
-        )
+        from diffusers.loaders.single_file_utils import (
+            convert_z_image_transformer_checkpoint_to_diffusers as convert_transformer)
+
+        return ctx.backend.load_pipe_comfy(
+            ZImagePipeline,
+            {"meta": lambda d: _transformer_meta(scaffold, d), "file": files["transformer"],
+             "convert": convert_transformer},
+            {"meta": lambda d: _text_encoder_meta(scaffold, d), "file": files["text_encoder"],
+             "convert": _strip_model},
+            {"scheduler": scheduler, "tokenizer": tokenizer, "vae": vae},
+            ctx.dtype, device=ctx.device, lora_files=ctx.loras or None)
 
     # Native path: materialise each component, then apply LoRAs + placement via the shared helpers.
-    scheduler   = FlowMatchEulerDiscreteScheduler.from_pretrained(scaffold, subfolder="scheduler")
-    tokenizer   = AutoTokenizer.from_pretrained(os.path.join(scaffold, "tokenizer"))
     text_encoder = _build_text_encoder(scaffold, files["text_encoder"], ctx.dtype)
 
     transformer = ZImageTransformer2DModel.from_single_file(
         files["transformer"], config=scaffold, subfolder="transformer",
-        torch_dtype=ctx.dtype, local_files_only=True)
-
-    vae = AutoencoderKL.from_single_file(
-        files["vae"], config=scaffold, subfolder="vae",
         torch_dtype=ctx.dtype, local_files_only=True)
 
     p = ZImagePipeline(scheduler=scheduler, vae=vae, text_encoder=text_encoder,
