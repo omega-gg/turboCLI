@@ -20,37 +20,22 @@
 #
 #==================================================================================================
 
-# qwen-image-edit-2511-lightning-angles -- the qwen-image-edit-2511 model with "lightning"
-# (always) + "angles" (only for <sks> prompts). The angles toggle is part of the cache key
-# (extra_key), so flipping it reloads the pipe. Same model/pipeline as qwen-image-edit-2511; TYPE
-# stays "qwen-image-edit" so the backend seam treats it as a normal qwen-image-edit. Standalone by
-# design.
+# qwen-image-edit-2511-lightning-angles -- the lightning variant + "angles" (only for <sks>
+# prompts). The angles toggle is part of the cache key (extra_key), so flipping it reloads the
+# pipe. Inherits from qwen-image-edit-2511-lightning via BASE (TYPE / PIPELINE / TRANSFORMER /
+# MODES / CFG / MODEL / INFERENCE); declares only the angles delta.
+
+from . import qwen_image_edit_2511_lightning as base
 
 ID   = "qwen-image-edit-2511-lightning-angles"
-TYPE = "qwen-image-edit"
+BASE = base.ID
 
-PIPELINE    = "diffusers:QwenImageEditPlusPipeline"
-TRANSFORMER = "diffusers:QwenImageTransformer2DModel" # offloader disk-stream meta-load
-
-MODES = ("image-to-image",)
-CFG   = ("true_cfg_scale", 1.0)
-
-INFERENCE = 4
-
-# Install (python -m runner.install): the model + the lightning and angles LoRAs, into the model
-# folder.
-# "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.
-MODEL = {"repository": "Qwen", "model": "Qwen-Image-Edit-2511",
-         "revision": "6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9"}
-
-# LoRAs applied on load, found inside the model folder (the same files the install fetches).
-# "angles" only for <sks> prompts.
-LIGHTNING = "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
+# lightning (inherited) + angles. "angles" only applied for <sks> prompts (see loras()).
+LIGHTNING = base.LIGHTNING
 ANGLES    = "qwen-image-edit-2511-multiple-angles-lora.safetensors"
 
-LORAS = [
-    {"repository": "lightx2v/Qwen-Image-Edit-2511-Lightning", "file": LIGHTNING,
-     "revision": "d74eba145674fd7e31b949324e148e21e7118abd"},
+# Extend the base's install list with the angles LoRA (so LORAS is declared here, not inherited).
+LORAS = base.LORAS + [
     {"repository": "fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA", "file": ANGLES,
      "revision": "e3066224ab74263f4a5b6179cd1a3b0a15577e44"},
 ]

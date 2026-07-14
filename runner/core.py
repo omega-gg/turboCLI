@@ -88,6 +88,10 @@ for _path in sorted(glob.glob(os.path.join(os.path.dirname(__file__), "engine", 
 
     ENGINES[_emod.ID] = _emod
 
+# Resolve BASE inheritance now that every engine module is imported: a variant declaring
+# `BASE = "<base id>"` inherits the contract symbols it omits (see engine/_inherit.py).
+importlib.import_module("%s.engine._inherit" % __package__).resolve(ENGINES)
+
 
 def log(message):
     print(message, flush=True)

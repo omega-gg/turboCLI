@@ -24,3 +24,14 @@
 # loras() / load() hooks) and is auto-discovered by core. IMPORTANT: an engine module must NOT
 # import diffusers/torch at top level -- name the pipeline by string and import lazily inside
 # hooks, so discovery stays cheap and an unused engine costs nothing.
+#
+# INHERITANCE: a variant may declare `BASE = "<base engine ID>"` and write only its delta -- it
+# inherits every contract symbol it does not itself define (TYPE / PIPELINE / TRANSFORMER / MODES /
+# CFG / INFERENCE / MODEL / COMFY / SCAFFOLD / LORAS / load / loras / extra_key) from the base,
+# folded once at discovery (see _inherit.py; zero runtime cost). An inherited load()/loras() keeps
+# the base module's globals, so it still resolves the base's private helpers. To EXTEND a value
+# (rather than inherit/replace), import the base module (cheap -- no torch at top) and compute it:
+#   from . import qwen_image_edit_2511_lightning as base
+#   BASE  = base.ID
+#   LORAS = base.LORAS + [ ... ]                       # or: dict(base.COMFY, components=...)
+# See qwen_image_edit_2511_lightning[_angles].py and comfy_qwen_image_edit_2511_lightning.py.

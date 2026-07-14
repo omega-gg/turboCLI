@@ -20,28 +20,19 @@
 #
 #==================================================================================================
 
-# qwen-image-edit-2511-lightning -- the qwen-image-edit-2511 model with the "lightning" 4-step LoRA
-# always applied (no angles, no prompt dependence). Same model/pipeline as qwen-image-edit-2511;
-# TYPE stays "qwen-image-edit" so the backend seam treats it as a normal qwen-image-edit.
-# Standalone by design.
+# qwen-image-edit-2511-lightning -- qwen-image-edit-2511 with the "lightning" 4-step LoRA always
+# applied (no angles, no prompt dependence). Inherits everything else (TYPE / PIPELINE /
+# TRANSFORMER / MODES / CFG / MODEL) from the base via BASE; declares only its delta.
+
+from . import qwen_image_edit_2511 as base  # cheap: base imports no torch at top level
 
 ID   = "qwen-image-edit-2511-lightning"
-TYPE = "qwen-image-edit"
+BASE = base.ID
 
-PIPELINE    = "diffusers:QwenImageEditPlusPipeline"
-TRANSFORMER = "diffusers:QwenImageTransformer2DModel" # offloader disk-stream meta-load
+INFERENCE = 4  # the lightning LoRA's design step count (vs the base engine's 40)
 
-MODES = ("image-to-image",)
-CFG   = ("true_cfg_scale", 1.0)
-
-INFERENCE = 4
-
-# Install (python -m runner.install): the model + the lightning LoRA, into the model folder.
-# "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.
-MODEL = {"repository": "Qwen", "model": "Qwen-Image-Edit-2511",
-         "revision": "6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9"}
-
-# LoRA applied on load, found inside the model folder (the same file the install fetches).
+# LoRA applied on load, found inside the model folder (the same file install fetches). "revision"
+# pins the HF commit (mutable repos -> reproducible installs); check validates it.
 LIGHTNING = "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
 
 LORAS = [

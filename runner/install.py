@@ -152,6 +152,9 @@ def _discover():
         m = importlib.import_module("%s.engine.%s" % (__package__, f[:-3]))
         engines[m.ID] = m
 
+    # Resolve BASE inheritance (variants inherit contract symbols they omit -- engine/_inherit.py).
+    importlib.import_module("%s.engine._inherit" % __package__).resolve(engines)
+
     return engines
 
 

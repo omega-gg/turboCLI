@@ -169,13 +169,14 @@ def load(ctx, params):
     offloader. OFFLOADER-ONLY: the fp8 text-encoder quant path needs comfy ops, so bail out
     otherwise. Build the small resident components (VAE/tokenizer/processor/scheduler) from the
     scaffold here, then hand the backend model-agnostic specs for the two big streamed models."""
-    scaffold = ctx.model  # engine/comfy-qwen-image-edit-2511/ (scaffolding + engine.json)
+    scaffold = ctx.model  # engine/<id>/ (scaffolding + engine.json); shared by inheriting variants
     files    = _by_role(scaffold)
 
     if ctx.backend is None:
+        engine_id = os.path.basename(os.path.normpath(scaffold))  # engine/<id> -> <id>
         raise RuntimeError(
-            "comfy-qwen-image-edit-2511 requires an offload backend (offload=offloader); "
-            "the fp8 text-encoder quant path needs comfy ops")
+            "%s requires an offload backend (offload=offloader); the fp8 text-encoder quant path "
+            "needs comfy ops" % engine_id)
 
     from diffusers import QwenImageEditPlusPipeline, FlowMatchEulerDiscreteScheduler
     from transformers import Qwen2Tokenizer, Qwen2VLProcessor
@@ -185,6 +186,12 @@ def load(ctx, params):
     processor = Qwen2VLProcessor.from_pretrained(os.path.join(scaffold, "processor"))
     vae = _build_vae(scaffold, files["vae"], ctx.dtype)  # reused from ComfyUI (WAN key convert)
 
+    # An inheriting variant may add a reused "lora" component (see comfy-...-lightning); apply it
+    # to the transformer at full strength before user-supplied ctx.loras. Absent -> just ctx.loras.
+    lora_files = list(ctx.loras)
+    if "lora" in files:
+        lora_files = [(files["lora"], 1.0)] + lora_files
+
     return ctx.backend.load_pipe_comfy(
         QwenImageEditPlusPipeline,
         {"meta": lambda d: _transformer_meta(scaffold, d), "file": files["transformer"],
@@ -192,4 +199,4 @@ def load(ctx, params):
         {"meta": lambda d: _text_encoder_meta(scaffold, d), "file": files["text_encoder"],
          "convert": _flat_to_nested, "quant": True},
         {"scheduler": scheduler, "tokenizer": tokenizer, "processor": processor, "vae": vae},
-        ctx.dtype, device=ctx.device, lora_files=ctx.loras or None)
+        ctx.dtype, device=ctx.device, lora_files=lora_files or None)
