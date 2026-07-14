@@ -94,17 +94,13 @@ SCAFFOLD = {
 }
 
 
-def _comfy(engine_dir):
-    """Read engine.json -> the comfy record {root, external, components, scaffold}. Written by
-    install; the source of truth for the reused ComfyUI install and the files under it."""
-    with open(os.path.join(engine_dir, "engine.json")) as f:
-        return json.load(f)["comfy"]
-
-
 def _by_role(engine_dir):
-    """{role: absolute path} for each reused ComfyUI file, resolving the component's root-relative
-    `path` (e.g. models/vae/qwen_image_vae.safetensors) against the record's `root`."""
-    comfy = _comfy(engine_dir)
+    """{role: absolute path} for each reused ComfyUI file. Reads the engine.json comfy record
+    (written by install: {root, external, components, scaffold}) and resolves each component's
+    root-relative `path` (e.g. models/vae/qwen_image_vae.safetensors) against `root`."""
+    with open(os.path.join(engine_dir, "engine.json")) as f:
+        comfy = json.load(f)["comfy"]
+
     return {c["role"]: os.path.join(comfy["root"], *c["path"].split("/"))
             for c in comfy["components"]}
 
