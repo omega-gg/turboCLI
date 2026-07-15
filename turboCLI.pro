@@ -12,6 +12,8 @@ OTHER_FILES += runner/__init__.py \
                runner/install.py \
                runner/server.py \
                runner/engine/__init__.py \
+               runner/engine/comfy_krea2_turbo.py \
+               runner/engine/comfy_qwen_image_edit_2511.py \
                runner/engine/comfy_z_image_turbo.py \
                runner/engine/flux2_4b.py \
                runner/engine/qwen_image_edit_2511.py \

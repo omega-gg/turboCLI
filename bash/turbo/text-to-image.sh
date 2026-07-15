@@ -127,6 +127,7 @@ if [ $# -lt 4 -o $# -gt 12 ] \
     echo "engine: flux2-4b"
     echo "        z-image-turbo"
     echo "        comfy-z-image-turbo"
+    echo "        comfy-krea2-turbo"
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""

@@ -36,7 +36,7 @@ commit="87b114ad367909df200c61ab33906d8210ae537b" # Also update in check.sh
 
 commit_offloader="7757176fd8a2140fb29dfaae2ec69b6361bc7a50"
 
-diffusers="784fa62652fb2719d415830f918fc32a49ecc7a1"
+diffusers="60ec6f724290fb7640abaf3ca9a2b89bc15e8a8b"
 
 #--------------------------------------------------------------------------------------------------
 
