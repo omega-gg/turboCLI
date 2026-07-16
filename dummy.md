@@ -128,8 +128,9 @@ count. Two families exist:
 
 ## The server
 
-Loading a big model takes far longer than generating with it, so `server.sh start` keeps a
-resident process that holds the model warm between requests. In plain words:
+Starting a fresh process for every image repeats work — importing torch, discovering engines,
+loading and placing the model — so `server.sh start` keeps a resident process that holds the
+model warm between requests: back-to-back generations pay none of that again. In plain words:
 
 - `POST /generate` — same fields as the CLI; the reply streams the same progress lines, ending
   in `Saved:` (or not — that IS the failure signal, the HTTP status is always 200).
