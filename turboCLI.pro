@@ -5,9 +5,11 @@ include(bash/bash.pri)
 OTHER_FILES += README.md  \
                LICENSE.md \
                implementation.md \
+               dummy.md \
                doc/comfy-krea2-turbo-plan.md \
                doc/comfy-z-image-turbo-plan.md \
                doc/engine-inheritance-plan.md \
+               doc/DUMMY_PLAN.md \
                doc/IMPLEMENTATION_PLAN.md \
 
 OTHER_FILES += runner/__init__.py \
