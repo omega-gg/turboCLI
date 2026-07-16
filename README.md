@@ -13,6 +13,7 @@ turboCLI is a good baseline for client based applications like [turbopixel](http
 That's the original motivation for it. However, licensing this under LGPL sounds like the right
 thing to do.
 
+- [Implementation](implementation.md) - architecture and implementation choices, kept up to date
 - [Bash scripts](bash/README.md)
 
 ## Contribute
