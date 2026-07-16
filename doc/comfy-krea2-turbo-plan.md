@@ -107,7 +107,8 @@ buffers, which transformers recomputes).
 
 | | comfy-krea2-turbo | ComfyUI |
 |---|---|---|
-| load | ~30 s | ~2 s |
+| model assembly | ~2 s | ~2 s |
+| process startup (imports) | ~10 s/image | ~15 s once per server |
 | **per-step** | **3.50 s/it** | 3.62 s/it |
 
 **Per-step parity, confirmed in two independent thermal states** (this laptop throttles hard, so a
@@ -128,8 +129,13 @@ Getting there took two fixes, both landed in the offloader as generic mechanisms
 - Streaming was never the bottleneck: pinned H2D measures **13.0 GB/s**, and ComfyUI's own
   3.62 s/it implies just 3.56 GB/s. Both stacks are compute-bound.
 
-The load gap is inherent to the reuse: we run the key convert (430 tensors), the quant setup and a
-full VAE load + WAN convert, where ComfyUI just mmaps its native layout and streams lazily.
+~~The load gap is inherent to the reuse: we run the key convert (430 tensors)...~~ **Profiled: the
+reuse costs nothing at load.** Phase timers on a real run (49 s total): the 430-key convert is
+0.00 s (dict key renames), fp8 read+quant setup 0.27 s (tf) + 0.30 s (te) — the files mmap lazily,
+same as ComfyUI — VAE read+WAN-convert+load 0.64 s; `load_pipe_comfy` total **1.2 s**, matching
+ComfyUI's ~2 s lazy load. The earlier "~30 s load" was ~10.4 s of python/torch/diffusers imports
+(process-per-image pays them every image; ComfyUI's server pays its ~15 s startup once) plus the
+encode/decode/save tail misattributed to load. Caching converted weights would save nothing.
 
 **Measure on a cool machine.** These figures move ~3.7× with thermal state: mid-session both
 stacks degraded together (ComfyUI 3.62 → 13.46, ours 3.50 → 13.33), and z-image read 13.4 against
@@ -137,16 +143,17 @@ its documented ~4.5 for the same reason. Only cool back-to-back numbers mean any
 
 ## Follow-ups
 
-- **`use_kitchen_rope` costs ~16 s of load for no measurable per-step gain here.** It *does*
-  engage (krea2's `apply_rotary_emb(..., sequence_dim=1)` on a `(cos, sin)` pair matches, so we
-  run comfy's fused `apply_rope1`), but `OFFLOADER_KITCHEN_ROPE=0` leaves the per-step unchanged
-  while the total drops — rope is a small fraction of a 12 B DiT's compute, so only
-  comfy_kitchen's init shows up. Pre-existing offloader behavior, not introduced here.
-- `adapter.py::_build_freqs_cis` rebuilds the rope `(cos,sin)→freqs_cis` shim on **every**
-  `apply_rotary_emb` call — 2 per block × 28 = 56/step, each allocating a ~1.6 MB fp32 tensor
-  (~90 MB of churn) though it is fully loop-invariant. ComfyUI builds `freqs` once per forward
-  (`ldm/krea2/model.py:267`) and reuses it across all 28 blocks. Worth ~9 ms/step — left alone
-  since per-step parity is already reached; take it if the rope path is touched anyway.
+- ~~`use_kitchen_rope` costs ~16 s of load~~ **Re-measured: it doesn't.** The ~16 s was a
+  cold-cache/thermal artifact — order-reversed A/B totals are equal (55 s vs 55 s) and the
+  marginal init is ~0.3 s (torch already imported). It engages (krea2's
+  `apply_rotary_emb(..., sequence_dim=1)` matches, running comfy's fused `apply_rope1`) and stays
+  ON: comfy's kernel is not bit-equivalent to diffusers' native rope (different image md5, each
+  deterministic), so it keeps the output on ComfyUI's exact numerics at no measurable cost.
+- ~~`adapter.py::_build_freqs_cis` rebuilds the rope `(cos,sin)→freqs_cis` shim on **every**
+  `apply_rotary_emb` call~~ **Taken**: the packed freqs_cis is now cached by (cos, sin) tensor
+  identity — ComfyUI's build-once-per-forward pattern (`ldm/krea2/model.py:267`); diffusers passes
+  one (cos, sin) tuple to all 28 blocks, so the 56 builds/step (~9 ms, ~90 MB of fp32 churn)
+  collapse to one per generation. Verified bit-identical output.
 - ~~z-image is non-deterministic run-to-run~~ **Fixed** (turbo-offloader `4d0438c`): the offloader
   now runs ComfyUI's per-node teardown at the encode boundary (`node_teardown()`); both z-image
   engines are bit-identical across runs and ~20% faster. (The early "SDPA backend" guess here was
