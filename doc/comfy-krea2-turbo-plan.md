@@ -116,7 +116,7 @@ single reading proves nothing): cool — ours 3.50 vs ComfyUI 3.62; mid-session 
 13.33 vs ComfyUI 13.46. Marginally ahead in both.
 
 Getting there took two fixes, both landed in the offloader as generic mechanisms
-(`install_unpadded_encode`, `keep_declared_fp32` — see offloader.md):
+(`install_unpadded_encode`, `keep_declared_fp32` — see the offloader's implementation.md):
 
 - **The per-step gap was NOT diffusers-vs-comfy compute** (an earlier draft of this doc said so,
   and was wrong). It was **500 padding tokens**: diffusers pads krea2's text to a fixed 512
