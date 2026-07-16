@@ -147,6 +147,7 @@ its documented ~4.5 for the same reason. Only cool back-to-back numbers mean any
   (~90 MB of churn) though it is fully loop-invariant. ComfyUI builds `freqs` once per forward
   (`ldm/krea2/model.py:267`) and reuses it across all 28 blocks. Worth ~9 ms/step — left alone
   since per-step parity is already reached; take it if the rope path is touched anyway.
-- **z-image is non-deterministic run-to-run** (meandiff 15.9 between two identical-seed runs).
-  Unrelated to krea2 and pre-existing — VBAR memory pressure can flip SDPA backend selection —
-  but worth its own investigation.
+- ~~z-image is non-deterministic run-to-run~~ **Fixed** (turbo-offloader `4d0438c`): the offloader
+  now runs ComfyUI's per-node teardown at the encode boundary (`node_teardown()`); both z-image
+  engines are bit-identical across runs and ~20% faster. (The early "SDPA backend" guess here was
+  wrong — it was the text encoder's stream/buffer state leaking into the DiT.)
