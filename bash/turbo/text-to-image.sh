@@ -141,7 +141,7 @@ if [ $# -lt 4 -o $# -gt 12 ] \
     echo ""
     echo "examples:"
     echo "    text-to-image flux2-4b cpu  \"knight in armor\" output.png"
-    echo "    text-to-image flux2-4b cuda \"knight in armor\" output.png 512 512 -1 4 offloader none none 8080"
+    echo "    text-to-image flux2-4b cuda \"knight in armor\" output.png 512 512 -1 -1 offloader none none 8080"
 
     exit 1
 fi
