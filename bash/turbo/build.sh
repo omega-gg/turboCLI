@@ -32,7 +32,7 @@ repository="https://github.com/omega-gg/turboCLI.git"
 
 repository_offloader="https://github.com/omega-gg/turbo-offloader.git"
 
-commit="87b114ad367909df200c61ab33906d8210ae537b" # Also update in check.sh
+commit="42a1c03af1bc99fca9b3b3fee79c2be1689d6f44" # Also update in check.sh
 
 commit_offloader="2da18d841a44f31f0e0a7c720f7530c8549c954d"
 
