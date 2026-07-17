@@ -209,6 +209,35 @@ def _module_key(key):
     return _STANDALONE.get(key)
 
 
+def _lora_keys(scaffold):
+    """LoRA key map, copied from ComfyUI's model_lora_keys_unet Krea2 branch (comfy/lora.py) on
+    comfy.utils.krea2_to_diffusers -- with `to` flipped to the diffusers key, since our streamed
+    model IS the diffusers layout (upstream's is comfy-native). Covers every published naming:
+    diffusers (transformer. / bare), ComfyUI-native (diffusion_model.blocks...), lycoris
+    underscores. Runs inside the backend (load_pipe_comfy), where the `comfy` alias is live."""
+    import comfy.utils
+
+    with open(os.path.join(scaffold, "transformer", "config.json")) as f:
+        layers = json.load(f)["num_layers"]
+
+    diffusers_keys = comfy.utils.krea2_to_diffusers({"layers": layers})
+
+    key_map = {}
+    for k in diffusers_keys:
+        if k.endswith(".weight"):
+            to = k  # our model key: the diffusers name itself
+            key_lora = k[:-len(".weight")]
+            key_map["diffusion_model.{}".format(key_lora)] = to
+            key_map["transformer.{}".format(key_lora)] = to
+            key_map["lycoris_{}".format(key_lora.replace(".", "_"))] = to
+            key_map[key_lora] = to
+            # ComfyUI-native naming (what comfy-trained Krea2 LoRAs publish, incl. its
+            # diffusion_model. prefix): krea2_to_diffusers' value side, bare.
+            key_map[diffusers_keys[k][:-len(".weight")]] = to
+            key_map["diffusion_model.{}".format(diffusers_keys[k][:-len(".weight")])] = to
+    return key_map
+
+
 def _transformer_convert(sd):
     """ComfyUI Krea2 transformer state dict -> diffusers layout. Renames each base key and carries
     its fp8 companions (.weight_scale/.comfy_quant, injected upstream by convert_old_quants) to the
@@ -275,7 +304,8 @@ def load(ctx, params):
     return ctx.backend.load_pipe_comfy(
         Krea2Pipeline,
         {"meta": lambda d: _transformer_meta(scaffold, d), "file": files["transformer"],
-         "convert": _transformer_convert, "quant": True},
+         "convert": _transformer_convert, "quant": True,
+         "lora_keys": lambda: _lora_keys(scaffold)},
         {"meta": lambda d: _text_encoder_meta(scaffold, d), "file": files["text_encoder"],
          "convert": _te_convert, "quant": True},
         {"scheduler": scheduler, "tokenizer": tokenizer, "vae": vae,

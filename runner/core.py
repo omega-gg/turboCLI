@@ -127,10 +127,11 @@ def _device_dtype(renderer):
 def parse_loras(spec):
     """Parse the optional `loras` param into [(path, weight), ...].
 
-    Wire format: comma-separated entries, each "<path>@<weight>" (weight 0.0-1.0). The weight is
-    taken after the LAST '@' so Windows paths (which contain ':' but never '@') parse cleanly. A
-    missing weight -- no '@', or a trailing '@' with nothing after it -- defaults to 1.0.
-    Empty/blank -> []."""
+    Wire format: comma-separated entries, each "<path>@<weight>". The weight is taken after the
+    LAST '@' so Windows paths (which contain ':' but never '@') parse cleanly. A missing weight --
+    no '@', or a trailing '@' with nothing after it -- defaults to 1.0. Any finite float is
+    accepted: diff-style patches legitimately use >1 and negative strengths (ComfyUI does not
+    clamp either). Empty/blank -> []."""
     out = []
 
     for item in (spec or "").split(","):
@@ -143,8 +144,8 @@ def parse_loras(spec):
 
         if sep:
             weight = weight.strip()
-            # Clamp to [0.0, 1.0]; a missing weight (trailing '@') defaults to 1.0.
-            out.append((path.strip(), max(0.0, min(1.0, float(weight))) if weight else 1.0))
+            # Any finite float; a missing weight (trailing '@') defaults to 1.0.
+            out.append((path.strip(), float(weight) if weight else 1.0))
         else:
             # No '@' -> rpartition put the whole string in `weight`; the path is it, weight
             # defaults.

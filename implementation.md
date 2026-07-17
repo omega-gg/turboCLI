@@ -209,7 +209,7 @@ multi-GB download for a ComfyUI user). Dispatch is purely `hasattr(mod, "COMFY")
 | `comfy-z-image-turbo` | same weights as z-image-turbo from ComfyUI's 3 single files; custom `load()`, works on the native path too |
 | `comfy-qwen-image-edit-2511` | 39 GB bf16 DiT streamed + scaled-fp8 TE (`quant: True`); components span three Comfy-Org repos; **offloader-only** (`load()` raises without a backend) |
 | `comfy-qwen-image-edit-2511-lightning` | BASE = the above; entire delta = one extra COMFY component (the LoRA) + 4 steps |
-| `comfy-krea2-turbo` | both DiT and TE scaled-fp8; hand-written key converter (validated 1:1, 430/430); offloader-only; deliberately standalone — it differs on transformer, TE and pipeline, so BASE would override nearly everything (`doc/comfy-krea2-turbo-plan.md`) |
+| `comfy-krea2-turbo` | both DiT and TE scaled-fp8; hand-written key converter (validated 1:1, 430/430); offloader-only; deliberately standalone — it differs on transformer, TE and pipeline, so BASE would override nearly everything (`doc/comfy-krea2-turbo-plan.md`). `_lora_keys` (copied from ComfyUI's `model_lora_keys_unet` Krea2 branch on `krea2_to_diffusers`) maps every published LoRA naming — ComfyUI-native, diffusers, lycoris — onto the diffusers module tree, so stock Civitai/HF Krea2 LoRAs (lora_A/B, `diff`, LoKr) load unmodified via the offloader's `lora_keys` spec |
 
 ## The backend seam (runner side)
 
@@ -246,7 +246,9 @@ The **params dict** is flat and string-valued, and identical for CLI and HTTP (t
 urlencoded fields decode to exactly the dict cli builds): `engine, mode, prompt, images, loras,
 output, width, height, seed, inference, renderer, offload, slicing`. The model folder is
 deliberately NOT a param — `resolve_model()` derives it from the runner's own path
-(core.py:515-517); nothing is path-passed, everything is path-deduced.
+(core.py:515-517); nothing is path-passed, everything is path-deduced. `loras` is
+comma-separated `<path>@<weight>` entries; `parse_loras` accepts any finite float (no `[0,1]`
+clamp — diff-style patches use >1 and negative, matching ComfyUI).
 
 1. Validate engine + mode, then the offload ladder above (core.py:525-567).
 2. `get_pipe` (core.py:447): compare `_engine_key` to the resident key — `(ID, model dir,
