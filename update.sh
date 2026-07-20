@@ -105,12 +105,15 @@ fi
 # turboCLI
 #--------------------------------------------------------------------------------------------------
 
-# NOTE: This is the commit we just pushed.
+# NOTE: The recorded hash is always the PREVIOUS commit -- a commit cannot carry its own hash. So
+#       "up to date" cannot be commit == current: recording moves HEAD past what it just recorded,
+#       leaving them different forever and re-bumping on every run. What it really means is that
+#       HEAD IS the bump that recorded the current pin, i.e. nothing has landed since.
 commit=$(git rev-parse HEAD)
 
 current=$(getValue "$build" commit)
 
-if [ "$commit" = "$current" ]; then
+if [ "$(git log -1 --format=%s)" = "turboCLI $current" ]; then
 
     echo "turboCLI is up to date ($current)"
 else
