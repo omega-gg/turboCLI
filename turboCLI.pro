@@ -6,6 +6,7 @@ OTHER_FILES += README.md  \
                LICENSE.md \
                implementation.md \
                dummy.md \
+               update.sh \
                doc/comfy-krea2-turbo-plan.md \
                doc/comfy-z-image-turbo-plan.md \
                doc/engine-inheritance-plan.md \
