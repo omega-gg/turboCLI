@@ -26,6 +26,7 @@
 #
 #   python -m runner.check --engine <name>   # check one engine
 #   python -m runner.check                   # list installed engine ids
+#   python -m runner.check --modes <a,b>     # list installed engine ids supporting any listed mode
 #
 # An engine is "installed" when it has a registry entry AND its referenced files exist: for a stock
 # engine the model dir's model_index.json + every recorded LoRA (the record carries the revision);
@@ -44,10 +45,26 @@ def main():
     parser = argparse.ArgumentParser(prog="runner.check")
 
     parser.add_argument("--engine", default=None)
+    parser.add_argument("--modes", default=None)
 
     args = parser.parse_args()
 
     engines = _discover()
+
+    # --modes: print the installed engines supporting ANY of the listed modes (comma separated), so
+    # a caller can ask "what can I use for text-to-image?" without hardcoding a list -- a multi-mode
+    # query unions the categories rather than intersecting them. MODES is a contract symbol a
+    # variant inherits, and _discover folds BASE first, so variants answer too.
+    if args.modes is not None:
+        wanted = [m.strip() for m in args.modes.split(",") if m.strip()]
+
+        for eid in sorted(engines):
+            mod = engines[eid]
+
+            if _engine_installed(mod) and any(m in mod.MODES for m in wanted):
+                print(eid)
+
+        sys.exit(0)
 
     # No engine: print the id of every installed engine (one per line), from the registry.
     if args.engine is None:

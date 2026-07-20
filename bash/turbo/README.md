@@ -62,11 +62,14 @@ Usage: check
 ### [check-model.sh](check-model.sh) - Check the installed models
 
 ```
-Usage: check-model [engine]
+Usage: check-model [engine | MODES:<mode,...>]
 
 no argument (or 'list'): list the installed engine id(s)
 
 engine: an installed id, reports whether it is installed
+
+MODES: list the installed engine id(s) supporting ANY of the listed modes
+       (text-to-image, image-to-image)
 ```
 
 ### [server.sh](server.sh) - Start and control the rendering server

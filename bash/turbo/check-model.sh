@@ -49,11 +49,14 @@ getSky()
 
 if [ $# -gt 1 ]; then
 
-    echo "Usage: check-model [engine]"
+    echo "Usage: check-model [engine | MODES:<mode,...>]"
     echo ""
     echo "no argument (or 'list'): list the installed engine id(s)"
     echo ""
     echo "engine: an installed id, reports whether it is installed"
+    echo ""
+    echo "MODES: list the installed engine id(s) supporting ANY of the listed modes"
+    echo "       (text-to-image, image-to-image)"
 
     exit 1
 fi
@@ -85,9 +88,11 @@ cd "$bin"
 # Check
 #--------------------------------------------------------------------------------------------------
 
-if [ -z "$engine" -o "$engine" = "list" ]; then
-
-    python -m runner.check
-else
-    python -m runner.check --engine "$engine"
-fi
+case "$engine" in
+    ""|list)
+        python -m runner.check;;
+    MODES:*)
+        python -m runner.check --modes "${engine#MODES:}";;
+    *)
+        python -m runner.check --engine "$engine";;
+esac
