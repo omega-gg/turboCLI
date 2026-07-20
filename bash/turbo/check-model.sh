@@ -47,18 +47,13 @@ getSky()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -ne 1 ]; then
+if [ $# -gt 1 ]; then
 
-    echo "Usage: check-model <engine | list>"
+    echo "Usage: check-model [engine]"
     echo ""
-    echo "list: show the installed engine id(s)"
+    echo "no argument (or 'list'): list the installed engine id(s)"
     echo ""
-    echo "engine: flux2-4b"
-    echo "        z-image-turbo"
-    echo "        comfy-z-image-turbo"
-    echo "        qwen-image-edit-2511"
-    echo "        qwen-image-edit-2511-lightning"
-    echo "        qwen-image-edit-2511-lightning-angles"
+    echo "engine: an installed id, reports whether it is installed"
 
     exit 1
 fi
@@ -73,7 +68,7 @@ bin="${SKY_PATH_TURBOCLI:-$sky/turbo}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
-engine="$1"
+engine="${1:-}"
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -90,7 +85,7 @@ cd "$bin"
 # Check
 #--------------------------------------------------------------------------------------------------
 
-if [ "$engine" = "list" ]; then
+if [ -z "$engine" -o "$engine" = "list" ]; then
 
     python -m runner.check
 else

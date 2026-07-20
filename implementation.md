@@ -175,7 +175,7 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `MODES` | wire modes tuple: `"text-to-image"` / `"image-to-image"` |
 | `CFG` | one `(kwarg, value)` pair injected into the pipe call (core.py:599-600) |
 | `INFERENCE` | default step count when the caller passes `-1` (fallback 4, core.py:586-587) |
-| `MODEL` | install spec `{repository, model, revision}` (stock) |
+| `MODEL` | install spec `{repository, model, revision}` (stock); it only *renames* the folder — omitted, `resolve_model` falls back to `ID` (core.py:173), which is why COMFY engines declare none |
 | `COMFY` | ComfyUI-reuse spec `{repository?, revision, components: [{role, path, ...}]}`; presence dispatches both install and `resolve_model` (core.py:177) |
 | `SCAFFOLD` | tiny config-only snapshot spec (`allow_patterns`, no weights) |
 | `LORAS` | install-time LoRA list `[{repository, file, revision}]` |
@@ -199,6 +199,21 @@ diffusers repo, shared and reference-counted across engines); COMFY engines reso
 `engine/<id>` (scaffold + engine.json pointing at ComfyUI-owned split single files — no second
 multi-GB download for a ComfyUI user). Dispatch is purely `hasattr(mod, "COMFY")`.
 
+**Adding an engine — keep the hand-maintained satellites in sync.** Discovery itself is automatic
+(drop the module in `engine/`), but four things are written by hand and rot silently otherwise:
+
+- **`turboCLI.pro`** lists every runner file in `OTHER_FILES`, and `bash/*.pri` lists the scripts —
+  a new module missing there ships in no package. Keep the deployed copy in step too.
+- **The usage engine lists** in `bash/turbo/install.sh` (everything installable) and
+  `text-to-image.sh` / `image-to-image.sh` (filtered by the engine's `MODES`).
+- **`bash/turbo/README.md`**, which mirrors each script's usage block verbatim — update both or
+  they drift.
+- **This table**, below.
+
+`check-model.sh` and `remove.sh` deliberately carry *no* list: `runner.check` with no `--engine`
+enumerates the registry, so they point at it instead and cannot go stale. Prefer that whenever the
+answer is derivable.
+
 | engine | notes |
 |---|---|
 | `flux2-4b` | TYPE `flux2`, Flux2KleinPipeline, t2i+i2i, 4 steps; pure declaration |
@@ -210,6 +225,7 @@ multi-GB download for a ComfyUI user). Dispatch is purely `hasattr(mod, "COMFY")
 | `comfy-qwen-image-edit-2511` | 39 GB bf16 DiT streamed + scaled-fp8 TE (`quant: True`); components span three Comfy-Org repos; **offloader-only** (`load()` raises without a backend) |
 | `comfy-qwen-image-edit-2511-lightning` | BASE = the above; entire delta = one extra COMFY component (the LoRA) + 4 steps |
 | `comfy-krea2-turbo` | both DiT and TE scaled-fp8; hand-written key converter (validated 1:1, 430/430); offloader-only; deliberately standalone — it differs on transformer, TE and pipeline, so BASE would override nearly everything (`doc/comfy-krea2-turbo-plan.md`). `_lora_keys` (copied from ComfyUI's `model_lora_keys_unet` Krea2 branch on `krea2_to_diffusers`) maps every published LoRA naming — ComfyUI-native, diffusers, lycoris — onto the diffusers module tree, so stock Civitai/HF Krea2 LoRAs (lora_A/B, `diff`, LoKr) load unmodified via the offloader's `lora_keys` spec |
+| `comfy-krea2-turbo-realism` | BASE = the above; entire delta = one extra COMFY component (the Krea2-realism-V2 LoKr into ComfyUI's `models/loras/`, explicit `filename` since it sits at a plain repo's root, revision-pinned) + a `load()` that prepends it to `ctx.loras` at 1.5 before delegating to the base assembly |
 
 ## The backend seam (runner side)
 

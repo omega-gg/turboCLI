@@ -19,7 +19,11 @@ Usage: install <engine> [dtype = default] [ComfyUI folder]
 
 engine: flux2-4b
         z-image-turbo
-        comfy-z-image-turbo (needs a ComfyUI folder; reuses its models)
+        comfy-z-image-turbo
+        comfy-krea2-turbo
+        comfy-krea2-turbo-realism
+        comfy-qwen-image-edit-2511
+        comfy-qwen-image-edit-2511-lightning
         qwen-image-edit-2511
         qwen-image-edit-2511-lightning
         qwen-image-edit-2511-lightning-angles
@@ -43,12 +47,7 @@ Usage: remove <engine>
 Remove an engine and garbage-collect its model / LoRAs / comfy components once no other
 installed engine references them (a real ComfyUI install's files are never deleted).
 
-engine: flux2-4b
-        z-image-turbo
-        comfy-z-image-turbo
-        qwen-image-edit-2511
-        qwen-image-edit-2511-lightning
-        qwen-image-edit-2511-lightning-angles
+engine: an installed id (see check-model)
 
 example:
     remove comfy-z-image-turbo
@@ -63,16 +62,11 @@ Usage: check
 ### [check-model.sh](check-model.sh) - Check the installed models
 
 ```
-Usage: check-model <engine | list>
+Usage: check-model [engine]
 
-list: show the installed engine id(s)
+no argument (or 'list'): list the installed engine id(s)
 
-engine: flux2-4b
-        z-image-turbo
-        comfy-z-image-turbo
-        qwen-image-edit-2511
-        qwen-image-edit-2511-lightning
-        qwen-image-edit-2511-lightning-angles
+engine: an installed id, reports whether it is installed
 ```
 
 ### [server.sh](server.sh) - Start and control the rendering server
@@ -110,6 +104,8 @@ Usage: text-to-image <engine> <renderer> <prompt> <output image>
 engine: flux2-4b
         z-image-turbo
         comfy-z-image-turbo
+        comfy-krea2-turbo
+        comfy-krea2-turbo-realism
 
 renderer: cpu, cuda, mps
 
@@ -137,6 +133,8 @@ Usage: image-to-image <engine> <renderer> <prompt> <input images> <output image>
                       [server]
 
 engine: flux2-4b
+        comfy-qwen-image-edit-2511
+        comfy-qwen-image-edit-2511-lightning
         qwen-image-edit-2511
         qwen-image-edit-2511-lightning
         qwen-image-edit-2511-lightning-angles

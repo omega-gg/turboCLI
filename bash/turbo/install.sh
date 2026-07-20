@@ -113,6 +113,8 @@ if [ $# -lt 1 -o $# -gt 3 ] \
     echo "        comfy-z-image-turbo"
     echo "        comfy-krea2-turbo"
     echo "        comfy-krea2-turbo-realism"
+    echo "        comfy-qwen-image-edit-2511"
+    echo "        comfy-qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511"
     echo "        qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511-lightning-angles"
