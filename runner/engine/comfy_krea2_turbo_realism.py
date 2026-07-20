@@ -38,13 +38,17 @@ BASE = base.ID
 REALISM  = "Krea2-realism-V2.safetensors"
 STRENGTH = 1.5
 
-# Extend the base's three reused single files with the LoRA (4th component), taken from the same
-# ComfyUI models/loras/ that comfy-qwen-image-edit-2511-lightning uses. It carries no "repository":
-# this LoRA is not published on HF, so install reuses the file already sitting in models/loras/
-# (_install_comfy only downloads a component that is absent). dict(base.COMFY, ...) is a shallow
-# copy that overrides `components` while inheriting `revision` -- it never mutates base.COMFY.
+# Extend the base's three reused single files with the LoRA (4th component), landing in the same
+# ComfyUI models/loras/ that comfy-qwen-image-edit-2511-lightning uses. It sits in a plain HF repo
+# -- the file is at the repo root, not under split_files/ -- so the component carries an explicit
+# `filename` (the in-repo path) distinct from its `path` (the models/-relative destination), and a
+# `revision` pinning the commit for reproducible installs. _install_comfy reuses the file when it
+# is already present and only downloads an absent one. dict(base.COMFY, ...) is a shallow copy
+# that overrides `components` while inheriting `revision` -- it never mutates base.COMFY.
 COMFY = dict(base.COMFY, components=base.COMFY["components"] + [
-    {"role": "lora", "path": "loras/" + REALISM},
+    {"role": "lora", "repository": "RudySen/Krea2-realism-V2",
+     "revision": "ad6f07e426303e7087d215362dbc057b0073dca3",
+     "filename": REALISM, "path": "loras/" + REALISM},
 ])
 
 
