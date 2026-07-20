@@ -105,10 +105,7 @@ fi
 # turboCLI
 #--------------------------------------------------------------------------------------------------
 
-# NOTE: The recorded hash is always the PREVIOUS commit -- a commit cannot carry its own hash. So
-#       "up to date" cannot be commit == current: recording moves HEAD past what it just recorded,
-#       leaving them different forever and re-bumping on every run. What it really means is that
-#       HEAD IS the bump that recorded the current pin, i.e. nothing has landed since.
+# NOTE: The recorded hash is always the PREVIOUS commit, a commit cannot carry its own hash.
 commit=$(git rev-parse HEAD)
 
 current=$(getValue "$build" commit)
