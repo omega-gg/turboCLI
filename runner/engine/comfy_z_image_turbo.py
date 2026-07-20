@@ -52,11 +52,6 @@ CFG   = ("guidance_scale", 0.0)
 
 INFERENCE = 8
 
-# This engine's registry dir inside the install: engine/comfy-z-image-turbo/ (where resolve_model
-# sends a COMFY engine). It carries the scaffolding + engine.json, NOT the big checkpoints (those
-# stay in the ComfyUI install). No HF "revision" -> check uses the COMFY presence test.
-MODEL = {"model": "comfy-z-image-turbo"}
-
 # ComfyUI split single files reused by this engine. `path` is the file's location under ComfyUI's
 # models/ (and, under split_files/, its in-repo path too), `role` the diffusers component it feeds.
 # Fetched only when missing, from ComfyUI's own published repo -- same {repository, revision} shape

@@ -415,9 +415,11 @@ def main():
         print("ERROR: unknown engine '%s'" % args.engine)
         sys.exit(1)
 
+    # A COMFY engine needs no MODEL: its registry entry + scaffold key off ID (see the COMFY
+    # dispatch below), so only a stock engine must name the canonical repo it installs.
     model = getattr(mod, "MODEL", None)
 
-    if model is None:
+    if model is None and not hasattr(mod, "COMFY"):
         print("ERROR: engine '%s' is not installable (no MODEL)" % args.engine)
         sys.exit(1)
 

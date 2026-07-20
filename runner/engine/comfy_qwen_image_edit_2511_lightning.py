@@ -35,9 +35,6 @@ BASE = base.ID
 
 INFERENCE = 4  # the lightning LoRA's design step count (vs the base engine's 40)
 
-# This engine's registry dir: engine/comfy-qwen-image-edit-2511-lightning/ (scaffold, engine.json).
-MODEL = {"model": "comfy-qwen-image-edit-2511-lightning"}
-
 # The lightning LoRA reused from ComfyUI's models/loras/. It sits in a plain HF repo -- the file is
 # at the repo root, not under split_files/ -- so this component carries an explicit `filename` (the
 # in-repo path) distinct from its `path` (the models/-relative destination). Revision pins the same

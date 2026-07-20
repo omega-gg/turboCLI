@@ -173,16 +173,15 @@ def engine_folder():
 def resolve_model(mod, params):
     """The engine's on-disk dir. A comfy engine (declares COMFY) resolves to its registry entry
     engine/<id> -- its scaffold + engine.json live there, referencing the reused ComfyUI weights. A
-    stock engine resolves to model/<its MODEL["model"]>, the canonical diffusers repo. Both folders
-    are deduced from the runner's path, never passed in."""
+    stock engine resolves to model/<its MODEL["model"]>, the canonical diffusers repo, falling back
+    to model/<id> when it names none (the folder IS the id unless a MODEL renames it -- which stock
+    engines do, since their canonical repo name is not the id). Both folders are deduced from the
+    runner's path, never passed in."""
     if hasattr(mod, "COMFY"):
         return os.path.join(engine_folder(), mod.ID)
 
     spec = getattr(mod, "MODEL", None)
-    name = spec.get("model") if spec else None
-
-    if not name:
-        raise ValueError("engine '%s' declares no model to load" % mod.ID)
+    name = (spec.get("model") if spec else None) or mod.ID
 
     return os.path.join(default_folder(), name)
 

@@ -62,10 +62,6 @@ CFG   = ("guidance_scale", 0.0)  # distilled / CFG-free
 
 INFERENCE = 8
 
-# This engine's registry dir: engine/comfy-krea2-turbo/ (scaffolding + engine.json). No HF
-# "revision" -> check uses the COMFY presence test.
-MODEL = {"model": "comfy-krea2-turbo"}
-
 # ComfyUI split single files reused by this engine. The transformer + text encoder live in
 # Comfy-Org/Krea-2 at plain paths (not split_files/), so each sets `filename`; the VAE is the same
 # file comfy-qwen reuses (Comfy-Org/Qwen-Image_ComfyUI, split_files/ layout -> filename default).
