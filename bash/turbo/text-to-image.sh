@@ -128,6 +128,7 @@ if [ $# -lt 4 -o $# -gt 12 ] \
     echo "        z-image-turbo"
     echo "        comfy-z-image-turbo"
     echo "        comfy-krea2-turbo"
+    echo "        comfy-krea2-turbo-realism"
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""
