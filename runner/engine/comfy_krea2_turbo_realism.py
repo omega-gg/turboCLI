@@ -21,31 +21,39 @@
 #==================================================================================================
 
 # comfy-krea2-turbo-realism -- comfy-krea2-turbo with the Krea2-realism-V2 LoRA always applied at
-# 1.5. Inherits the whole engine (TYPE / PIPELINE / TRANSFORMER / MODES / CFG / INFERENCE / COMFY /
-# SCAFFOLD, the meta-builders and the streaming load) from the base via BASE. The only delta:
-# load() prepends the bundled realism LoRA to ctx.loras, so the base assembly streams it onto the
-# fp8 transformer exactly like a user --loras entry (256 patches at weight 1.5). Its registry dir
-# engine/comfy-krea2-turbo-realism/ clones the base install's engine.json + scaffold and bundles
-# the LoRA under lora/.
-
-import os
+# 1.5. Inherits the whole engine (TYPE / PIPELINE / TRANSFORMER / MODES / CFG / INFERENCE /
+# SCAFFOLD, the meta-builders and the streaming load) from the base via BASE. Two deltas: a 4th
+# COMFY component for the LoRA -- reused from the ComfyUI install's models/loras/, exactly like
+# the three single files the base already streams -- and a load() that prepends it to ctx.loras at
+# STRENGTH, so the base assembly applies it on-cast onto the fp8 transformer just like a user
+# --loras entry (256 patches).
 
 from . import comfy_krea2_turbo as base  # cheap: base imports no torch at top level
 
 ID   = "comfy-krea2-turbo-realism"
 BASE = base.ID
 
-# The bundled LoRA (LoKr; every Krea2 key naming loads via the base's _lora_keys map) and the
-# author's recommended default strength.
+# The LoRA (LoKr; every Krea2 key naming loads via the base's _lora_keys map) and the author's
+# recommended default strength.
 REALISM  = "Krea2-realism-V2.safetensors"
 STRENGTH = 1.5
 
+# Extend the base's three reused single files with the LoRA (4th component), taken from the same
+# ComfyUI models/loras/ that comfy-qwen-image-edit-2511-lightning uses. It carries no "repository":
+# this LoRA is not published on HF, so install reuses the file already sitting in models/loras/
+# (_install_comfy only downloads a component that is absent). dict(base.COMFY, ...) is a shallow
+# copy that overrides `components` while inheriting `revision` -- it never mutates base.COMFY.
+COMFY = dict(base.COMFY, components=base.COMFY["components"] + [
+    {"role": "lora", "path": "loras/" + REALISM},
+])
+
 
 def load(ctx, params):
-    """Reuse the base Krea2 assembly, but always stream the realism LoRA first at STRENGTH. It is
-    prepended to ctx.loras (any user --loras still stack after), then base.load hands the merged
-    list to load_pipe_comfy, applied on-cast onto the fp8 transformer."""
-    lora = os.path.join(ctx.model, "lora", REALISM)
-    ctx.loras = [(lora, STRENGTH)] + list(ctx.loras)
+    """Reuse the base Krea2 assembly, but always stream the realism LoRA first at STRENGTH. The
+    path comes from the engine.json comfy record (the reused ComfyUI file, same resolution the
+    base uses for its own three), and is prepended to ctx.loras -- any user --loras still stack
+    after -- then base.load hands the merged list to load_pipe_comfy, applied on-cast onto the fp8
+    transformer."""
+    ctx.loras = [(base._by_role(ctx.model)["lora"], STRENGTH)] + list(ctx.loras)
 
     return base.load(ctx, params)
