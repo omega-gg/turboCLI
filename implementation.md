@@ -128,21 +128,21 @@ nothing above it touches torch.
 Deliberately does NOT import core: install is online and needs no GPU, so no backend discovery,
 no CUDA init (`install.py:52-54`); it duplicates `default_folder()`/`engine_folder()` so
 install/check stay torch-free (`install.py:68-82`). Heavy torch/diffusers imports happen only
-inside the base-reinstall branch (`install.py:490-493`).
+inside the base-reinstall branch (`install.py:561-562`).
 
 - **Registry**: `engine/<id>/engine.json` is the source of truth for "installed" — model name,
   pinned revision, LoRA list; for a comfy engine its component refs + scaffold source
   (`install.py:40-50`). No per-model-dir markers: a shared dir's revision is derived from any
-  engine record referencing it (`_model_revision`, install.py:168).
-- **Stock install** (`install.py:444-557`): `from_pretrained(repo, revision=pin)` →
+  engine record referencing it (`_model_revision`, install.py:177).
+- **Stock install** (`install.py:508-630`): `from_pretrained(repo, revision=pin)` →
   `save_pretrained` into `model/<name>` (a self-contained canonical copy), fetch the engine's
   declared LoRAs into `model/<name>/lora/`, then trim the HF cache for everything pulled — disk
-  holds one copy, not cache+copy (install.py:540-551). Idempotent and selective: `base_ok` skips
+  holds one copy, not cache+copy (install.py:609-620). Idempotent and selective: `base_ok` skips
   the base re-download when the registry already records the pinned revision, and only missing
-  LoRAs are fetched (install.py:461-476) — installing `-lightning` over an existing base pulls
+  LoRAs are fetched (install.py:533-546) — installing `-lightning` over an existing base pulls
   just the LoRA. `--dtype default` maps to `torch_dtype=None` (diffusers coerces non-torch
-  values like `"auto"` to float32, so None is what keeps the stock dtype, install.py:501-504).
-- **Comfy install** (`_install_comfy`, install.py:221-304): reuse each COMFY component already
+  values like `"auto"` to float32, so None is what keeps the stock dtype, install.py:570-573).
+- **Comfy install** (`_install_comfy`, install.py:237-324): reuse each COMFY component already
   under the ComfyUI install's `models/`, `hf_hub_download` only the missing ones *into that
   tree*, fetch the tiny SCAFFOLD (configs/tokenizer/scheduler, no weights) into `engine/<id>`,
   and write engine.json with `external` flagging weights outside our model folder. `external` is
@@ -353,7 +353,7 @@ into the body (cli.py:82-89, server.py:237-246).
   RAM spill" (text-to-image.sh:282-284); LoRA weights parse after the LAST `@` because Windows
   paths contain `:` but never `@` (core.py:127-153); `core.longpaths=true` for clones; the
   installer drops the pipe before touching the HF cache to avoid a permission error
-  (install.py:518-519).
+  (install.py:588-589).
 - **MPS**: fp16 preferred ("bfloat16 support is patchy"), `PYTORCH_ENABLE_MPS_FALLBACK=1` +
   `PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0` set by the wrappers.
 - **Run-time dtype** is independent of the install dtype: cuda→bf16, mps→fp16, cpu→fp32
