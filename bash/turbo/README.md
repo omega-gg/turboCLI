@@ -19,6 +19,7 @@ Usage: install <engine> [dtype = default] [ComfyUI folder]
 
 engine: flux2-4b
         z-image-turbo
+        comfy-flux2-4b
         comfy-z-image-turbo
         comfy-krea2-turbo
         comfy-krea2-turbo-realism
@@ -106,6 +107,7 @@ Usage: text-to-image <engine> <renderer> <prompt> <output image>
 
 engine: flux2-4b
         z-image-turbo
+        comfy-flux2-4b
         comfy-z-image-turbo
         comfy-krea2-turbo
         comfy-krea2-turbo-realism
@@ -136,6 +138,7 @@ Usage: image-to-image <engine> <renderer> <prompt> <input images> <output image>
                       [server]
 
 engine: flux2-4b
+        comfy-flux2-4b
         comfy-qwen-image-edit-2511
         comfy-qwen-image-edit-2511-lightning
         qwen-image-edit-2511

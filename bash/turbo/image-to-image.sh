@@ -125,6 +125,7 @@ if [ $# -lt 5 -o $# -gt 13 ] \
     echo "                      [server]"
     echo ""
     echo "engine: flux2-4b"
+    echo "        comfy-flux2-4b"
     echo "        comfy-qwen-image-edit-2511"
     echo "        comfy-qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511"

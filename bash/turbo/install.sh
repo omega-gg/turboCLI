@@ -110,6 +110,7 @@ if [ $# -lt 1 -o $# -gt 3 ] \
     echo ""
     echo "engine: flux2-4b"
     echo "        z-image-turbo"
+    echo "        comfy-flux2-4b"
     echo "        comfy-z-image-turbo"
     echo "        comfy-krea2-turbo"
     echo "        comfy-krea2-turbo-realism"
