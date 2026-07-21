@@ -145,12 +145,19 @@ inside the base-reinstall branch (`install.py:490-493`).
 - **Comfy install** (`_install_comfy`, install.py:221-304): reuse each COMFY component already
   under the ComfyUI install's `models/`, `hf_hub_download` only the missing ones *into that
   tree*, fetch the tiny SCAFFOLD (configs/tokenizer/scheduler, no weights) into `engine/<id>`,
-  and write engine.json with `external` flagging weights outside our model folder "so remove.sh
-  only unregisters them, never deletes them" (install.py:281-291). Without `--comfy` a
-  self-contained `model/ComfyUI/` layout is used (install.py:433-436).
-- **Removal is reference-counted GC** (`_remove`, install.py:320-389): drop the registry entry
-  first, then delete only the models / LoRAs / comfy components no surviving engine references —
-  and only files under our model folder; a user's external ComfyUI is never touched.
+  and write engine.json with `external` flagging weights outside our model folder. `external` is
+  *diagnostic only* — nothing reads it; what actually protects a user's ComfyUI is `_gc`'s live
+  `_under(path, default_folder())` guard, recomputed from the real path. Without `--comfy` a
+  self-contained `model/ComfyUI/` layout is used. The scaffold is pruned after the fetch
+  (`_prune_scaffold`) so narrowing `SCAFFOLD.allow_patterns` cannot leave orphans behind.
+- **Removal and reinstall share one GC** (`_referenced` + `_gc`): delete what a record referenced
+  that the registry no longer names — only models / LoRAs / comfy components no surviving engine
+  references, and only files under our model folder. `_gc` is the single place expressing that
+  policy. The two callers differ only in *when* they ask: `_remove` after dropping the entry (so
+  `_registry()` = survivors), `_write_engine` after writing the new record (survivors *plus* it,
+  so a plain reinstall never GCs what it just downloaded). Hooking `_write_engine` is what closes
+  the old hole where a component dropped from `COMFY` vanished from the registry and could never
+  be found again — see `doc/reinstall-prune-plan.md`.
 
 ### `check.py` — verifier
 

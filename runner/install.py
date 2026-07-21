@@ -98,13 +98,22 @@ def _read_engine(engine_id):
 
 
 def _write_engine(record):
-    """Write engine/<record["id"]>/engine.json -- the per-engine registry manifest."""
+    """Write engine/<record["id"]>/engine.json -- the per-engine registry manifest. Replacing an
+    existing record also GCs what the old one referenced and the new one no longer does (a
+    component dropped from COMFY, a LoRA dropped from LORAS, a switched model): the record is the
+    only map from an engine to its files, so this is the last moment anything can find them."""
     out = _engine_dir(record["id"])
+    old = _read_engine(record["id"])
 
     os.makedirs(out, exist_ok=True)
 
     with open(os.path.join(out, "engine.json"), "w") as f:
         json.dump(record, f, indent=2)
+
+    # After the write, so the new record counts as a live reference -- otherwise a plain reinstall
+    # would GC the files it just downloaded.
+    if old is not None:
+        _gc(old, _referenced())
 
 
 def _registry():
@@ -218,6 +227,13 @@ def _comp_path(comfy, comp):
     return os.path.join(comfy["root"], *comp["path"].split("/"))
 
 
+def _comp_key(path):
+    """A component file's identity for reference counting: absolute + normcased, so two records
+    naming the same file with different spellings (a relative --comfy root vs an absolute one)
+    compare equal -- a mismatch here would GC a file another engine still uses."""
+    return os.path.normcase(os.path.abspath(path))
+
+
 def _install_comfy(mod, comfy, out):
     """Install a ComfyUI-reuse engine (--comfy): keep each COMFY component already in the ComfyUI
     install, download only the missing ones there, fetch the tiny SCAFFOLD (configs/tokenizer/
@@ -276,12 +292,15 @@ def _install_comfy(mod, comfy, out):
     # snapshot_download leaves a .cache/ bookkeeping dir in local_dir; drop it.
     shutil.rmtree(os.path.join(out, ".cache"), ignore_errors=True)
 
+    _prune_scaffold(out, scaffold["allow_patterns"])
+
     repositories.append(repo)
 
     # engine.json: the registry record -- component refs (for load + reference-counted GC) and the
     # loader scaffold's source. `root` is the reused ComfyUI install dir; components store their
-    # path relative to it. `external` = weights outside our model folder (a user's ComfyUI), so
-    # remove.sh only unregisters them, never deletes them.
+    # path relative to it. `external` = weights outside our model folder (a user's ComfyUI); it is
+    # diagnostic only -- what actually protects them is _gc's live _under(path, default_folder())
+    # guard, recomputed from the real path rather than trusting this install-time snapshot.
     _write_engine({
         "id": mod.ID, "model": None, "revision": None, "loras": [],
         "comfy": {"root": root, "external": not _under(models, default_folder()),
@@ -304,6 +323,35 @@ def _install_comfy(mod, comfy, out):
     print("Done.", flush=True)
 
 
+def _prune_scaffold(out, allow_patterns):
+    """Drop scaffold files a previous install left behind after SCAFFOLD's allow_patterns were
+    narrowed. A file the patterns no longer match is one snapshot_download would never place here,
+    so it is stale whatever the fetch did -- which also makes this safe when snapshot_download
+    falls back to "returning existing local_dir" offline. A scaffold is per-engine, never shared,
+    so `out` is ours alone to trim (external ComfyUI or not). Runs after the download rather than
+    wiping before it: `out` holds engine.json, the GC's only record of what this engine owns, so a
+    failed fetch must leave it intact. engine.json is not part of the repo -- keep it."""
+    from huggingface_hub.utils import filter_repo_objects
+
+    files = []
+
+    for dirpath, _dirnames, filenames in os.walk(out):
+        for name in filenames:
+            rel = os.path.relpath(os.path.join(dirpath, name), out).replace(os.sep, "/")
+
+            if rel != "engine.json":
+                files.append(rel)
+
+    keep = set(filter_repo_objects(files, allow_patterns=allow_patterns))
+
+    for rel in files:
+        if rel not in keep:
+            os.remove(os.path.join(out, *rel.split("/")))
+            print("Removed stale scaffold file %s" % rel, flush=True)
+
+    _prune_empty(out)
+
+
 def _prune_empty(top):
     """Remove empty directories under `top` bottom-up (including `top` if it ends up empty)."""
     if not os.path.isdir(top):
@@ -317,37 +365,32 @@ def _prune_empty(top):
                 pass
 
 
-def _remove(engine_id):
-    """Remove an engine: delete its registry entry (engine/<id>), then GC the model / LoRAs / comfy
-    components it referenced that no *remaining* installed engine still needs -- and only files
-    under our model folder (a user's external ComfyUI is never touched)."""
-    record = _read_engine(engine_id)
-    edir = _engine_dir(engine_id)
+def _referenced():
+    """What the registry as it stands right now still points at: model names, (model, lora file)
+    pairs and component keys. A caller decides what "still referenced" means purely by when it asks
+    -- after dropping an entry, the survivors; after writing a new one, the survivors plus it."""
+    models, loras, comps = set(), set(), set()
 
-    if record is None and not os.path.isdir(edir):
-        print("%s is not installed" % engine_id, flush=True)
-        return
+    for record in _registry():
+        if record.get("model"):
+            models.add(record["model"])
 
-    # Drop the registry entry first, so the survivor scan below excludes this engine.
-    shutil.rmtree(edir, ignore_errors=True)
+        for lora in record.get("loras", []):
+            loras.add((record["model"], lora["file"]))
 
-    if record is None:
-        print("Removed %s" % engine_id, flush=True)
-        return
+        comfy = record.get("comfy") or {}
+        for comp in comfy.get("components", []):
+            comps.add(_comp_key(_comp_path(comfy, comp)))
 
-    # What every remaining engine still references (models, (model, lora) pairs, component paths).
-    models_kept, loras_kept, comps_kept = set(), set(), set()
+    return models, loras, comps
 
-    for other in _registry():
-        if other.get("model"):
-            models_kept.add(other["model"])
 
-        for lora in other.get("loras", []):
-            loras_kept.add((other["model"], lora["file"]))
-
-        other_comfy = other.get("comfy") or {}
-        for comp in other_comfy.get("components", []):
-            comps_kept.add(os.path.normcase(_comp_path(other_comfy, comp)))
+def _gc(record, kept):
+    """Delete everything `record` referenced that the live set `kept` no longer names -- its model
+    dir (or, when the base survives, just its orphaned LoRA files) and its comfy components. The
+    single expression of the deletion policy: only files under our own model folder are ever
+    touched, so a reused ComfyUI install elsewhere on disk is read-only to us."""
+    models_kept, loras_kept, comps_kept = kept
 
     # Stock model + LoRA GC.
     model = record.get("model")
@@ -377,7 +420,7 @@ def _remove(engine_id):
     for comp in rec_comfy.get("components", []):
         path = _comp_path(rec_comfy, comp)
 
-        if os.path.normcase(path) in comps_kept:
+        if _comp_key(path) in comps_kept:
             continue
 
         if _under(path, root) and os.path.isfile(path):
@@ -385,6 +428,28 @@ def _remove(engine_id):
             print("Removed component %s" % os.path.basename(path), flush=True)
 
     _prune_empty(os.path.join(root, "ComfyUI"))
+
+
+def _remove(engine_id):
+    """Remove an engine: delete its registry entry (engine/<id>), then GC the model / LoRAs / comfy
+    components it referenced that no *remaining* installed engine still needs -- and only files
+    under our model folder (a user's external ComfyUI is never touched)."""
+    record = _read_engine(engine_id)
+    edir = _engine_dir(engine_id)
+
+    if record is None and not os.path.isdir(edir):
+        print("%s is not installed" % engine_id, flush=True)
+        return
+
+    # Drop the registry entry first, so the survivor scan below excludes this engine.
+    shutil.rmtree(edir, ignore_errors=True)
+
+    if record is None:
+        print("Removed %s" % engine_id, flush=True)
+        return
+
+    # Entry dropped above, so the registry now holds exactly the survivors.
+    _gc(record, _referenced())
 
     print("Removed %s" % engine_id, flush=True)
 
@@ -433,7 +498,9 @@ def main():
     # install, else a self-contained model/ComfyUI/ layout. The scaffold + registry entry live in
     # engine/<id>, referencing the (canonical, shared) weights under model/.
     if hasattr(mod, "COMFY"):
-        comfy = args.comfy or os.path.join(default_folder(), "ComfyUI")
+        # Absolute, so every record's `root` spells its components the same way -- _comp_key
+        # compares them across records and a mismatch would GC a file another engine still uses.
+        comfy = os.path.abspath(args.comfy or os.path.join(default_folder(), "ComfyUI"))
 
         _install_comfy(mod, comfy, _engine_dir(mod.ID))
         return
