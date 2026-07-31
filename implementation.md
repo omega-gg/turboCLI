@@ -77,7 +77,7 @@ and venv-free so they run under the bundled python.
 
 ### `cli.py` — one-shot front-end
 
-Builds a flat string-valued params dict from 13 argv flags (`cli.py:42-73`; defaults: mode
+Builds a flat string-valued params dict from its argv flags (`cli.py:42-73`; defaults: mode
 `text-to-image`, 512x512, seed -1, inference -1, renderer `cpu`, offload `offloader`, slicing
 `none`) and calls `core.generate(params, emit)`. Every input arrives via argv flags — no shell
 interpolation; the wrappers pass `--prompt="$1"` in equals form so a prompt starting with `-` is
@@ -268,7 +268,8 @@ answer is derivable.
 
 The **params dict** is flat and string-valued, and identical for CLI and HTTP (the server's
 urlencoded fields decode to exactly the dict cli builds): `engine, mode, prompt, images, loras,
-output, width, height, seed, inference, renderer, offload, slicing`. The model folder is
+output, width, height, seed, inference, renderer, offload, slicing, preserve, threshold` (plus the
+auto `preserve_feather/dilate/grow` tuning knobs). The model folder is
 deliberately NOT a param — `resolve_model()` derives it from the runner's own path
 (core.py:515-517); nothing is path-passed, everything is path-deduced. `loras` is
 comma-separated `<path>@<weight>` entries; `parse_loras` accepts any finite float (no `[0,1]`
@@ -297,7 +298,16 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
 7. **Backend hooks**: `prepare(pipe)` before the call (per-generation load boundary),
    `reclaim(pipe)` in `finally` (reclaim errors logged, not raised). The call itself runs under
    `torch.inference_mode()` (core.py:735-736).
-8. Save, then emit `Saved: <output>` immediately "so the client gets the result as early as
+8. **image-to-image preserve** (`_postprocess_i2i`, core.py:410): opt-in, off unless `--preserve`
+   is `mask` or `region`. The edit pipeline redraws + VAE-decodes the whole frame, so every pixel
+   drifts; this recomposites the byte-exact input outside the changed region. It diffs the
+   generation against the reframed first input (`abs.max` over channels, threshold `--threshold`,
+   `-1`→24) and pastes the original back where the frame did not change. `mask` builds a soft
+   pixel-diff mask (despeckle→close→dilate→feather — tight, best for added/recolored objects);
+   `region` replaces each changed blob's grown bounding box wholesale (`_blob_boxes` +
+   `_region_mask` — ghost-free, best for removal/replace, where a diff mask leaves the object's
+   low-contrast edges behind as an outline). Emits `preserve[<mode>]: masked N%`.
+9. Save, then emit `Saved: <output>` immediately "so the client gets the result as early as
    possible" (core.py:769-770).
 
 **The wire contract** (what callers parse, identical on stdout and the HTTP body):
@@ -309,6 +319,7 @@ loading input: <path>                            i2i only
 generating "<prompt≤60>" (<N> steps)...
   0%|step 0/N (00:00)                            heartbeat
  42%|step 5/12 (00:31, 3.50s/it)                 one line per step, tqdm-native figures
+preserve[region]: masked 50% (thr=24)            i2i --preserve mask|region only
 Saved: <path>                                    THE success sentinel (exit 0 / HTTP success)
 ERROR: <message or traceback>                    validation or unexpected failure
 CANCELLED: stopped on request, server is idle

@@ -53,6 +53,15 @@ def main():
     parser.add_argument("--renderer", default="cpu")
     parser.add_argument("--offload", default="offloader")
     parser.add_argument("--slicing", default="none")
+    # image-to-image post-process: restore the input outside the edited region. --preserve picks
+    # the mode: none (off), mask (soft pixel diff, best for adding/recoloring) or region (boxes,
+    # best for removal/replace: ghost-free). --threshold is the 0-255 change threshold; -1 = auto
+    # (24). feather/dilate/grow default to -1 = auto per mode.
+    parser.add_argument("--preserve", default="none")
+    parser.add_argument("--threshold", default="-1")
+    parser.add_argument("--preserve-feather", default="-1")
+    parser.add_argument("--preserve-dilate", default="-1")
+    parser.add_argument("--preserve-grow", default="-1")
 
     args = parser.parse_args()
 
@@ -70,6 +79,11 @@ def main():
         "renderer": args.renderer,
         "offload": args.offload,
         "slicing": args.slicing,
+        "preserve": args.preserve,
+        "threshold": args.threshold,
+        "preserve_feather": args.preserve_feather,
+        "preserve_dilate": args.preserve_dilate,
+        "preserve_grow": args.preserve_grow,
     }
 
     def emit(line):

@@ -134,6 +134,7 @@ Usage: image-to-image <engine> <renderer> <prompt> <input images> <output image>
                       [width = 512] [height = 512]
                       [seed = -1] [inference = -1]
                       [offload = offloader] [slicing = none]
+                      [preserve = none] [threshold = -1]
                       [loras = none]
                       [server]
 
@@ -153,11 +154,19 @@ offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend fo
 
 slicing: none, slice
 
+preserve: restore the input outside the edit (the pipeline redraws the whole frame)
+          none   off
+          mask   soft pixel diff, best for adding an object / recoloring
+          region grown bounding boxes, best for removal / replace (ghost-free)
+
+threshold: -1 auto (24), or a 0-255 change threshold
+
 loras: none, comma separated <path>@[weight]
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
     image-to-image flux2-4b cpu "knight in armor" shield.png,helmet.png output.png
-    image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 4 offloader none none 8080
+    image-to-image flux2-4b cuda "add a starfighter" photo.png output.png 512 512 -1 -1 offloader none mask -1 none 8080
+    image-to-image flux2-4b cuda "empty courtyard" knight.png output.png 736 1024 -1 -1 offloader none region -1 none 8080
 ```

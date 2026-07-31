@@ -12,6 +12,7 @@ OTHER_FILES += README.md  \
                doc/engine-inheritance-plan.md \
                doc/DUMMY_PLAN.md \
                doc/IMPLEMENTATION_PLAN.md \
+               doc/image-edit-plan.md \
 
 OTHER_FILES += runner/__init__.py \
                runner/check.py \
