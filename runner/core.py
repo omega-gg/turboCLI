@@ -308,154 +308,6 @@ def _engine_key(mod, params):
             params["offload"], params["slicing"]) + extra + (loras,)
 
 
-def _diff_mask(generated, ref, thr, dilate, feather):
-    """Soft [0..255] mask (255 = changed) of where `generated` differs from `ref` beyond `thr`.
-    Closes interior holes so a flat drawn object stays solid, dilates a margin for soft edges /
-    contact shadows, then feathers the seam. PIL + numpy, i2i post-process only."""
-    import numpy as np
-    from PIL import Image, ImageFilter
-
-    g = np.asarray(generated, dtype=np.int16)
-    o = np.asarray(ref,       dtype=np.int16)
-
-    # max abs diff over channels, so a chroma-only shift still registers as a change.
-    diff = np.abs(g - o).max(axis=2).astype(np.uint8)
-
-    mask = Image.fromarray(np.where(diff > thr, 255, 0).astype(np.uint8), "L")
-
-    # open (despeckle): a star or highlight the model redrew a hair off is a tiny high-contrast
-    # blob that trips the threshold; drop those so they come from the original, not the generation.
-    mask = mask.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
-
-    mask = mask.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.MinFilter(7))  # close holes
-
-    if dilate >= 3:
-        mask = mask.filter(ImageFilter.MaxFilter(dilate if dilate % 2 else dilate + 1))
-
-    if feather > 0:
-        mask = mask.filter(ImageFilter.GaussianBlur(feather))
-
-    return mask
-
-
-def _blob_boxes(mask, min_area):
-    """(x0,y0,x1,y1) bounding boxes of 4-connected blobs in a binary L mask; drop < min_area.
-    Iterative flood fill (no scipy). Ported from merge_region.py `boxes`, single-threshold."""
-    import numpy as np
-
-    a = np.asarray(mask) > 127
-
-    seen = np.zeros(a.shape, bool)
-    h, w = a.shape
-    out  = []
-
-    for y0, x0 in zip(*np.nonzero(a)):
-
-        if seen[y0, x0]:
-            continue
-
-        stack, pix = [(y0, x0)], []
-        seen[y0, x0] = True
-
-        while stack:                                       # 4-connected flood, iterative
-            y, x = stack.pop()
-            pix.append((y, x))
-
-            for ny, nx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
-                if 0 <= ny < h and 0 <= nx < w and a[ny, nx] and not seen[ny, nx]:
-                    seen[ny, nx] = True
-                    stack.append((ny, nx))
-
-        if len(pix) < min_area:
-            continue
-
-        p = np.array(pix)
-        out.append((p[:, 1].min(), p[:, 0].min(), p[:, 1].max(), p[:, 0].max()))
-
-    return out
-
-
-def _region_mask(generated, ref, thr, grow, feather, min_area):
-    """Solid grown bounding boxes around changed blobs (255 = replace). For removal/replace: the
-    box is filled solid so nothing of the old object can ghost inside it. A pixel diff mask can't
-    do this -- a dark object over a matching background falls below the threshold and survives as
-    an outline; the box replaces the whole footprint wholesale. See merge_region.py."""
-    import numpy as np
-    from PIL import Image, ImageDraw, ImageFilter
-
-    g = np.asarray(generated, np.int16)
-    o = np.asarray(ref,       np.int16)
-
-    diff = np.abs(g - o).max(2).astype(np.uint8)           # max over channels: chroma counts too
-
-    m = Image.fromarray(np.where(diff > thr, 255, 0).astype(np.uint8), "L")
-
-    m = m.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))   # open: despeckle
-    m = m.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.MinFilter(7))   # close: holes
-
-    out = Image.new("L", generated.size, 0)
-    d   = ImageDraw.Draw(out)
-
-    # grow: the box comes from the thresholded blob, which stops at the object's dark edges and so
-    # lands inside its true extent; growing the rectangle clears the clipped edge.
-    for x0, y0, x1, y1 in _blob_boxes(m, min_area):
-        d.rectangle((x0 - grow, y0 - grow, x1 + grow, y1 + grow), fill=255)
-
-    if feather > 0:
-        out = out.filter(ImageFilter.GaussianBlur(feather))
-
-    return out
-
-
-def _postprocess_i2i(image, params, emit):
-    """Restore the input outside the edited region. Inert unless --preserve is mask or region. The
-    edit pipeline regenerates + VAE-decodes the whole frame, so it drifts globally; this pastes the
-    byte-exact original back wherever the frame did not change beyond --threshold. Assumes the
-    model kept geometry outside the edit -- a reframe would ghost the seam.
-
-    --preserve picks the mode: `none` (off), `mask` (soft pixel diff, best for adding / recoloring)
-    or `region` (grown bounding boxes, best for removal / replace: ghost-free). --threshold is a
-    0-255 change threshold; -1 = auto (24). See _diff_mask and _region_mask."""
-    mode = params.get("preserve", "none")
-
-    if mode not in ("mask", "region"):
-        return image
-
-    first = next((s.strip() for s in params.get("images", "").split(",") if s.strip()), None)
-
-    if first is None:
-        return image
-
-    import numpy as np
-    from PIL import Image, ImageOps
-
-    # Reframe the full-res first input exactly as the model saw it, at the output size, so the mask
-    # and the restored pixels align. Secondary inputs are references, not 1:1 with the canvas.
-    ref = ImageOps.fit(Image.open(first).convert("RGB"), image.size, Image.Resampling.LANCZOS)
-
-    thr = float(params.get("threshold", -1))
-    thr = 24 if thr < 0 else thr
-
-    feather = float(params.get("preserve_feather", -1))
-
-    # -1 defaults mean "auto per mode", so the wrappers pass only preserve + threshold.
-    if mode == "region":
-        grow    = int(float(params.get("preserve_grow", -1)))
-        grow    = 60 if grow < 0 else grow
-        feather = 18 if feather < 0 else feather
-        mask = _region_mask(image, ref, thr, grow, feather, 400)
-    else:
-        dilate  = int(float(params.get("preserve_dilate", -1)))
-        dilate  = 5 if dilate < 0 else dilate
-        feather = 3 if feather < 0 else feather
-        mask = _diff_mask(image, ref, thr, dilate, feather)
-
-    emit("preserve[%s]: masked %.0f%% (thr=%g)"
-         % (mode, np.asarray(mask).mean() / 255 * 100, thr))
-
-    return Image.composite(image, ref, mask)
-
-
 def release_pipe(reason):
     """Drop the resident pipeline (config change / idle / explicit clear). Tears down any offload
     backend first so host-pinned weights + file handles + offloader<->module cycle are freed."""
@@ -759,10 +611,12 @@ def generate(params, emit, should_stop=None):
 
             img = Image.open(ip).convert("RGB")
 
-            # Feed the reference at the full output resolution (upscaling a small input). A tiny,
-            # low-detail reference starves the edit model, so it regenerates the whole scene rather
-            # than preserving it -- a 194x266 input dropped preservation from 96% to 58% of frame.
-            img = ImageOps.fit(img, (width, height), Image.Resampling.LANCZOS)
+            scale = min(img.width / width, img.height / height, 1.0)
+
+            image_width = max(1, round(width * scale))
+            image_height = max(1, round(height * scale))
+
+            img = ImageOps.fit(img, (image_width, image_height), Image.Resampling.LANCZOS)
 
             prompt_images.append(img)
 
@@ -909,9 +763,6 @@ def generate(params, emit, should_stop=None):
         return False
 
     image = result.images[0]
-
-    if mode == "image-to-image":
-        image = _postprocess_i2i(image, params, emit)
 
     image.save(params["output"])
 

@@ -38,10 +38,6 @@ offload="offloader"
 
 slicing="none"
 
-preserve="none"
-
-threshold="-1"
-
 loras="none"
 
 #--------------------------------------------------------------------------------------------------
@@ -115,19 +111,16 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 5 -o $# -gt 15 ] \
+if [ $# -lt 5 -o $# -gt 13 ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ] \
    || \
-   [ $# -ge 11 -a "${11}" != "none" -a "${11}" != "slice" ] \
-   || \
-   [ $# -ge 12 -a "${12}" != "none" -a "${12}" != "mask" -a "${12}" != "region" ]; then
+   [ $# -ge 11 -a "${11}" != "none" -a "${11}" != "slice" ]; then
 
     echo "Usage: image-to-image <engine> <renderer> <prompt> <input images> <output image>"
     echo "                      [width = $width] [height = $height]"
     echo "                      [seed = $seed] [inference = $inference]"
     echo "                      [offload = $offload] [slicing = $slicing]"
-    echo "                      [preserve = $preserve] [threshold = $threshold]"
     echo "                      [loras = $loras]"
     echo "                      [server]"
     echo ""
@@ -147,21 +140,13 @@ if [ $# -lt 5 -o $# -gt 15 ] \
     echo ""
     echo "slicing: none, slice"
     echo ""
-    echo "preserve: restore the input outside the edit (the pipeline redraws the whole frame)"
-    echo "          none   off"
-    echo "          mask   soft pixel diff, best for adding an object / recoloring"
-    echo "          region grown bounding boxes, best for removal / replace (ghost-free)"
-    echo ""
-    echo "threshold: -1 auto (24), or a 0-255 change threshold"
-    echo ""
     echo "loras: none, comma separated <path>@[weight]"
     echo ""
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
     echo "    image-to-image flux2-4b cpu \"knight in armor\" shield.png,helmet.png output.png"
-    echo "    image-to-image flux2-4b cuda \"add a starfighter\" photo.png output.png 512 512 -1 -1 offloader none mask -1 none 8080"
-    echo "    image-to-image flux2-4b cuda \"empty courtyard\" knight.png output.png 736 1024 -1 -1 offloader none region -1 none 8080"
+    echo "    image-to-image flux2-4b cuda \"knight in armor\" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none 8080"
 
     exit 1
 fi
@@ -192,13 +177,9 @@ if [ $# -ge 10 ]; then offload="${10}"; fi
 
 if [ $# -ge 11 ]; then slicing="${11}"; fi
 
-if [ $# -ge 12 ]; then preserve="${12}"; fi
+if [ $# -ge 12 ]; then loras="${12}"; fi
 
-if [ $# -ge 13 ]; then threshold="${13}"; fi
-
-if [ $# -ge 14 ]; then loras="${14}"; fi
-
-if [ $# -ge 15 ]; then server="${15}"; fi
+if [ $# -ge 13 ]; then server="${13}"; fi
 
 host=$(getOs)
 
@@ -293,8 +274,6 @@ if [ -n "$server" ]; then
                 --data-urlencode "renderer=$renderer" \
                 --data-urlencode "offload=$offload" \
                 --data-urlencode "slicing=$slicing" \
-                --data-urlencode "preserve=$preserve" \
-                --data-urlencode "threshold=$threshold" \
                 --data-urlencode "loras=$loras" \
                 "$base/generate" | tee "$stream"
 
@@ -368,6 +347,4 @@ python -m runner.cli \
        --renderer "$renderer" \
        --offload "$offload" \
        --slicing "$slicing" \
-       --preserve "$preserve" \
-       --threshold "$threshold" \
        --loras "$loras"

@@ -12,13 +12,14 @@ OTHER_FILES += README.md  \
                doc/engine-inheritance-plan.md \
                doc/DUMMY_PLAN.md \
                doc/IMPLEMENTATION_PLAN.md \
-               doc/image-edit-plan.md \
+               doc/image-mask-plan.md \
 
 OTHER_FILES += runner/__init__.py \
                runner/check.py \
                runner/cli.py \
                runner/core.py \
                runner/install.py \
+               runner/mask.py \
                runner/server.py \
                runner/engine/__init__.py \
                runner/engine/_inherit.py \
