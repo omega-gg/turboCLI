@@ -158,8 +158,8 @@ loras: none, comma separated <path>@[weight]
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    image-to-image flux2-4b cpu "knight in armor" shield.png,helmet.png output.png
-    image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 4 offloader none none 8080
+    image-to-image flux2-4b cpu  "knight in armor" shield.png,helmet.png output.png
+    image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none 8080
 ```
 
 ### [image-mask.sh](image-mask.sh) - Merge an edited image back onto its reference
