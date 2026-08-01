@@ -52,6 +52,13 @@ timm_version="1.0.28"
 einops_version="0.8.2"
 kornia_version="0.8.3"
 
+# InSPyReNet (transparent-background) is the third bg-removal model. Its base checkpoint is a
+# GitHub release asset, so the revision is the release TAG, not a commit sha -- release-asset
+# URLs are addressed by tag, and the asset is immutable, so the tag pins the exact bytes.
+transparent_background_version="1.3.4"
+inspyrenet_repo="https://github.com/plemeri/transparent-background"
+inspyrenet_revision="1.2.12"
+
 #--------------------------------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------------------------------
@@ -201,6 +208,11 @@ uv pip install \
     "$(require einops $einops_version)" \
     "$(require kornia $kornia_version)"
 
+# transparent-background (InSPyReNet). Repeat the torch pin so it is not upgraded off the stack.
+uv pip install \
+    "$(require transparent-background $transparent_background_version)" \
+    "$(require torch $torch_version)"
+
 #--------------------------------------------------------------------------------------------------
 # Runner
 #--------------------------------------------------------------------------------------------------
@@ -226,7 +238,22 @@ import sys
 from huggingface_hub import snapshot_download
 snapshot_download(repo_id=sys.argv[1], revision=sys.argv[2], local_dir="model/" + sys.argv[3])
 EOF
+
+    # Reproducibility marker: check.sh compares this to its own pinned revision.
+    echo "$2" > "model/$3/.revision"
 }
 
 download "$general" "$general_ref" "general"
 download "$lucida"  "$lucida_ref"  "lucida"
+
+# InSPyReNet: fetch the base checkpoint (a pinned GitHub release asset) so runtime loads it
+# offline via extract.py's Remover(ckpt=...); no transparent-background download at run time.
+ckpt="$inspyrenet_repo/releases/download/$inspyrenet_revision/ckpt_base.pth"
+
+echo "Downloading $ckpt -> model/inspyrenet ..."
+
+mkdir -p model/inspyrenet
+
+curl -L -o model/inspyrenet/ckpt_base.pth "$ckpt"
+
+echo "$inspyrenet_revision" > model/inspyrenet/.revision

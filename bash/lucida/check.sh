@@ -28,6 +28,11 @@ set -e
 
 name="lucida"
 
+# Pinned model revisions -- Also update in build.sh.
+general_revision="e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4"
+lucida_revision="6ee11122534c8de59402a589d2293c198cfbf848"
+inspyrenet_revision="1.2.12"
+
 #--------------------------------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------------------------------
@@ -49,6 +54,12 @@ getSky()
     esac
 }
 
+revision()
+{
+    # $1 = model dir under bin/model, $2 = expected revision (the build.sh .revision marker).
+    [ -f "$bin/model/$1/.revision" ] && [ "`cat "$bin/model/$1/.revision"`" = "$2" ]
+}
+
 #--------------------------------------------------------------------------------------------------
 # Check
 #--------------------------------------------------------------------------------------------------
@@ -57,10 +68,14 @@ sky="$(getSky)"
 
 bin="${SKY_PATH_LUCIDA:-$sky/$name}"
 
+# NOTE: the .revision marker is written only after a successful download (build.sh runs with
+#       set -e), so a matching revision already implies the model files are present -- no need to
+#       also stat the weights.
 if { [ -f "$bin/.venv/Scripts/activate" ] || [ -f "$bin/.venv/bin/activate" ]; } \
    && [ -f "$bin/extract.py" ] \
-   && [ -f "$bin/model/general/model.safetensors" ] \
-   && [ -f "$bin/model/lucida/model.safetensors" ]; then
+   && revision general    "$general_revision" \
+   && revision lucida     "$lucida_revision" \
+   && revision inspyrenet "$inspyrenet_revision"; then
 
     echo "lucida is installed"
 

@@ -192,10 +192,11 @@ examples:
 Usage: image-remove-background <model> <renderer> <input image> <output image> [plate image]
 
 Cut the subject out of the input onto a transparent background (RGBA PNG, same size and placement).
-Delegates to the lucida tool (BiRefNet, own venv; see bash/lucida).
+Delegates to the lucida tool (own venv; see bash/lucida).
 
-model: general (ZhengPeng7/BiRefNet -- better on thin glows like a neon sign or a lightsaber)
-       lucida  (egeorcun fine-tune -- better on glass / camouflage / text / print)
+model: general    (ZhengPeng7/BiRefNet) -- strong on thin glows like a neon sign or a lightsaber
+       inspyrenet (transparent-background) -- InSPyReNet, also strong on thin glows
+       lucida     (egeorcun fine-tune) -- better on glass / camouflage / text / print
 
 renderer: cpu, cuda or mps (cuda/mps fall back to cpu if the lucida build lacks them,
           bash/lucida/build.sh <cpu|cuda|mps>; cpu is slow)

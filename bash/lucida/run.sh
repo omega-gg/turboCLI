@@ -99,13 +99,14 @@ getPath()
 
 if [ $# -lt 4 -o $# -gt 5 ] \
    || \
-   [ "$1" != "general" -a "$1" != "lucida" ] \
+   [ "$1" != "general" -a "$1" != "lucida" -a "$1" != "inspyrenet" ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
 
     echo "Usage: run <model> <renderer> <input image> <output image> [plate image]"
     echo ""
-    echo "model: general (ZhengPeng7/BiRefNet, better on thin glows) or lucida (glass/camo/text)"
+    echo "model: general    (ZhengPeng7/BiRefNet) or inspyrenet -- strong on thin glows"
+    echo "       lucida      (egeorcun/lucida fine-tune) -- glass / camouflage / text / print"
     echo ""
     echo "renderer: cpu, cuda or mps (cuda / mps fall back to cpu if this build lacks them)"
     echo ""

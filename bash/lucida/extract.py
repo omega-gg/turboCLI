@@ -21,11 +21,14 @@
 #==================================================================================================
 
 # Lucida background removal for the image-mask `extract` mode. Lucida is a MIT fine-tune of
-# BiRefNet that produces a soft alpha matte of the subject. Runs in this tool's own venv (torch +
-# transformers + timm/einops/kornia) under gg.omega/lucida; the models are beside this file in
-# ./model/<model> (saved offline at build time). Two are shipped, both loaded the same way:
-#   lucida  (egeorcun/lucida) -- a fine-tune for glass / camouflage / text / print
-#   general (ZhengPeng7/BiRefNet) -- the vanilla general model; better on thin glows (e.g. a saber)
+# Produces a soft alpha matte of the subject. Runs in this tool's own venv (torch + transformers +
+# timm/einops/kornia + transparent-background) under gg.omega/lucida; the models live beside this
+# file in ./model (saved offline at build time). Three are shipped, picked with --model:
+#   general    (ZhengPeng7/BiRefNet) -- vanilla BiRefNet; strong on thin glows (e.g. a saber)
+#   lucida     (egeorcun/lucida) -- BiRefNet fine-tune for glass / camouflage / text / print
+#   inspyrenet (transparent-background) -- InSPyReNet base; also strong on thin glows
+# general/lucida load via transformers from model/<name>; inspyrenet via transparent-background's
+# Remover with model/inspyrenet/ckpt_base.pth.
 #
 # BiRefNet's matte covers the SUBJECT only, not its cast ground shadow. --plate is optional: give a
 # clean background (same scene, no subject); where the input is darker than the plate is the cast
@@ -62,27 +65,26 @@ def _pick_device(want):
     return "cpu"
 
 
-def _subject_alpha(image, device, model):
-    """Subject matte (BiRefNet) at the input size in [0, 1], plus the device used."""
+def _birefnet_alpha(image, device, model):
+    """BiRefNet matte (general | lucida) at the input size in [0, 1]; `device` pre-resolved."""
     import torch
     from torchvision import transforms
     from transformers import AutoModelForImageSegmentation
 
     model_dir = Path(__file__).resolve().parent / "model" / model
 
-    model = AutoModelForImageSegmentation.from_pretrained(str(model_dir), trust_remote_code=True)
-    model.eval()
+    net = AutoModelForImageSegmentation.from_pretrained(str(model_dir), trust_remote_code=True)
+    net.eval()
 
-    device = _pick_device(device)
-    half   = device == "cuda"                              # half fits the 885 MB model on 4 GB
+    half = device == "cuda"                                # half fits the 885 MB model on 4 GB
 
-    model.to(device)
+    net.to(device)
 
     if half:
-        model.half()
+        net.half()
 
     pre = transforms.Compose([
-        transforms.Resize((1024, 1024)),                  # Lucida's trained resolution
+        transforms.Resize((1024, 1024)),                   # BiRefNet's trained resolution
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
@@ -93,11 +95,38 @@ def _subject_alpha(image, device, model):
         x = x.half()
 
     with torch.inference_mode():
-        pred = model(x)[-1].sigmoid().float().cpu()[0, 0]  # final map -> [0, 1] at 1024x1024
+        pred = net(x)[-1].sigmoid().float().cpu()[0, 0]    # final map -> [0, 1] at 1024x1024
 
     alpha = Image.fromarray((pred.numpy() * 255).astype(np.uint8), "L").resize(image.size)
 
-    return np.asarray(alpha, np.float32) / 255.0, device
+    return np.asarray(alpha, np.float32) / 255.0
+
+
+def _inspyrenet_alpha(image, device):
+    """InSPyReNet matte via transparent-background (base mode) at the input size in [0, 1]."""
+    from transparent_background import Remover
+
+    ckpt = Path(__file__).resolve().parent / "model" / "inspyrenet" / "ckpt_base.pth"
+
+    dev = "cuda:0" if device == "cuda" else device         # cpu | mps pass through
+
+    remover = Remover(mode="base", ckpt=str(ckpt), device=dev)
+
+    rgba = remover.process(image, type="rgba")             # PIL RGBA at the input size
+
+    return np.asarray(rgba.split()[3], np.float32) / 255.0
+
+
+def _subject_alpha(image, device, model):
+    """Subject matte at the input size in [0, 1], plus the device used. Dispatches by model."""
+    device = _pick_device(device)
+
+    if model == "inspyrenet":
+        alpha = _inspyrenet_alpha(image, device)
+    else:
+        alpha = _birefnet_alpha(image, device, model)
+
+    return alpha, device
 
 
 def _plate_shadow(image, plate, subj):
@@ -123,7 +152,7 @@ def main():
 
     p.add_argument("--input",  required=True)
     p.add_argument("--output", required=True)
-    p.add_argument("--model",  default="general")          # general | lucida
+    p.add_argument("--model",  default="general")          # general | lucida | inspyrenet
     p.add_argument("--plate",  default=None)               # optional clean background: keep shadow
     p.add_argument("--device", default="cpu")              # cpu | cuda | mps (falls back to cpu)
 

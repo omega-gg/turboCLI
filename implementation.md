@@ -186,22 +186,24 @@ resolution. Prints `mask[<mode>]: masked N%` + `Saved:` (the wrappers' success s
 (`<model> <renderer> <input> <output> [plate]`), cuts a subject onto a transparent background.
 It is not part of `mask.py` (that stays torch-free): it **delegates** to the
 **`lucida`** tool's own `run.sh` (`bash/lucida`), installed under `gg.omega/lucida` with its own
-venv, keeping its torch stack out of the turbo venv. It ships **two** BiRefNet models, both loaded
-via `AutoModelForImageSegmentation(trust_remote_code=True)` from `model/<name>` and selected with
-`--model`: **`general`** (default, `ZhengPeng7/BiRefNet` — better on thin glows) and **`lucida`**
-(`egeorcun/lucida` fine-tune — glass/camo/text/print). Without a `plate` it is subject only; with
-one it additionally recovers the cast shadow from that clean-plate by luminance diff -- the model
-alone covers the subject, not the cast shadow. The tool has its own
+venv, keeping its torch stack out of the turbo venv. It ships **three** models, selected with
+`--model`: **`general`** (default, `ZhengPeng7/BiRefNet`) and **`lucida`** (`egeorcun/lucida`
+fine-tune — glass/camo/text/print) both load via transformers' `AutoModelForImageSegmentation`
+from `model/<name>`; **`inspyrenet`** (`transparent-background`'s InSPyReNet, also strong on thin
+glows) loads via its `Remover` from a pinned checkpoint `model/inspyrenet/ckpt_base.pth`.
+`extract.py` dispatches by model and the plate/shadow step is model-agnostic: without a `plate` it
+is subject only; with one it recovers the cast shadow from that clean-plate by luminance diff --
+the model alone covers the subject, not the cast shadow. The tool has its own
 `build.sh <cpu|cuda|mps> [latest]` + `check.sh`; the deps (torch/transformers/timm/einops/kornia +
-both ~0.4–0.9 GB models, revisions pinned) live only in that venv, downloaded with
-`snapshot_download` (VPN off — see the network note).
+transparent-background, and the three ~0.4–0.9 GB models, revisions/tag pinned) live only in that
+venv, via `snapshot_download` + a GitHub release asset (VPN off — see the network note).
 
 **Benchmark** (RTX A1000 laptop; BiRefNet always infers at 1024², so input size barely matters):
 inference ~0.45s on cuda (half) / ~19s on cpu; a full `image-remove-background` call is ~7s (cuda)
 / ~24s (cpu), dominated by per-process ~4.5s torch import + ~1–2s model load — each call is a
-fresh process, so repeated calls do not amortise. `general` and `lucida` are the same BiRefNet
-architecture, so both run at that speed — the model choice is quality, not time. Prefer cuda; cpu
-is a slow fallback.
+fresh process, so repeated calls do not amortise. `general` and `lucida` (same BiRefNet arch) share
+those numbers; `inspyrenet` is a different architecture and slower -- ~2s cuda inference (a full
+call ~9s). Prefer cuda; cpu is a slow fallback.
 
 ## The engine system
 
