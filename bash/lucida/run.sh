@@ -27,12 +27,6 @@ set -e
 # the cast shadow is also kept. Used standalone or by image-mask's extract / extract-full modes.
 
 #--------------------------------------------------------------------------------------------------
-# Settings
-#--------------------------------------------------------------------------------------------------
-
-renderer="cpu"
-
-#--------------------------------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------------------------------
 
@@ -103,20 +97,19 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 2 -o $# -gt 4 ] \
+if [ $# -lt 3 -o $# -gt 4 ] \
    || \
-   [ $# -ge 3 -a "$3" != "cpu" -a "$3" != "cuda" -a "$3" != "mps" ]; then
+   [ "$1" != "cpu" -a "$1" != "cuda" -a "$1" != "mps" ]; then
 
-    echo "Usage: run <input image> <output image> [renderer = $renderer] [plate image]"
+    echo "Usage: run <renderer> <input image> <output image> [plate image]"
     echo ""
     echo "renderer: cpu, cuda or mps (cuda / mps fall back to cpu if this build lacks them)"
     echo ""
     echo "plate: a clean background (the same scene without the subject); its cast shadow is kept"
     echo ""
     echo "examples:"
-    echo "    run photo.png cutout.png"
-    echo "    run photo.png cutout.png cuda"
-    echo "    run photo.png cutout.png cuda plate.png"
+    echo "    run cuda photo.png cutout.png"
+    echo "    run cuda photo.png cutout.png plate.png"
 
     exit 1
 fi
@@ -140,11 +133,11 @@ else
     os="default"
 fi
 
-input=$(getPath "$1")
+renderer="$1"
 
-output=$(getPath "$2")
+input=$(getPath "$2")
 
-if [ $# -ge 3 ]; then renderer="$3"; fi
+output=$(getPath "$3")
 
 if [ $# -ge 4 ]; then plate=$(getPath "$4"); fi
 

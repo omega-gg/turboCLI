@@ -179,9 +179,9 @@ if [ "$mode" = "extract" -o "$mode" = "extract-full" ]; then
     run="$(cd "$(dirname "$0")" && pwd)/../lucida/run.sh"
 
     if [ "$mode" = "extract-full" ]; then
-        sh "$run" "$4" "$5" "$renderer" "$3"
+        sh "$run" "$renderer" "$4" "$5" "$3"
     else
-        sh "$run" "$4" "$5" "$renderer"
+        sh "$run" "$renderer" "$4" "$5"
     fi
 
     exit $?
