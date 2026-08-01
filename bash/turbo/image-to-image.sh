@@ -145,7 +145,7 @@ if [ $# -lt 5 -o $# -gt 13 ] \
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    image-to-image flux2-4b cpu \"knight in armor\" shield.png,helmet.png output.png"
+    echo "    image-to-image flux2-4b cpu  \"knight in armor\" shield.png,helmet.png output.png"
     echo "    image-to-image flux2-4b cuda \"knight in armor\" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none 8080"
 
     exit 1

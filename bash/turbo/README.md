@@ -162,26 +162,39 @@ examples:
     image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none 8080
 ```
 
-### [image-mask.sh](image-mask.sh) - Merge an edited image back onto its reference
+### [image-mask.sh](image-mask.sh) - Merge, or extract a subject onto transparency
 
 ```
-Usage: image-mask <reference image> <input image> <output image> [mode = mask]
+Usage: image-mask <mode> <renderer> <reference image> <input image> <output image>
 
-Keep the changed region from the input and restore the byte-exact reference everywhere else. No
-generation -- pure image processing (PIL + numpy, no engine, no GPU). Run it after an
-image-to-image edit to undo the whole-frame color/tone drift outside the part you actually changed.
+mask / region: keep the changed region from the input and restore the byte-exact reference
+everywhere else. No generation -- pure image processing (PIL + numpy, no GPU). Run it after an
+image-to-image edit to undo the whole-frame color/tone drift outside the part you changed.
 
-reference: the original scene (the base canvas)
+extract / extract-full: cut the subject out of the input onto a transparent background (RGBA PNG,
+same size/placement). Delegates to the lucida tool (BiRefNet/Lucida fine-tune, own venv;
+see bash/lucida). extract is subject only; extract-full also keeps the cast shadow.
 
-input: the edited / generated image to merge in
+mode: mask         soft pixel diff, best for adding an object / recoloring
+      region       grown bounding boxes, best for removal / replace (ghost-free)
+      extract      background removal (lucida / BiRefNet), subject only
+      extract-full extract plus the cast shadow (reference = clean background plate)
 
-mode: mask   soft pixel diff, best for adding an object / recoloring
-      region grown bounding boxes, best for removal / replace (ghost-free)
+renderer: cpu, cuda or mps -- used by extract only (cuda/mps fall back to cpu if the lucida build
+          lacks them, bash/lucida/build.sh <cpu|cuda|mps>; cpu extract is slow). mask/region
+          ignore it (pure CPU processing).
 
-The output is at the reference resolution: a full-res reference with a smaller input merges back at
-full resolution.
+reference: mask/region the base canvas; extract-full the clean background plate whose cast shadow
+           (where the input is darker than the plate) is recovered and kept. Unused by extract.
+
+input: the edited / generated image
+
+For mask/region the output is at the reference resolution (a full-res reference + smaller input
+merges back at full resolution); for extract it is at the input resolution.
 
 examples:
-    image-mask original.png edited.png output.png
-    image-mask original.png edited.png output.png region
+    image-mask mask         cpu  original.png edited.png output.png
+    image-mask region       cpu  original.png edited.png output.png
+    image-mask extract      cuda photo.png    photo.png  cutout.png
+    image-mask extract-full cuda plate.png    photo.png  cutout.png
 ```

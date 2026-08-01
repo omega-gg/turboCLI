@@ -13,6 +13,10 @@ OTHER_FILES += README.md  \
                doc/DUMMY_PLAN.md \
                doc/IMPLEMENTATION_PLAN.md \
                doc/image-mask-plan.md \
+               test/README.md \
+               test/knight.png \
+               test/courtyard.png \
+               test/chest.png \
 
 OTHER_FILES += runner/__init__.py \
                runner/check.py \

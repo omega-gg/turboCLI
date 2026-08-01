@@ -22,6 +22,16 @@ set -e
 #
 #==================================================================================================
 
+# Run the Lucida (BiRefNet) background remover: cut the subject out of <input> onto a transparent
+# background (RGBA PNG, same size/placement). With a [plate] (the same scene without the subject)
+# the cast shadow is also kept. Used standalone or by image-mask's extract / extract-full modes.
+
+#--------------------------------------------------------------------------------------------------
+# Settings
+#--------------------------------------------------------------------------------------------------
+
+renderer="cpu"
+
 #--------------------------------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------------------------------
@@ -93,38 +103,20 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# != 5 ] \
+if [ $# -lt 2 -o $# -gt 4 ] \
    || \
-   [ "$1" != "mask" -a "$1" != "region" -a "$1" != "extract" -a "$1" != "extract-full" ] \
-   || \
-   [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
+   [ $# -ge 3 -a "$3" != "cpu" -a "$3" != "cuda" -a "$3" != "mps" ]; then
 
-    echo "Usage: image-mask <mode> <renderer> <reference image> <input image> <output image>"
+    echo "Usage: run <input image> <output image> [renderer = $renderer] [plate image]"
     echo ""
-    echo "mask / region: merge an edited image back onto its reference -- keep the changed region"
-    echo "from the input, restore the exact reference everywhere else. Pure image processing."
+    echo "renderer: cpu, cuda or mps (cuda / mps fall back to cpu if this build lacks them)"
     echo ""
-    echo "extract / extract-full: cut the subject out of the input onto a transparent background"
-    echo "(RGBA PNG, same size/placement). Delegates to the lucida tool (see bash/lucida)."
-    echo ""
-    echo "mode: mask         soft pixel diff, best for adding an object / recoloring"
-    echo "      region       grown bounding boxes, best for removal / replace (ghost-free)"
-    echo "      extract      background removal (lucida / BiRefNet), subject only"
-    echo "      extract-full extract plus the cast shadow (reference = clean background plate)"
-    echo ""
-    echo "renderer: cpu, cuda or mps -- used by extract only (cuda/mps fall back to cpu if the"
-    echo "          lucida build lacks them); mask / region ignore it (pure CPU processing)"
-    echo ""
-    echo "reference: mask/region the base canvas; extract-full the clean background plate whose"
-    echo "           cast shadow (input darker than the plate) is kept. Unused by extract."
-    echo ""
-    echo "input: the edited / generated image"
+    echo "plate: a clean background (the same scene without the subject); its cast shadow is kept"
     echo ""
     echo "examples:"
-    echo "    image-mask mask         cpu  original.png edited.png output.png"
-    echo "    image-mask region       cpu  original.png edited.png output.png"
-    echo "    image-mask extract      cuda photo.png    photo.png  cutout.png"
-    echo "    image-mask extract-full cuda plate.png    photo.png  cutout.png"
+    echo "    run photo.png cutout.png"
+    echo "    run photo.png cutout.png cuda"
+    echo "    run photo.png cutout.png cuda plate.png"
 
     exit 1
 fi
@@ -135,7 +127,7 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_TURBOCLI:-$sky/turbo}"
+bin="${SKY_PATH_LUCIDA:-$sky/lucida}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
@@ -148,15 +140,13 @@ else
     os="default"
 fi
 
-mode="$1"
+input=$(getPath "$1")
 
-renderer="$2"
+output=$(getPath "$2")
 
-reference=$(getPath "$3")
+if [ $# -ge 3 ]; then renderer="$3"; fi
 
-input=$(getPath "$4")
-
-output=$(getPath "$5")
+if [ $# -ge 4 ]; then plate=$(getPath "$4"); fi
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -167,24 +157,22 @@ case `uname` in
     *)                    export PATH="$python/bin:$PATH";;
 esac
 
-#--------------------------------------------------------------------------------------------------
-# Run
-#--------------------------------------------------------------------------------------------------
+export HF_HUB_OFFLINE=1
+export HF_DATASETS_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
 
-# NOTE: extract delegates to the lucida tool's own run.sh (its venv + model live under
-#       gg.omega/lucida). extract-full passes the reference as the clean plate so the shadow is
-#       kept. The raw paths ($3..$5) go through -- run.sh resolves them itself.
-if [ "$mode" = "extract" -o "$mode" = "extract-full" ]; then
+if [ "$renderer" = "cuda" ]; then
 
-    run="$(cd "$(dirname "$0")" && pwd)/../lucida/run.sh"
+    # Use CUDA's stream ordered allocator to avoid the WDDM RAM spill on Windows.
+    export PYTORCH_CUDA_ALLOC_CONF="backend:cudaMallocAsync"
 
-    if [ "$mode" = "extract-full" ]; then
-        sh "$run" "$4" "$5" "$renderer" "$3"
-    else
-        sh "$run" "$4" "$5" "$renderer"
-    fi
+elif [ "$renderer" = "mps" ]; then
 
-    exit $?
+    # NOTE macOS: Fallback on CPU if needed.
+    export PYTORCH_ENABLE_MPS_FALLBACK=1
+
+    # NOTE macOS: Disable the memory cap to avoid allocation failures on large models.
+    export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 fi
 
 cd "$bin"
@@ -197,8 +185,13 @@ else
     . ".venv/bin/activate"
 fi
 
-python -m runner.mask \
-       --reference "$reference" \
-       --input     "$input" \
-       --output    "$output" \
-       --mode      "$mode"
+#--------------------------------------------------------------------------------------------------
+# Run
+#--------------------------------------------------------------------------------------------------
+
+if [ -n "$plate" ]; then
+
+    python extract.py --input "$input" --output "$output" --device "$renderer" --plate "$plate"
+else
+    python extract.py --input "$input" --output "$output" --device "$renderer"
+fi
