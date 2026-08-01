@@ -31,11 +31,11 @@ turboCLI/
   bash/
     python/          build.sh / check.sh -- bundled standalone CPython + uv
     turbo/           build/install/remove/check/check-model/server/text-to-image/image-to-image/
-                     image-mask
+                     image-mask/image-remove-background
     lucida/          build/check/run + extract.py -- standalone BiRefNet (Lucida) bg-removal tool
   backend/           EMPTY in-repo (a .gitignore placeholder); build.sh grafts the offloader here
   doc/               plan docs, kept as records after implementation
-  test/              reference images + README for re-running the image-mask checks
+  test/              reference images + README for re-running the image-mask / remove-bg checks
 ```
 
 Deployed layout (created by `bash/turbo/build.sh` under `$SKY_PATH_BIN/gg.omega`):
@@ -182,21 +182,26 @@ against a downscaled reference, then upscales mask + input onto the full-res ref
 output is at the reference resolution and a full-res reference + smaller edit merges back at full
 resolution. Prints `mask[<mode>]: masked N%` + `Saved:` (the wrappers' success sentinel).
 
-`image-mask.sh` has two more modes, **`extract`** and **`extract-full`**, that cut a subject onto a
-transparent background. Not part of `mask.py` (that stays torch-free): they **delegate** to the
+`image-mask.sh` is `mask`/`region` only. A sibling turbo command, **`image-remove-background.sh`**
+(`<model> <renderer> <input> <output> [plate]`), cuts a subject onto a transparent background.
+It is not part of `mask.py` (that stays torch-free): it **delegates** to the
 **`lucida`** tool's own `run.sh` (`bash/lucida`), installed under `gg.omega/lucida` with its own
-venv, keeping its torch stack out of the turbo venv. Lucida is a BiRefNet_HR fine-tune loaded via
-`AutoModelForImageSegmentation(trust_remote_code=True)`; its `extract.py` produces the subject
-matte. `extract` is subject only; `extract-full` additionally recovers the cast shadow from the
-reference clean-plate by luminance diff (`--plate`) -- the model alone covers the subject, not the
-cast shadow. The tool has its own `build.sh <cpu|cuda|mps>` + `check.sh`; the segmentation deps
-(torch/transformers/timm/einops/kornia + the 885 MB model) live only in that venv, downloaded with
+venv, keeping its torch stack out of the turbo venv. It ships **two** BiRefNet models, both loaded
+via `AutoModelForImageSegmentation(trust_remote_code=True)` from `model/<name>` and selected with
+`--model`: **`general`** (default, `ZhengPeng7/BiRefNet` — better on thin glows) and **`lucida`**
+(`egeorcun/lucida` fine-tune — glass/camo/text/print). Without a `plate` it is subject only; with
+one it additionally recovers the cast shadow from that clean-plate by luminance diff -- the model
+alone covers the subject, not the cast shadow. The tool has its own
+`build.sh <cpu|cuda|mps> [latest]` + `check.sh`; the deps (torch/transformers/timm/einops/kornia +
+both ~0.4–0.9 GB models, revisions pinned) live only in that venv, downloaded with
 `snapshot_download` (VPN off — see the network note).
 
 **Benchmark** (RTX A1000 laptop; BiRefNet always infers at 1024², so input size barely matters):
-inference ~0.45s on cuda (half) / ~19s on cpu; a full `image-mask extract` call is ~7s (cuda) /
-~24s (cpu), dominated by the per-process ~4.5s torch import + ~1.8s model load — each call is a
-fresh process, so repeated calls do not amortise. Prefer cuda; cpu is a slow fallback.
+inference ~0.45s on cuda (half) / ~19s on cpu; a full `image-remove-background` call is ~7s (cuda)
+/ ~24s (cpu), dominated by per-process ~4.5s torch import + ~1–2s model load — each call is a
+fresh process, so repeated calls do not amortise. `general` and `lucida` are the same BiRefNet
+architecture, so both run at that speed — the model choice is quality, not time. Prefer cuda; cpu
+is a slow fallback.
 
 ## The engine system
 

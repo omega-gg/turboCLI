@@ -93,38 +93,32 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# != 5 ] \
+if [ $# != 4 ] \
    || \
-   [ "$1" != "mask" -a "$1" != "region" -a "$1" != "extract" -a "$1" != "extract-full" ] \
-   || \
-   [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
+   [ "$1" != "mask" -a "$1" != "region" ]; then
 
-    echo "Usage: image-mask <mode> <renderer> <reference image> <input image> <output image>"
+    echo "Usage: image-mask <mode> <reference image> <input image> <output image>"
     echo ""
-    echo "mask / region: merge an edited image back onto its reference -- keep the changed region"
-    echo "from the input, restore the exact reference everywhere else. Pure image processing."
+    echo "Merge an edited image back onto its reference: keep the changed region from the input,"
+    echo "restore the byte-exact reference everywhere else. No generation, pure image processing"
+    echo "(PIL + numpy, no GPU). Run it after an image-to-image edit to undo the whole-frame"
+    echo "color/tone drift outside the part you actually changed."
     echo ""
-    echo "extract / extract-full: cut the subject out of the input onto a transparent background"
-    echo "(RGBA PNG, same size/placement). Delegates to the lucida tool (see bash/lucida)."
+    echo "mode: mask   soft pixel diff, best for adding an object / recoloring"
+    echo "      region grown bounding boxes, best for removal / replace (ghost-free)"
     echo ""
-    echo "mode: mask         soft pixel diff, best for adding an object / recoloring"
-    echo "      region       grown bounding boxes, best for removal / replace (ghost-free)"
-    echo "      extract      background removal (lucida / BiRefNet), subject only"
-    echo "      extract-full extract plus the cast shadow (reference = clean background plate)"
-    echo ""
-    echo "renderer: cpu, cuda or mps -- used by extract only (cuda/mps fall back to cpu if the"
-    echo "          lucida build lacks them); mask / region ignore it (pure CPU processing)"
-    echo ""
-    echo "reference: mask/region the base canvas; extract-full the clean background plate whose"
-    echo "           cast shadow (input darker than the plate) is kept. Unused by extract."
+    echo "reference: the base canvas (the original scene)"
     echo ""
     echo "input: the edited / generated image"
     echo ""
+    echo "The output is at the reference resolution: a full-res reference with a smaller input"
+    echo "merges back at full resolution."
+    echo ""
+    echo "To cut a subject onto a transparent background instead, see image-remove-background."
+    echo ""
     echo "examples:"
-    echo "    image-mask mask         cpu  original.png edited.png output.png"
-    echo "    image-mask region       cpu  original.png edited.png output.png"
-    echo "    image-mask extract      cuda photo.png    photo.png  cutout.png"
-    echo "    image-mask extract-full cuda plate.png    photo.png  cutout.png"
+    echo "    image-mask mask   original.png edited.png output.png"
+    echo "    image-mask region original.png edited.png output.png"
 
     exit 1
 fi
@@ -150,13 +144,11 @@ fi
 
 mode="$1"
 
-renderer="$2"
+reference=$(getPath "$2")
 
-reference=$(getPath "$3")
+input=$(getPath "$3")
 
-input=$(getPath "$4")
-
-output=$(getPath "$5")
+output=$(getPath "$4")
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -170,22 +162,6 @@ esac
 #--------------------------------------------------------------------------------------------------
 # Run
 #--------------------------------------------------------------------------------------------------
-
-# NOTE: extract delegates to the lucida tool's own run.sh (its venv + model live under
-#       gg.omega/lucida). extract-full passes the reference as the clean plate so the shadow is
-#       kept. The raw paths ($3..$5) go through -- run.sh resolves them itself.
-if [ "$mode" = "extract" -o "$mode" = "extract-full" ]; then
-
-    run="$(cd "$(dirname "$0")" && pwd)/../lucida/run.sh"
-
-    if [ "$mode" = "extract-full" ]; then
-        sh "$run" "$renderer" "$4" "$5" "$3"
-    else
-        sh "$run" "$renderer" "$4" "$5"
-    fi
-
-    exit $?
-fi
 
 cd "$bin"
 

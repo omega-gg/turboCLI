@@ -31,9 +31,12 @@ set -e
 
 name="lucida"
 
-model="egeorcun/lucida"
+# Both BiRefNet models are installed side by side (extract picks one). general is the default.
+general="ZhengPeng7/BiRefNet"
+general_revision="e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4"
 
-model_revision="6ee11122534c8de59402a589d2293c198cfbf848"
+lucida="egeorcun/lucida"
+lucida_revision="6ee11122534c8de59402a589d2293c198cfbf848"
 
 # NOTE: torch/torchvision/transformers match turbo's build.sh; the segmentation extras are pinned.
 torch_version="2.12.1"
@@ -90,7 +93,7 @@ if [ $# -lt 1 -o $# -gt 2 ] \
 
     echo "Usage: build <cpu | cuda | mps> [latest]"
     echo ""
-    echo "latest: install the newest releases + model, ignoring the pins (not reproducible)"
+    echo "latest: install the newest releases + models, ignoring the pins (not reproducible)"
     echo ""
     echo "example:"
     echo "    build cuda"
@@ -103,13 +106,15 @@ if [ "$2" = "latest" ]; then
 
     latest=1
 
-    model_ref="main"
+    general_ref="main"
+    lucida_ref="main"
 
     echo "WARNING: building with 'latest' -- ignoring pinned versions, not reproducible."
 else
     latest=0
 
-    model_ref="$model_revision"
+    general_ref="$general_revision"
+    lucida_ref="$lucida_revision"
 fi
 
 #--------------------------------------------------------------------------------------------------
@@ -208,14 +213,20 @@ cp "$source/extract.py" "extract.py"
 
 export HF_HOME="$sky/cache/huggingface"
 
-echo "Downloading $model ($model_ref) ..."
-
-# NOTE: snapshot_download fetches the repo verbatim into ./model -- weights + the trusted remote
-#       code (birefnet.py, config auto_map already local) -- so runtime loads fully offline. It
-#       does not instantiate the model (no torch/timm here), keeping the install robust. The
+# NOTE: snapshot_download fetches each repo verbatim into model/<name> -- weights + the trusted
+#       remote code (birefnet.py, config auto_map already local) -- so runtime loads fully offline.
+#       It does not instantiate the model (no torch/timm here), keeping the install robust. Each
 #       revision is pinned (mutable HF repo -> reproducible install); 'latest' uses main.
-python - "$model" "$model_ref" <<'EOF'
+download()
+{
+    echo "Downloading $1 ($2) -> model/$3 ..."
+
+    python - "$1" "$2" "$3" <<'EOF'
 import sys
 from huggingface_hub import snapshot_download
-snapshot_download(repo_id=sys.argv[1], revision=sys.argv[2], local_dir="model")
+snapshot_download(repo_id=sys.argv[1], revision=sys.argv[2], local_dir="model/" + sys.argv[3])
 EOF
+}
+
+download "$general" "$general_ref" "general"
+download "$lucida"  "$lucida_ref"  "lucida"

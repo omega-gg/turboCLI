@@ -162,39 +162,48 @@ examples:
     image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none 8080
 ```
 
-### [image-mask.sh](image-mask.sh) - Merge, or extract a subject onto transparency
+### [image-mask.sh](image-mask.sh) - Merge an edited image back onto its reference
 
 ```
-Usage: image-mask <mode> <renderer> <reference image> <input image> <output image>
+Usage: image-mask <mode> <reference image> <input image> <output image>
 
-mask / region: keep the changed region from the input and restore the byte-exact reference
-everywhere else. No generation -- pure image processing (PIL + numpy, no GPU). Run it after an
-image-to-image edit to undo the whole-frame color/tone drift outside the part you changed.
+Keep the changed region from the input and restore the byte-exact reference everywhere else. No
+generation -- pure image processing (PIL + numpy, no GPU). Run it after an image-to-image edit to
+undo the whole-frame color/tone drift outside the part you changed.
 
-extract / extract-full: cut the subject out of the input onto a transparent background (RGBA PNG,
-same size/placement). Delegates to the lucida tool (BiRefNet/Lucida fine-tune, own venv;
-see bash/lucida). extract is subject only; extract-full also keeps the cast shadow.
+mode: mask   soft pixel diff, best for adding an object / recoloring
+      region grown bounding boxes, best for removal / replace (ghost-free)
 
-mode: mask         soft pixel diff, best for adding an object / recoloring
-      region       grown bounding boxes, best for removal / replace (ghost-free)
-      extract      background removal (lucida / BiRefNet), subject only
-      extract-full extract plus the cast shadow (reference = clean background plate)
-
-renderer: cpu, cuda or mps -- used by extract only (cuda/mps fall back to cpu if the lucida build
-          lacks them, bash/lucida/build.sh <cpu|cuda|mps>; cpu extract is slow). mask/region
-          ignore it (pure CPU processing).
-
-reference: mask/region the base canvas; extract-full the clean background plate whose cast shadow
-           (where the input is darker than the plate) is recovered and kept. Unused by extract.
+reference: the base canvas (the original scene)
 
 input: the edited / generated image
 
-For mask/region the output is at the reference resolution (a full-res reference + smaller input
-merges back at full resolution); for extract it is at the input resolution.
+The output is at the reference resolution: a full-res reference with a smaller input merges back at
+full resolution. To cut a subject onto transparency instead, see image-remove-background.
 
 examples:
-    image-mask mask         cpu  original.png edited.png output.png
-    image-mask region       cpu  original.png edited.png output.png
-    image-mask extract      cuda photo.png    photo.png  cutout.png
-    image-mask extract-full cuda plate.png    photo.png  cutout.png
+    image-mask mask   original.png edited.png output.png
+    image-mask region original.png edited.png output.png
+```
+
+### [image-remove-background.sh](image-remove-background.sh) - Cut a subject onto transparency
+
+```
+Usage: image-remove-background <model> <renderer> <input image> <output image> [plate image]
+
+Cut the subject out of the input onto a transparent background (RGBA PNG, same size and placement).
+Delegates to the lucida tool (BiRefNet, own venv; see bash/lucida).
+
+model: general (ZhengPeng7/BiRefNet -- better on thin glows like a neon sign or a lightsaber)
+       lucida  (egeorcun fine-tune -- better on glass / camouflage / text / print)
+
+renderer: cpu, cuda or mps (cuda/mps fall back to cpu if the lucida build lacks them,
+          bash/lucida/build.sh <cpu|cuda|mps>; cpu is slow)
+
+plate: a clean background (the same scene without the subject); where the input is darker than the
+       plate is the cast shadow, recovered as soft alpha so it is kept. Omit it for subject only.
+
+examples:
+    image-remove-background general cuda photo.png cutout.png
+    image-remove-background lucida  cuda photo.png cutout.png plate.png
 ```

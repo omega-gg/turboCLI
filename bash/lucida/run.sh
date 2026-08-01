@@ -97,19 +97,23 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 3 -o $# -gt 4 ] \
+if [ $# -lt 4 -o $# -gt 5 ] \
    || \
-   [ "$1" != "cpu" -a "$1" != "cuda" -a "$1" != "mps" ]; then
+   [ "$1" != "general" -a "$1" != "lucida" ] \
+   || \
+   [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
 
-    echo "Usage: run <renderer> <input image> <output image> [plate image]"
+    echo "Usage: run <model> <renderer> <input image> <output image> [plate image]"
+    echo ""
+    echo "model: general (ZhengPeng7/BiRefNet, better on thin glows) or lucida (glass/camo/text)"
     echo ""
     echo "renderer: cpu, cuda or mps (cuda / mps fall back to cpu if this build lacks them)"
     echo ""
     echo "plate: a clean background (the same scene without the subject); its cast shadow is kept"
     echo ""
     echo "examples:"
-    echo "    run cuda photo.png cutout.png"
-    echo "    run cuda photo.png cutout.png plate.png"
+    echo "    run general cuda photo.png cutout.png"
+    echo "    run lucida  cuda photo.png cutout.png plate.png"
 
     exit 1
 fi
@@ -133,13 +137,15 @@ else
     os="default"
 fi
 
-renderer="$1"
+model="$1"
 
-input=$(getPath "$2")
+renderer="$2"
 
-output=$(getPath "$3")
+input=$(getPath "$3")
 
-if [ $# -ge 4 ]; then plate=$(getPath "$4"); fi
+output=$(getPath "$4")
+
+if [ $# -ge 5 ]; then plate=$(getPath "$5"); fi
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -184,7 +190,9 @@ fi
 
 if [ -n "$plate" ]; then
 
-    python extract.py --input "$input" --output "$output" --device "$renderer" --plate "$plate"
+    python extract.py --model "$model" --device "$renderer" \
+                      --input "$input" --output "$output" --plate "$plate"
 else
-    python extract.py --input "$input" --output "$output" --device "$renderer"
+    python extract.py --model "$model" --device "$renderer" \
+                      --input "$input" --output "$output"
 fi

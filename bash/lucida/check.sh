@@ -59,7 +59,8 @@ bin="${SKY_PATH_LUCIDA:-$sky/$name}"
 
 if { [ -f "$bin/.venv/Scripts/activate" ] || [ -f "$bin/.venv/bin/activate" ]; } \
    && [ -f "$bin/extract.py" ] \
-   && [ -f "$bin/model/model.safetensors" ]; then
+   && [ -f "$bin/model/general/model.safetensors" ] \
+   && [ -f "$bin/model/lucida/model.safetensors" ]; then
 
     echo "lucida is installed"
 
