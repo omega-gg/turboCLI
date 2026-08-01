@@ -182,8 +182,8 @@ reference by more than it counts as changed, and is kept) is the one knob expose
 `[threshold]` CLI arg, defaulting to `THR` (tuned for light edits) — raise it when the generator
 drifts the whole frame, e.g. a flux2 img2img edit, so the drift is restored, not kept; the blob
 margins stay fixed. `merge()` builds the mask at the input's resolution against a downscaled
-reference, then upscales mask + input onto the full-res reference, so the output is at the reference
-resolution and a full-res reference + smaller edit merges back at full resolution. Prints
+reference, then upscales mask + input onto the full-res reference, so the output is at the
+reference resolution and a full-res reference + smaller edit merges back at full resolution. Prints
 `mask[<mode> thr=N]: masked N%` + `Saved:` (the wrappers' success sentinel).
 
 `image-mask.sh` is `mask`/`region` only. A sibling turbo command, **`image-remove-background.sh`**
@@ -197,7 +197,9 @@ from `model/<name>`; **`inspyrenet`** (`transparent-background`'s InSPyReNet, al
 glows) loads via its `Remover` from a pinned checkpoint `model/inspyrenet/ckpt_base.pth`.
 `extract.py` dispatches by model and the plate/shadow step is model-agnostic: without a `plate` it
 is subject only; with one it recovers the cast shadow from that clean-plate by luminance diff --
-the model alone covers the subject, not the cast shadow. The tool has its own
+the model alone covers the subject, not the cast shadow. That diff has a tunable darkening floor
+(`--shadow-threshold`, default 12, exposed as the optional `[shadow threshold]` arg): raise it
+when a drifted plate would otherwise ghost the background back in. The tool has its own
 `build.sh <cpu|cuda|mps> [latest]` + `check.sh`; the deps (torch/transformers/timm/einops/kornia +
 transparent-background, and the three ~0.4–0.9 GB models, revisions/tag pinned) live only in that
 venv, via `snapshot_download` + a GitHub release asset (VPN off — see the network note).

@@ -194,7 +194,7 @@ examples:
 ### [image-remove-background.sh](image-remove-background.sh) - Cut a subject onto transparency
 
 ```
-Usage: image-remove-background <model> <renderer> <input image> <output image> [plate image]
+Usage: image-remove-background <model> <renderer> <input> <output> [plate] [shadow threshold]
 
 Cut the subject out of the input onto a transparent background (RGBA PNG, same size and placement).
 Delegates to the remove-background tool (own venv; see bash/remove-background).
@@ -209,7 +209,11 @@ renderer: cpu, cuda or mps (cuda/mps fall back to cpu if the build lacks them,
 plate: a clean background (the same scene without the subject); where the input is darker than the
        plate is the cast shadow, recovered as soft alpha so it is kept. Omit it for subject only.
 
+shadow threshold: darkening floor for the plate shadow (default 12); raise it when a drifted plate
+                  ghosts the background back in. Only used with a plate.
+
 examples:
     image-remove-background birefnet cuda photo.png cutout.png
     image-remove-background lucida  cuda photo.png cutout.png plate.png
+    image-remove-background lucida  cuda photo.png cutout.png plate.png 40
 ```

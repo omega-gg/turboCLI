@@ -30,13 +30,14 @@ set -e
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 4 -o $# -gt 5 ] \
+if [ $# -lt 4 -o $# -gt 6 ] \
    || \
    [ "$1" != "birefnet" -a "$1" != "lucida" -a "$1" != "inspyrenet" ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
 
-    echo "Usage: image-remove-background <model> <renderer> <input image> <output image> [plate]"
+    echo "Usage: image-remove-background <model> <renderer> <input> <output> [plate]"
+    echo "                               [shadow threshold]"
     echo ""
     echo "Cut the subject out of the input onto a transparent background (RGBA PNG, same size and"
     echo "placement). Delegates to the remove-background tool (see bash/remove-background)."
@@ -49,9 +50,13 @@ if [ $# -lt 4 -o $# -gt 5 ] \
     echo ""
     echo "plate: a clean background (the same scene without the subject); its cast shadow is kept"
     echo ""
+    echo "shadow threshold: darkening floor for the plate shadow; raise it when a drifted plate"
+    echo "                  ghosts the background. Only used with a plate."
+    echo ""
     echo "examples:"
     echo "    image-remove-background birefnet cuda photo.png cutout.png"
-    echo "    image-remove-background lucida  cuda photo.png cutout.png plate.png"
+    echo "    image-remove-background lucida   cuda photo.png cutout.png plate.png"
+    echo "    image-remove-background lucida   cuda photo.png cutout.png plate.png 40"
 
     exit 1
 fi

@@ -28,7 +28,7 @@ Usage: check
 ### [run.sh](run.sh) - Cut a subject onto a transparent background
 
 ```
-Usage: run <model> <renderer> <input image> <output image> [plate image]
+Usage: run <model> <renderer> <input image> <output image> [plate image] [shadow threshold]
 
 model: birefnet   (ZhengPeng7/BiRefNet) -- strong on thin glows (a neon sign, a saber)
        lucida     (egeorcun/lucida fine-tune) -- glass / camouflage / text / print
@@ -38,7 +38,11 @@ renderer: cpu, cuda or mps (cuda / mps fall back to cpu if this build lacks them
 
 plate: a clean background (the same scene without the subject); its cast shadow is kept
 
+shadow threshold: darkening floor for the plate shadow (default 12); raise it when a drifted
+                  plate ghosts the background. Only used with a plate.
+
 examples:
     run birefnet cuda photo.png cutout.png
     run lucida  cuda photo.png cutout.png plate.png
+    run lucida  cuda photo.png cutout.png plate.png 40
 ```

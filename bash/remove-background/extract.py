@@ -31,8 +31,9 @@
 # Remover with model/inspyrenet/ckpt_base.pth.
 #
 # BiRefNet's matte covers the SUBJECT only, not its cast ground shadow. --plate is optional: give a
-# clean background (same scene, no subject); where the input is darker than the plate is the cast
-# shadow, recovered as soft alpha so it is kept. Without --plate it is subject only.
+# clean background (same scene, no subject); where the input is darker than the plate by more than
+# --shadow-threshold is the cast shadow, recovered as soft alpha so it is kept. Without --plate it
+# is subject only.
 #
 # Output: RGBA PNG, same size/placement as the input, transparent outside the subject (+ shadow).
 # Run: python extract.py --model birefnet --device cuda --input in.png --output out.png
@@ -45,8 +46,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageFilter
 
-# Fixed shadow tuning (not exposed): darkening threshold, normalisation, and the max shadow opacity
-# (a cast shadow is semi-transparent, never fully opaque).
+# Shadow tuning. SHAD_THR (the darkening floor) is the default for --shadow-threshold; SHAD_NORM
+# (normalisation) and SHAD_MAX (max opacity -- a cast shadow is never fully opaque) stay fixed.
 SHAD_THR, SHAD_NORM, SHAD_MAX = 12.0, 70.0, 0.7
 
 
@@ -129,8 +130,9 @@ def _subject_alpha(image, device, model):
     return alpha, device
 
 
-def _plate_shadow(image, plate, subj):
-    """Cast shadow from a clean-plate diff: where the input is darker than the empty plate."""
+def _plate_shadow(image, plate, subj, thr=SHAD_THR):
+    """Cast shadow from a clean-plate diff: where the input is darker than the empty plate by more
+    than `thr` (raise it to reject a drifted plate ghosting the background)."""
     def lum(im):
         a = np.asarray(im.convert("RGB"), np.float32)
         return a @ np.array([0.299, 0.587, 0.114], np.float32)
@@ -138,7 +140,7 @@ def _plate_shadow(image, plate, subj):
     plate = plate.convert("RGB").resize(image.size)
 
     dark   = np.clip(lum(plate) - lum(image), 0, None)     # a shadow darkens the ground
-    shadow = np.clip((dark - SHAD_THR) / SHAD_NORM, 0, SHAD_MAX)
+    shadow = np.clip((dark - thr) / SHAD_NORM, 0, SHAD_MAX)
 
     m = Image.fromarray((shadow / SHAD_MAX * 255).astype(np.uint8), "L")
     m = m.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))   # despeckle
@@ -155,6 +157,7 @@ def main():
     p.add_argument("--model",  default="birefnet")          # birefnet | lucida | inspyrenet
     p.add_argument("--plate",  default=None)               # optional clean background: keep shadow
     p.add_argument("--device", default="cpu")              # cpu | cuda | mps (falls back to cpu)
+    p.add_argument("--shadow-threshold", type=float, default=SHAD_THR)   # plate darkening floor
 
     args = p.parse_args()
 
@@ -165,7 +168,7 @@ def main():
 
         # With a clean plate, add the cast shadow; without one it is subject only (no wasted work).
         if args.plate:
-            shadow = _plate_shadow(image, Image.open(args.plate), alpha)
+            shadow = _plate_shadow(image, Image.open(args.plate), alpha, args.shadow_threshold)
             alpha  = np.clip(np.maximum(alpha, shadow), 0, 1)
 
         rgba = image.convert("RGBA")

@@ -22,9 +22,19 @@ set -e
 #
 #==================================================================================================
 
-# Run the Lucida (BiRefNet) background remover: cut the subject out of <input> onto a transparent
-# background (RGBA PNG, same size/placement). With a [plate] (the same scene without the subject)
-# the cast shadow is also kept. Used standalone or by image-mask's extract / extract-full modes.
+# Run the background remover: cut the subject out of <input> onto a transparent background (RGBA
+# PNG, same size/placement). With a [plate] (the same scene without the subject) the cast shadow is
+# also kept. Used standalone or by the image-remove-background turbo command.
+
+#--------------------------------------------------------------------------------------------------
+# Settings
+#--------------------------------------------------------------------------------------------------
+
+# Plate shadow threshold: with a [plate], areas where the input is darker than the plate become
+# the cast shadow (kept as soft alpha). This is the darkening floor -- higher rejects faint
+# differences (e.g. a drifted plate ghosting the background), lower keeps more. Only used with a
+# plate; override per-call with the optional [shadow threshold] arg.
+shadow_threshold="12"
 
 #--------------------------------------------------------------------------------------------------
 # Functions
@@ -97,13 +107,14 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 4 -o $# -gt 5 ] \
+if [ $# -lt 4 -o $# -gt 6 ] \
    || \
    [ "$1" != "birefnet" -a "$1" != "lucida" -a "$1" != "inspyrenet" ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
 
     echo "Usage: run <model> <renderer> <input image> <output image> [plate image]"
+    echo "           [shadow threshold]"
     echo ""
     echo "model: birefnet   (ZhengPeng7/BiRefNet) -- strong on thin glows (a neon sign, a saber)"
     echo "       lucida     (egeorcun/lucida fine-tune) -- glass / camouflage / text / print"
@@ -113,9 +124,13 @@ if [ $# -lt 4 -o $# -gt 5 ] \
     echo ""
     echo "plate: a clean background (the same scene without the subject); its cast shadow is kept"
     echo ""
+    echo "shadow threshold: darkening floor for the plate shadow (default $shadow_threshold);"
+    echo "                  raise it when a drifted plate ghosts the background. Plate only."
+    echo ""
     echo "examples:"
     echo "    run birefnet cuda photo.png cutout.png"
-    echo "    run lucida  cuda photo.png cutout.png plate.png"
+    echo "    run lucida   cuda photo.png cutout.png plate.png"
+    echo "    run lucida   cuda photo.png cutout.png plate.png 40"
 
     exit 1
 fi
@@ -148,6 +163,8 @@ input=$(getPath "$3")
 output=$(getPath "$4")
 
 if [ $# -ge 5 ]; then plate=$(getPath "$5"); fi
+
+if [ $# -ge 6 ]; then shadow_threshold="$6"; fi   # optional override of the Settings default
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -193,7 +210,8 @@ fi
 if [ -n "$plate" ]; then
 
     python extract.py --model "$model" --device "$renderer" \
-                      --input "$input" --output "$output" --plate "$plate"
+                      --input "$input" --output "$output" \
+                      --plate "$plate" --shadow-threshold "$shadow_threshold"
 else
     python extract.py --model "$model" --device "$renderer" \
                       --input "$input" --output "$output"
