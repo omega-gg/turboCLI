@@ -99,21 +99,22 @@ getPath()
 
 if [ $# -lt 4 -o $# -gt 5 ] \
    || \
-   [ "$1" != "general" -a "$1" != "lucida" -a "$1" != "inspyrenet" ] \
+   [ "$1" != "birefnet" -a "$1" != "lucida" -a "$1" != "inspyrenet" ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
 
     echo "Usage: run <model> <renderer> <input image> <output image> [plate image]"
     echo ""
-    echo "model: general    (ZhengPeng7/BiRefNet) or inspyrenet -- strong on thin glows"
-    echo "       lucida      (egeorcun/lucida fine-tune) -- glass / camouflage / text / print"
+    echo "model: birefnet   (ZhengPeng7/BiRefNet) -- strong on thin glows (a neon sign, a saber)"
+    echo "       lucida     (egeorcun/lucida fine-tune) -- glass / camouflage / text / print"
+    echo "       inspyrenet (transparent-background) -- InSPyReNet, also strong on thin glows"
     echo ""
     echo "renderer: cpu, cuda or mps (cuda / mps fall back to cpu if this build lacks them)"
     echo ""
     echo "plate: a clean background (the same scene without the subject); its cast shadow is kept"
     echo ""
     echo "examples:"
-    echo "    run general cuda photo.png cutout.png"
+    echo "    run birefnet cuda photo.png cutout.png"
     echo "    run lucida  cuda photo.png cutout.png plate.png"
 
     exit 1
@@ -125,7 +126,7 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_LUCIDA:-$sky/lucida}"
+bin="${SKY_PATH_REMOVE_BACKGROUND:-$sky/remove-background}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 

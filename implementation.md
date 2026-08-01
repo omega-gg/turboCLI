@@ -32,7 +32,7 @@ turboCLI/
     python/          build.sh / check.sh -- bundled standalone CPython + uv
     turbo/           build/install/remove/check/check-model/server/text-to-image/image-to-image/
                      image-mask/image-remove-background
-    lucida/          build/check/run + extract.py -- standalone BiRefNet (Lucida) bg-removal tool
+    remove-background/  build/check/run + extract.py -- standalone BiRefNet + InSPyReNet bg remover
   backend/           EMPTY in-repo (a .gitignore placeholder); build.sh grafts the offloader here
   doc/               plan docs, kept as records after implementation
   test/              reference images + README for re-running the image-mask / remove-bg checks
@@ -184,10 +184,10 @@ resolution. Prints `mask[<mode>]: masked N%` + `Saved:` (the wrappers' success s
 
 `image-mask.sh` is `mask`/`region` only. A sibling turbo command, **`image-remove-background.sh`**
 (`<model> <renderer> <input> <output> [plate]`), cuts a subject onto a transparent background.
-It is not part of `mask.py` (that stays torch-free): it **delegates** to the
-**`lucida`** tool's own `run.sh` (`bash/lucida`), installed under `gg.omega/lucida` with its own
-venv, keeping its torch stack out of the turbo venv. It ships **three** models, selected with
-`--model`: **`general`** (default, `ZhengPeng7/BiRefNet`) and **`lucida`** (`egeorcun/lucida`
+It is not part of `mask.py` (that stays torch-free): it **delegates** to the **remove-background**
+tool's own `run.sh` (`bash/remove-background`), installed under `gg.omega/remove-background` with
+its own venv, keeping its torch stack out of the turbo venv. It ships **three** models, selected
+with `--model`: **`birefnet`** (default, `ZhengPeng7/BiRefNet`) and **`lucida`** (`egeorcun/lucida`
 fine-tune — glass/camo/text/print) both load via transformers' `AutoModelForImageSegmentation`
 from `model/<name>`; **`inspyrenet`** (`transparent-background`'s InSPyReNet, also strong on thin
 glows) loads via its `Remover` from a pinned checkpoint `model/inspyrenet/ckpt_base.pth`.
@@ -201,7 +201,7 @@ venv, via `snapshot_download` + a GitHub release asset (VPN off — see the netw
 **Benchmark** (RTX A1000 laptop; BiRefNet always infers at 1024², so input size barely matters):
 inference ~0.45s on cuda (half) / ~19s on cpu; a full `image-remove-background` call is ~7s (cuda)
 / ~24s (cpu), dominated by per-process ~4.5s torch import + ~1–2s model load — each call is a
-fresh process, so repeated calls do not amortise. `general` and `lucida` (same BiRefNet arch) share
+fresh process, so repeated calls do not amortise. `birefnet`/`lucida` (same BiRefNet arch) share
 those numbers; `inspyrenet` is a different architecture and slower -- ~2s cuda inference (a full
 call ~9s). Prefer cuda; cpu is a slow fallback.
 

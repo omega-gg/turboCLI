@@ -192,19 +192,19 @@ examples:
 Usage: image-remove-background <model> <renderer> <input image> <output image> [plate image]
 
 Cut the subject out of the input onto a transparent background (RGBA PNG, same size and placement).
-Delegates to the lucida tool (own venv; see bash/lucida).
+Delegates to the remove-background tool (own venv; see bash/remove-background).
 
-model: general    (ZhengPeng7/BiRefNet) -- strong on thin glows like a neon sign or a lightsaber
-       inspyrenet (transparent-background) -- InSPyReNet, also strong on thin glows
+model: birefnet   (ZhengPeng7/BiRefNet) -- strong on thin glows like a neon sign or a lightsaber
        lucida     (egeorcun fine-tune) -- better on glass / camouflage / text / print
+       inspyrenet (transparent-background) -- InSPyReNet, also strong on thin glows
 
-renderer: cpu, cuda or mps (cuda/mps fall back to cpu if the lucida build lacks them,
-          bash/lucida/build.sh <cpu|cuda|mps>; cpu is slow)
+renderer: cpu, cuda or mps (cuda/mps fall back to cpu if the build lacks them,
+          bash/remove-background/build.sh <cpu|cuda|mps>; cpu is slow)
 
 plate: a clean background (the same scene without the subject); where the input is darker than the
        plate is the cast shadow, recovered as soft alpha so it is kept. Omit it for subject only.
 
 examples:
-    image-remove-background general cuda photo.png cutout.png
+    image-remove-background birefnet cuda photo.png cutout.png
     image-remove-background lucida  cuda photo.png cutout.png plate.png
 ```

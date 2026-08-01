@@ -15,14 +15,14 @@ must point at the install. Run from anywhere:
 `image-remove-background <model> <renderer> <input> <output> [plate]`:
 
 ```sh
-# background removal, subject only (default model general)
-image-remove-background general cuda knight.png subject_only.png
+# background removal, subject only (default model birefnet)
+image-remove-background birefnet cuda knight.png subject_only.png
 
 # with the lucida fine-tune instead
 image-remove-background lucida  cuda knight.png subject_lucida.png
 
 # keep the cast shadow, recovered from a clean plate (the empty courtyard)
-image-remove-background general cuda knight.png knight_cutout.png courtyard.png
+image-remove-background birefnet cuda knight.png knight_cutout.png courtyard.png
 
 # region: remove the knight (reference = knight scene, input = empty courtyard edit)
 image-mask region knight.png    courtyard.png knight_removed.png

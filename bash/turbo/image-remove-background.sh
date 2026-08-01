@@ -22,9 +22,9 @@ set -e
 #
 #==================================================================================================
 
-# Cut a subject out of an image onto a transparent background, via the standalone lucida tool
-# (BiRefNet). This is the turbo-namespace front-end; it delegates to bash/lucida/run.sh, which owns
-# the tool's venv + models under gg.omega/lucida.
+# Cut a subject out of an image onto a transparent background, via the standalone remove-background
+# tool. This is the turbo-namespace front-end; it delegates to bash/remove-background/run.sh, which
+# owns the tool's venv + models under gg.omega/remove-background.
 
 #--------------------------------------------------------------------------------------------------
 # Syntax
@@ -32,25 +32,25 @@ set -e
 
 if [ $# -lt 4 -o $# -gt 5 ] \
    || \
-   [ "$1" != "general" -a "$1" != "lucida" -a "$1" != "inspyrenet" ] \
+   [ "$1" != "birefnet" -a "$1" != "lucida" -a "$1" != "inspyrenet" ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
 
     echo "Usage: image-remove-background <model> <renderer> <input image> <output image> [plate]"
     echo ""
     echo "Cut the subject out of the input onto a transparent background (RGBA PNG, same size and"
-    echo "placement). Delegates to the lucida tool (own venv; see bash/lucida)."
+    echo "placement). Delegates to the remove-background tool (see bash/remove-background)."
     echo ""
-    echo "model: general    (ZhengPeng7/BiRefNet) -- strong on thin glows (a neon sign, a saber)"
-    echo "       inspyrenet (transparent-background) -- InSPyReNet, also strong on thin glows"
+    echo "model: birefnet   (ZhengPeng7/BiRefNet) -- strong on thin glows (a neon sign, a saber)"
     echo "       lucida     (egeorcun fine-tune) -- glass / camouflage / text / print"
+    echo "       inspyrenet (transparent-background) -- InSPyReNet, also strong on thin glows"
     echo ""
-    echo "renderer: cpu, cuda or mps (cuda / mps fall back to cpu if the lucida build lacks them)"
+    echo "renderer: cpu, cuda or mps (cuda / mps fall back to cpu if the build lacks them)"
     echo ""
     echo "plate: a clean background (the same scene without the subject); its cast shadow is kept"
     echo ""
     echo "examples:"
-    echo "    image-remove-background general cuda photo.png cutout.png"
+    echo "    image-remove-background birefnet cuda photo.png cutout.png"
     echo "    image-remove-background lucida  cuda photo.png cutout.png plate.png"
 
     exit 1
@@ -61,7 +61,7 @@ fi
 #--------------------------------------------------------------------------------------------------
 
 # NOTE: the arguments match run.sh's <model> <renderer> <input> <output> [plate], so pass them
-#       straight through; run.sh resolves the paths and runs in the lucida venv (own subshell).
-run="$(cd "$(dirname "$0")" && pwd)/../lucida/run.sh"
+#       straight through; run.sh resolves the paths and runs in the tool's venv (own subshell).
+run="$(cd "$(dirname "$0")" && pwd)/../remove-background/run.sh"
 
 sh "$run" "$@"

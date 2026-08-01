@@ -22,12 +22,12 @@
 
 # Lucida background removal for the image-mask `extract` mode. Lucida is a MIT fine-tune of
 # Produces a soft alpha matte of the subject. Runs in this tool's own venv (torch + transformers +
-# timm/einops/kornia + transparent-background) under gg.omega/lucida; the models live beside this
-# file in ./model (saved offline at build time). Three are shipped, picked with --model:
-#   general    (ZhengPeng7/BiRefNet) -- vanilla BiRefNet; strong on thin glows (e.g. a saber)
+# timm/einops/kornia + transparent-background) under gg.omega/remove-background; the models live
+# beside this file in ./model (saved at build time). Three are shipped, picked with --model:
+#   birefnet   (ZhengPeng7/BiRefNet) -- vanilla BiRefNet; strong on thin glows (e.g. a saber)
 #   lucida     (egeorcun/lucida) -- BiRefNet fine-tune for glass / camouflage / text / print
 #   inspyrenet (transparent-background) -- InSPyReNet base; also strong on thin glows
-# general/lucida load via transformers from model/<name>; inspyrenet via transparent-background's
+# birefnet/lucida load via transformers from model/<name>; inspyrenet via transparent-background's
 # Remover with model/inspyrenet/ckpt_base.pth.
 #
 # BiRefNet's matte covers the SUBJECT only, not its cast ground shadow. --plate is optional: give a
@@ -35,7 +35,7 @@
 # shadow, recovered as soft alpha so it is kept. Without --plate it is subject only.
 #
 # Output: RGBA PNG, same size/placement as the input, transparent outside the subject (+ shadow).
-# Run: python extract.py --model general --device cuda --input in.png --output out.png
+# Run: python extract.py --model birefnet --device cuda --input in.png --output out.png
 
 import sys
 import argparse
@@ -66,7 +66,7 @@ def _pick_device(want):
 
 
 def _birefnet_alpha(image, device, model):
-    """BiRefNet matte (general | lucida) at the input size in [0, 1]; `device` pre-resolved."""
+    """BiRefNet matte (birefnet | lucida) at the input size in [0, 1]; `device` pre-resolved."""
     import torch
     from torchvision import transforms
     from transformers import AutoModelForImageSegmentation
@@ -152,7 +152,7 @@ def main():
 
     p.add_argument("--input",  required=True)
     p.add_argument("--output", required=True)
-    p.add_argument("--model",  default="general")          # general | lucida | inspyrenet
+    p.add_argument("--model",  default="birefnet")          # birefnet | lucida | inspyrenet
     p.add_argument("--plate",  default=None)               # optional clean background: keep shadow
     p.add_argument("--device", default="cpu")              # cpu | cuda | mps (falls back to cpu)
 

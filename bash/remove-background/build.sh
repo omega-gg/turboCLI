@@ -22,18 +22,18 @@ set -e
 #
 #==================================================================================================
 
-# Standalone Lucida (BiRefNet_HR fine-tune) background remover for image-mask extract. Installs its
-# own venv + model under gg.omega/lucida, isolated from the turbo venv.
+# Standalone background remover (BiRefNet + InSPyReNet) for image-remove-background. Installs its
+# own venv + models under gg.omega/remove-background, isolated from the turbo venv.
 
 #--------------------------------------------------------------------------------------------------
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-name="lucida"
+name="remove-background"
 
-# Both BiRefNet models are installed side by side (extract picks one). general is the default.
-general="ZhengPeng7/BiRefNet"
-general_revision="e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4"
+# Both BiRefNet models are installed side by side (extract picks one). birefnet is the default.
+birefnet="ZhengPeng7/BiRefNet"
+birefnet_revision="e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4"
 
 lucida="egeorcun/lucida"
 lucida_revision="6ee11122534c8de59402a589d2293c198cfbf848"
@@ -113,14 +113,14 @@ if [ "$2" = "latest" ]; then
 
     latest=1
 
-    general_ref="main"
+    birefnet_ref="main"
     lucida_ref="main"
 
     echo "WARNING: building with 'latest' -- ignoring pinned versions, not reproducible."
 else
     latest=0
 
-    general_ref="$general_revision"
+    birefnet_ref="$birefnet_revision"
     lucida_ref="$lucida_revision"
 fi
 
@@ -243,7 +243,7 @@ EOF
     echo "$2" > "model/$3/.revision"
 }
 
-download "$general" "$general_ref" "general"
+download "$birefnet" "$birefnet_ref" "birefnet"
 download "$lucida"  "$lucida_ref"  "lucida"
 
 # InSPyReNet: fetch the base checkpoint (a pinned GitHub release asset) so runtime loads it
