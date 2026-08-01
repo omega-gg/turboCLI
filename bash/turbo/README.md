@@ -165,7 +165,7 @@ examples:
 ### [image-mask.sh](image-mask.sh) - Merge an edited image back onto its reference
 
 ```
-Usage: image-mask <mode> <reference image> <input image> <output image>
+Usage: image-mask <mode> <reference image> <input image> <output image> [threshold]
 
 Keep the changed region from the input and restore the byte-exact reference everywhere else. No
 generation -- pure image processing (PIL + numpy, no GPU). Run it after an image-to-image edit to
@@ -178,11 +178,16 @@ reference: the base canvas (the original scene)
 
 input: the edited / generated image
 
+threshold: positive integer; a pixel differing from the reference by more than this is kept from
+           the input. Higher = tighter (restores more reference), lower = keeps more. Omit for the
+           default; raise it when the generator drifts the whole frame (e.g. a flux2 img2img edit).
+
 The output is at the reference resolution: a full-res reference with a smaller input merges back at
 full resolution. To cut a subject onto transparency instead, see image-remove-background.
 
 examples:
     image-mask mask   original.png edited.png output.png
+    image-mask mask   original.png edited.png output.png 40
     image-mask region original.png edited.png output.png
 ```
 

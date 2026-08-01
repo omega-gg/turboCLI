@@ -177,10 +177,14 @@ the whole frame (global color/tone drift); this diffs the edit against the refer
 byte-exact reference back everywhere the frame did not really change. Two modes: `mask` (soft
 pixel-diff mask — tight, best for adding/recoloring) and `region` (grown bounding boxes around
 changed blobs — ghost-free, best for removal/replace, where a diff mask leaves a removed object's
-low-contrast edges behind as an outline). `merge()` builds the mask at the input's resolution
-against a downscaled reference, then upscales mask + input onto the full-res reference, so the
-output is at the reference resolution and a full-res reference + smaller edit merges back at full
-resolution. Prints `mask[<mode>]: masked N%` + `Saved:` (the wrappers' success sentinel).
+low-contrast edges behind as an outline). The change threshold (a pixel differing from the
+reference by more than it counts as changed, and is kept) is the one knob exposed: an optional
+`[threshold]` CLI arg, defaulting to `THR` (tuned for light edits) — raise it when the generator
+drifts the whole frame, e.g. a flux2 img2img edit, so the drift is restored, not kept; the blob
+margins stay fixed. `merge()` builds the mask at the input's resolution against a downscaled
+reference, then upscales mask + input onto the full-res reference, so the output is at the reference
+resolution and a full-res reference + smaller edit merges back at full resolution. Prints
+`mask[<mode> thr=N]: masked N%` + `Saved:` (the wrappers' success sentinel).
 
 `image-mask.sh` is `mask`/`region` only. A sibling turbo command, **`image-remove-background.sh`**
 (`<model> <renderer> <input> <output> [plate]`), cuts a subject onto a transparent background.

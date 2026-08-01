@@ -33,6 +33,7 @@
 #          footprint wholesale)
 #
 # Run as: python -m runner.mask --reference orig.png --input edit.png --output out.png --mode mask
+#         [--threshold N]  (N = change threshold; higher keeps less, restores more reference)
 
 import sys
 import argparse
@@ -43,7 +44,10 @@ from PIL import Image, ImageDraw, ImageFilter
 
 LR = Image.Resampling.LANCZOS
 
-# Fixed tuning (not exposed on the CLI): change threshold, min blob area, and the per-mode margins.
+# THR is the default change threshold (overridable with --threshold): a pixel differing from the
+# reference by more than THR counts as changed (kept from the input). Higher -> tighter, restores
+# more reference; lower -> keeps more, including whole-frame edit drift. MIN_AREA + the per-mode
+# margins below stay fixed (not exposed).
 THR, MIN_AREA          = 24, 400
 DILATE, FEATHER_MASK   = 5, 3
 GROW,   FEATHER_REGION = 60, 18
@@ -140,19 +144,20 @@ def _region_mask(generated, ref, thr, grow, feather, min_area):
     return out
 
 
-def merge(reference, edit, mode):
+def merge(reference, edit, mode, thr=THR):
     """Composite `edit`'s changed region onto `reference`; return (result, mask). Output is at the
     reference's resolution: the mask is built at the edit's resolution against a downscaled
     reference (what the edit is a version of), then mask + edit are upscaled onto the full-res
     reference. Same-size inputs => the resizes are identities. Byte-exact outside the mask.
 
-    A full-res reference + a smaller edit lands the merge at full resolution automatically."""
+    `thr` is the change threshold (default THR); a full-res reference + a smaller edit lands the
+    merge at full resolution automatically."""
     ref = reference.resize(edit.size, LR)                  # reference as the edit's own canvas
 
     if mode == "region":
-        mask = _region_mask(edit, ref, THR, GROW, FEATHER_REGION, MIN_AREA)
+        mask = _region_mask(edit, ref, thr, GROW, FEATHER_REGION, MIN_AREA)
     else:
-        mask = _diff_mask(edit, ref, THR, DILATE, FEATHER_MASK)
+        mask = _diff_mask(edit, ref, thr, DILATE, FEATHER_MASK)
 
     up = edit.resize(reference.size, LR)
     m  = mask.resize(reference.size, LR)
@@ -167,6 +172,7 @@ def main():
     parser.add_argument("--input",     required=True)      # the edited / generated frame
     parser.add_argument("--output",    required=True)
     parser.add_argument("--mode",      default="mask")     # mask | region
+    parser.add_argument("--threshold", type=int, default=THR)  # change threshold, up = tighter
 
     args = parser.parse_args()
 
@@ -174,11 +180,11 @@ def main():
         reference = Image.open(args.reference).convert("RGB")
         edit      = Image.open(args.input).convert("RGB")
 
-        result, mask = merge(reference, edit, args.mode)
+        result, mask = merge(reference, edit, args.mode, args.threshold)
         result.save(args.output)
 
-        print("mask[%s]: masked %.0f%%"
-              % (args.mode, np.asarray(mask).mean() / 255 * 100), flush=True)
+        print("mask[%s thr=%d]: masked %.0f%%"
+              % (args.mode, args.threshold, np.asarray(mask).mean() / 255 * 100), flush=True)
         print("Saved: %s" % args.output, flush=True)
     except Exception:
         print("ERROR: " + traceback.format_exc(), flush=True)

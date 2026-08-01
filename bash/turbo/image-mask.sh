@@ -23,6 +23,15 @@ set -e
 #==================================================================================================
 
 #--------------------------------------------------------------------------------------------------
+# Settings
+#--------------------------------------------------------------------------------------------------
+
+# Change threshold: pixels differing from the reference beyond this are kept, the rest restored.
+# Higher = tighter (more reference), lower = keeps more. Raise it when the generator drifts the
+# whole frame (e.g. a flux2 img2img edit). Override per-call with the optional [threshold] arg.
+threshold="24"
+
+#--------------------------------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------------------------------
 
@@ -93,11 +102,11 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# != 4 ] \
+if [ $# -lt 4 -o $# -gt 5 ] \
    || \
    [ "$1" != "mask" -a "$1" != "region" ]; then
 
-    echo "Usage: image-mask <mode> <reference image> <input image> <output image>"
+    echo "Usage: image-mask <mode> <reference image> <input image> <output image> [threshold]"
     echo ""
     echo "Merge an edited image back onto its reference: keep the changed region from the input,"
     echo "restore the byte-exact reference everywhere else. No generation, pure image processing"
@@ -111,6 +120,10 @@ if [ $# != 4 ] \
     echo ""
     echo "input: the edited / generated image"
     echo ""
+    echo "threshold: pixels differing from the reference beyond this are kept, the rest restored."
+    echo "           Higher = tighter (more reference), lower = keeps more. Default $threshold;"
+    echo "           raise it when the generator drifts the whole frame (e.g. flux2 img2img)."
+    echo ""
     echo "The output is at the reference resolution: a full-res reference with a smaller input"
     echo "merges back at full resolution."
     echo ""
@@ -118,6 +131,7 @@ if [ $# != 4 ] \
     echo ""
     echo "examples:"
     echo "    image-mask mask   original.png edited.png output.png"
+    echo "    image-mask mask   original.png edited.png output.png 40"
     echo "    image-mask region original.png edited.png output.png"
 
     exit 1
@@ -150,6 +164,8 @@ input=$(getPath "$3")
 
 output=$(getPath "$4")
 
+if [ $# -eq 5 ]; then threshold="$5"; fi          # optional override of the Settings default
+
 #--------------------------------------------------------------------------------------------------
 # Environment
 #--------------------------------------------------------------------------------------------------
@@ -177,4 +193,5 @@ python -m runner.mask \
        --reference "$reference" \
        --input     "$input" \
        --output    "$output" \
-       --mode      "$mode"
+       --mode      "$mode" \
+       --threshold "$threshold"
