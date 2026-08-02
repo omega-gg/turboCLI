@@ -26,16 +26,17 @@ turboCLI/
     core.py          shared engine: discovery, resident-pipe cache, one generation
     install.py       online installer + engine registry + reference-counted remove
     check.py         install verifier (torch-free)
-    mask.py          post-generation mask/merge for image-mask (torch-free)
+    mask.py          post-generation diff/region mask generator for image-mask (torch-free)
+    apply.py         mask applier for image-mask-apply -- composite / putalpha (torch-free)
     engine/          one declaration module per engine (+ _inherit.py, not an engine)
   bash/
     python/          build.sh / check.sh -- bundled standalone CPython + uv
     turbo/           build/install/remove/check/check-model/server/text-to-image/image-to-image/
-                     image-mask/image-remove-background
-    remove-background/  build/check/run + extract.py -- standalone BiRefNet + InSPyReNet bg remover
+                     image-mask/image-mask-background/image-mask-apply
+    remove-background/  build/check/run + extract.py -- standalone BiRefNet + InSPyReNet matte gen
   backend/           EMPTY in-repo (a .gitignore placeholder); build.sh grafts the offloader here
   doc/               plan docs, kept as records after implementation
-  test/              reference images + README for re-running the image-mask / remove-bg checks
+  test/              reference images + README for re-running the image-mask / -background / -apply
 ```
 
 Deployed layout (created by `bash/turbo/build.sh` under `$SKY_PATH_BIN/gg.omega`):
@@ -168,48 +169,66 @@ inside the base-reinstall branch (`install.py:561-562`).
 Reuses `install._discover` + `install._engine_installed`. "Light by design: no torch/diffusers
 import, so it runs under the bundled python without the venv" (check.py:33-35).
 
-### `mask.py` — standalone mask/merge (post-generation, torch-free)
+### `mask.py` / `apply.py` — mask generate + apply (post-generation, torch-free)
 
-A generation-free tool (`python -m runner.mask`, driven by `image-mask.sh`): merge an edited image
-back onto its reference, keeping only the changed region. Like `install.py`/`check.py` it does NOT
-import core (PIL + numpy only, no torch, no GPU), so it starts instantly. The edit pipeline redraws
-the whole frame (global color/tone drift); this diffs the edit against the reference and pastes the
-byte-exact reference back everywhere the frame did not really change. Two modes: `mask` (soft
-pixel-diff mask — tight, best for adding/recoloring) and `region` (grown bounding boxes around
-changed blobs — ghost-free, best for removal/replace, where a diff mask leaves a removed object's
-low-contrast edges behind as an outline). The change threshold (a pixel differing from the
-reference by more than it counts as changed, and is kept) is the one knob exposed: an optional
-`[threshold]` CLI arg, defaulting to `THR` (tuned for light edits) — raise it when the generator
-drifts the whole frame, e.g. a flux2 img2img edit, so the drift is restored, not kept; the blob
-margins stay fixed. `merge()` builds the mask at the input's resolution against a downscaled
-reference, then upscales mask + input onto the full-res reference, so the output is at the
-reference resolution and a full-res reference + smaller edit merges back at full resolution. Prints
+A mask is a first-class artifact: `image-mask` (and `image-mask-background`) GENERATE one, then
+`image-mask-apply` APPLIES it. That split makes a matte reusable — generate the expensive one once,
+then apply it several ways (transparency now, composite over a new backdrop later). `mask.py` and
+`apply.py`, like `install.py`/`check.py`, do NOT import core (PIL only, no torch, no GPU) so they
+start instantly; only the matte generator needs a model, in its own venv.
+
+`mask.py` (`python -m runner.mask`, driven by `image-mask.sh`) emits a soft mask of where an edit
+differs from its reference. The edit pipeline redraws the whole frame (global color/tone drift);
+`build_mask()` diffs the edit against the reference and keeps only where it really changed. Two
+modes: `mask` (soft pixel-diff mask — tight, best for adding/recoloring) and `region` (grown
+bounding boxes around changed blobs — ghost-free, best for removal/replace, where a diff mask
+leaves a removed object's low-contrast edges behind as an outline). The change threshold (a pixel
+differing from the reference by more than it counts as changed, and is kept) is the one knob
+exposed: an optional `[threshold]` CLI arg, defaulting to `THR` (tuned for light edits) — raise it
+when the generator drifts the whole frame, e.g. a flux2 img2img edit; the blob margins stay fixed.
+The mask is built and saved at the edit's resolution — an 8-bit grayscale PNG. Prints
 `mask[<mode> thr=N]: masked N%` + `Saved:` (the wrappers' success sentinel).
 
-`image-mask.sh` is `mask`/`region` only. A sibling turbo command, **`image-remove-background.sh`**
-(`<model> <renderer> <input> <output> [plate]`), cuts a subject onto a transparent background.
-It is not part of `mask.py` (that stays torch-free): it **delegates** to the **remove-background**
-tool's own `run.sh` (`bash/remove-background`), installed under `gg.omega/remove-background` with
-its own venv, keeping its torch stack out of the turbo venv. It ships **three** models, selected
-with `--model`: **`birefnet`** (default, `ZhengPeng7/BiRefNet`) and **`lucida`** (`egeorcun/lucida`
-fine-tune — glass/camo/text/print) both load via transformers' `AutoModelForImageSegmentation`
-from `model/<name>`; **`inspyrenet`** (`transparent-background`'s InSPyReNet, also strong on thin
-glows) loads via its `Remover` from a pinned checkpoint `model/inspyrenet/ckpt_base.pth`.
-`extract.py` dispatches by model and the plate/shadow step is model-agnostic: without a `plate` it
-is subject only; with one it recovers the cast shadow from that clean-plate by luminance diff --
-the model alone covers the subject, not the cast shadow. That diff has a tunable darkening floor
-(`--shadow-threshold`, default 12, exposed as the optional `[shadow threshold]` arg): raise it
-when a drifted plate would otherwise ghost the background back in. The tool has its own
-`build.sh <cpu|cuda|mps> [latest]` + `check.sh`; the deps (torch/transformers/timm/einops/kornia +
-transparent-background, and the three ~0.4–0.9 GB models, revisions/tag pinned) live only in that
-venv, via `snapshot_download` + a GitHub release asset (VPN off — see the network note).
+`apply.py` (`python -m runner.apply`, driven by `image-mask-apply.sh`) lays a precomputed mask onto
+an image. `composite` upscales the source and mask to the reference resolution and pastes the
+masked region onto the reference (`Image.composite` — byte-exact where the mask is black),
+restoring the original scene after an edit or dropping a subject onto a new backdrop (a full-res
+reference + a smaller edit merges back at full resolution here). `putalpha` writes the mask as the
+source's alpha channel — an RGBA cutout, transparent where the mask is black, no reference. The
+mask source is irrelevant, so a diff/region mask or a model matte feeds either mode. The split is
+byte-exact with the old fused paths: generate+composite reproduces the previous `merge`, and
+matte+putalpha the previous cutout — apply issues the same resizes / `Image.composite` / `putalpha`
+on the same pixels.
+
+**`image-mask-background.sh`** (`<model> <renderer> <input> <matte> [plate] [shadow threshold]`)
+generates the subject matte. It is not part of `mask.py` (that stays torch-free): it **delegates**
+to the **remove-background** tool's own `run.sh` (`bash/remove-background`), installed under
+`gg.omega/remove-background` with its own venv, keeping its torch stack out of the turbo venv. It
+ships **three** models via `--model`: **`birefnet`** (default, `ZhengPeng7/BiRefNet`) and
+**`lucida`** (`egeorcun/lucida` fine-tune — glass/camo/text/print) both load via transformers'
+`AutoModelForImageSegmentation` from `model/<name>`; **`inspyrenet`** (`transparent-background`'s
+InSPyReNet, also strong on thin glows) loads via its `Remover` from a pinned checkpoint
+`model/inspyrenet/ckpt_base.pth`. `extract.py` dispatches by model and saves an 8-bit grayscale
+matte; the plate/shadow step is model-agnostic: without a `plate` it is subject only; with one it
+recovers the cast shadow from that clean-plate by luminance diff -- the model alone covers the
+subject, not the cast shadow. That diff has a tunable darkening floor (`--shadow-threshold`,
+default 12, exposed as the optional `[shadow threshold]` arg): raise it when a drifted plate would
+otherwise ghost the background back in. The tool has its own `build.sh <cpu|cuda|mps> [latest]` +
+`check.sh`; the deps (torch/transformers/timm/einops/kornia + transparent-background, and the three
+~0.4–0.9 GB models, revisions/tag pinned) live only in that venv, via `snapshot_download` + a
+GitHub release asset (VPN off — see the network note).
 
 **Benchmark** (RTX A1000 laptop; BiRefNet always infers at 1024², so input size barely matters):
-inference ~0.45s on cuda (half) / ~19s on cpu; a full `image-remove-background` call is ~7s (cuda)
-/ ~24s (cpu), dominated by per-process ~4.5s torch import + ~1–2s model load — each call is a
-fresh process, so repeated calls do not amortise. `birefnet`/`lucida` (same BiRefNet arch) share
+inference ~0.45s on cuda (half) / ~19s on cpu; a full `image-mask-background` matte call is ~7s
+(cuda) / ~24s (cpu), dominated by per-process ~4.5s torch import + ~1–2s model load — each call is
+a fresh process, so repeated calls do not amortise. `birefnet`/`lucida` (same BiRefNet arch) share
 those numbers; `inspyrenet` is a different architecture and slower -- ~2s cuda inference (a full
-call ~9s). Prefer cuda; cpu is a slow fallback.
+call ~9s). Prefer cuda; cpu is a slow fallback. Splitting apply into its own process is cheap but
+not free: `image-mask-apply` (and `image-mask`) is torch-free PIL, ~1.7s wall-clock -- almost all
+python + PIL startup, the pixel work is milliseconds -- plus one grayscale-PNG round-trip. So a
+background cutout is the ~7s matte call + ~1.7s (about +20%); a mask/region restore is two ~1.7s
+calls (~3.4s vs the old ~1.7s fused). The compute is identical -- no second model run -- the added
+cost is a second interpreter start.
 
 ## The engine system
 
@@ -417,7 +436,8 @@ into the body (cli.py:82-89, server.py:237-246).
 - Doc records: `doc/engine-inheritance-plan.md` (the BASE mechanism),
   `doc/comfy-z-image-turbo-plan.md` (the first ComfyUI-reuse engine),
   `doc/comfy-krea2-turbo-plan.md` (fp8 engines, the `(1 + weight)` RMSNorm trap, per-step parity
-  with ComfyUI), `doc/image-mask-plan.md` (the standalone mask/merge command),
+  with ComfyUI), `doc/image-mask-plan.md` (the standalone mask/merge command) +
+  `doc/image-mask-split-plan.md` (splitting it into generate + apply),
   `doc/IMPLEMENTATION_PLAN.md` (this document's plan). Script usage blocks live
   in `bash/README.md`, `bash/turbo/README.md`, `bash/python/README.md`.
 - The offload backend's internals — vendored ComfyUI subsystem, native vs VBAR paths, CPU

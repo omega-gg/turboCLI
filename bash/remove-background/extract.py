@@ -20,8 +20,8 @@
 #
 #==================================================================================================
 
-# Lucida background removal for the image-mask `extract` mode. Lucida is a MIT fine-tune of
-# Produces a soft alpha matte of the subject. Runs in this tool's own venv (torch + transformers +
+# Background-removal matte generator behind image-mask-background. Produces a soft alpha matte of
+# the subject. Runs in this tool's own venv (torch + transformers +
 # timm/einops/kornia + transparent-background) under gg.omega/remove-background; the models live
 # beside this file in ./model (saved at build time). Three are shipped, picked with --model:
 #   birefnet   (ZhengPeng7/BiRefNet) -- vanilla BiRefNet; strong on thin glows (e.g. a saber)
@@ -35,8 +35,9 @@
 # --shadow-threshold is the cast shadow, recovered as soft alpha so it is kept. Without --plate it
 # is subject only.
 #
-# Output: RGBA PNG, same size/placement as the input, transparent outside the subject (+ shadow).
-# Run: python extract.py --model birefnet --device cuda --input in.png --output out.png
+# Output: an 8-bit grayscale matte PNG (255 = subject, + shadow), same size/placement as the input.
+# Apply it with image-mask-apply (putalpha to cut out, composite to drop onto a new background).
+# Run: python extract.py --model birefnet --device cuda --input in.png --output matte.png
 
 import sys
 import argparse
@@ -171,9 +172,8 @@ def main():
             shadow = _plate_shadow(image, Image.open(args.plate), alpha, args.shadow_threshold)
             alpha  = np.clip(np.maximum(alpha, shadow), 0, 1)
 
-        rgba = image.convert("RGBA")
-        rgba.putalpha(Image.fromarray((alpha * 255).astype(np.uint8), "L"))
-        rgba.save(args.output)
+        matte = Image.fromarray((alpha * 255).astype(np.uint8), "L")
+        matte.save(args.output)
 
         pct = alpha.mean() * 100
         print("extract[%s/%s]: alpha %.0f%%" % (args.model, device, pct), flush=True)

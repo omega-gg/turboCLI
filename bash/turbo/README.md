@@ -162,14 +162,13 @@ examples:
     image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none 8080
 ```
 
-### [image-mask.sh](image-mask.sh) - Merge an edited image back onto its reference
+### [image-mask.sh](image-mask.sh) - Generate a diff/region mask
 
 ```
-Usage: image-mask <mode> <reference image> <input image> <output image> [threshold]
+Usage: image-mask <mode> <reference image> <input image> <mask output> [threshold]
 
-Keep the changed region from the input and restore the byte-exact reference everywhere else. No
-generation -- pure image processing (PIL + numpy, no GPU). Run it after an image-to-image edit to
-undo the whole-frame color/tone drift outside the part you changed.
+Generate a soft mask of where an edit differs from its reference -- no compositing. Pure image
+processing (PIL + numpy, no GPU). Apply it with image-mask-apply.
 
 mode: mask   soft pixel diff, best for adding an object / recoloring
       region grown bounding boxes, best for removal / replace (ghost-free)
@@ -178,26 +177,25 @@ reference: the base canvas (the original scene)
 
 input: the edited / generated image
 
-threshold: positive integer; a pixel differing from the reference by more than this is kept from
-           the input. Higher = tighter (restores more reference), lower = keeps more. Omit for the
-           default; raise it when the generator drifts the whole frame (e.g. a flux2 img2img edit).
+threshold: pixels differing from the reference beyond this are kept in the mask. Default 24;
+           higher = tighter, lower keeps more. Raise it when the generator drifts the whole frame.
 
-The output is at the reference resolution: a full-res reference with a smaller input merges back at
-full resolution. To cut a subject onto transparency instead, see image-remove-background.
+The mask is an 8-bit grayscale PNG at the input resolution.
 
 examples:
-    image-mask mask   original.png edited.png output.png
-    image-mask mask   original.png edited.png output.png 40
-    image-mask region original.png edited.png output.png
+    image-mask mask   original.png edited.png mask.png
+    image-mask mask   original.png edited.png mask.png 40
+    image-mask region original.png edited.png mask.png
 ```
 
-### [image-remove-background.sh](image-remove-background.sh) - Cut a subject onto transparency
+### [image-mask-background.sh](image-mask-background.sh) - Generate a subject matte
 
 ```
-Usage: image-remove-background <model> <renderer> <input> <output> [plate] [shadow threshold]
+Usage: image-mask-background <model> <renderer> <input> <mask output> [plate] [shadow threshold]
 
-Cut the subject out of the input onto a transparent background (RGBA PNG, same size and placement).
-Delegates to the remove-background tool (own venv; see bash/remove-background).
+Generate a subject matte (8-bit grayscale PNG, same size and placement) from the input. Delegates
+to the remove-background tool (own venv; see bash/remove-background). Apply the matte with
+image-mask-apply (putalpha to cut out, composite onto a new background).
 
 model: birefnet   (ZhengPeng7/BiRefNet) -- strong on thin glows like a neon sign or a lightsaber
        lucida     (egeorcun fine-tune) -- better on glass / camouflage / text / print
@@ -213,7 +211,29 @@ shadow threshold: darkening floor for the plate shadow (default 12); raise it wh
                   ghosts the background back in. Only used with a plate.
 
 examples:
-    image-remove-background birefnet cuda photo.png cutout.png
-    image-remove-background lucida  cuda photo.png cutout.png plate.png
-    image-remove-background lucida  cuda photo.png cutout.png plate.png 40
+    image-mask-background birefnet cuda photo.png matte.png
+    image-mask-background lucida   cuda photo.png matte.png plate.png
+    image-mask-background lucida   cuda photo.png matte.png plate.png 40
+```
+
+### [image-mask-apply.sh](image-mask-apply.sh) - Apply a mask (composite or putalpha)
+
+```
+Usage: image-mask-apply <mode> <input image> <mask image> <output image> [reference]
+
+Apply a precomputed mask (from image-mask or image-mask-background). Torch-free (PIL, no GPU).
+
+mode: composite  paste the input's masked region onto a reference (needs a reference)
+      putalpha   write the mask as the input's alpha channel (an RGBA cutout)
+
+input: the source image the mask was computed for
+
+mask: an 8-bit grayscale mask / matte (255 = kept)
+
+reference: base canvas shown where the mask is black -- REQUIRED for composite (5 args), omit for
+           putalpha (4 args). The original scene to restore, or a new backdrop to composite onto.
+
+examples:
+    image-mask-apply composite edited.png mask.png output.png original.png
+    image-mask-apply putalpha  photo.png  matte.png cutout.png
 ```

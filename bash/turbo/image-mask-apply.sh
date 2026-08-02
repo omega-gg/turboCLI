@@ -22,19 +22,10 @@ set -e
 #
 #==================================================================================================
 
-# Run the background remover: produce a subject matte (8-bit grayscale PNG, same size/placement)
-# from <input>. With a [plate] (the same scene without the subject) the cast shadow is kept in the
-# matte too. Used standalone or by the image-mask-background turbo command.
-
-#--------------------------------------------------------------------------------------------------
-# Settings
-#--------------------------------------------------------------------------------------------------
-
-# Plate shadow threshold: with a [plate], areas where the input is darker than the plate become
-# the cast shadow (kept as soft alpha). This is the darkening floor -- higher rejects faint
-# differences (e.g. a drifted plate ghosting the background), lower keeps more. Only used with a
-# plate; override per-call with the optional [shadow threshold] arg.
-shadow_threshold="12"
+# Apply a precomputed mask (from image-mask or image-mask-background) onto an image. Torch-free
+# (PIL, no GPU), runs in the turbo venv via runner.apply. Two modes: composite pastes the input's
+# masked region onto a reference (the original scene, or a new backdrop); putalpha writes the mask
+# as the input's alpha channel (an RGBA cutout, transparent elsewhere).
 
 #--------------------------------------------------------------------------------------------------
 # Functions
@@ -107,32 +98,31 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 4 -o $# -gt 6 ] \
-   || \
-   [ "$1" != "birefnet" -a "$1" != "lucida" -a "$1" != "inspyrenet" ] \
-   || \
-   [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
+# composite needs a reference (5 args); putalpha does not (4 args).
+valid=""
 
-    echo "Usage: run <model> <renderer> <input image> <matte output> [plate image]"
-    echo "           [shadow threshold]"
+if [ "$1" = "composite" ] && [ $# -eq 5 ]; then valid="yes"; fi
+if [ "$1" = "putalpha"  ] && [ $# -eq 4 ]; then valid="yes"; fi
+
+if [ -z "$valid" ]; then
+
+    echo "Usage: image-mask-apply <mode> <input image> <mask image> <output image> [reference]"
     echo ""
-    echo "Produce a subject matte (8-bit grayscale PNG, same size/placement)."
+    echo "Apply a precomputed mask (from image-mask or image-mask-background). Torch-free (PIL)."
     echo ""
-    echo "model: birefnet   (ZhengPeng7/BiRefNet) -- strong on thin glows (a neon sign, a saber)"
-    echo "       lucida     (egeorcun/lucida fine-tune) -- glass / camouflage / text / print"
-    echo "       inspyrenet (transparent-background) -- InSPyReNet, also strong on thin glows"
+    echo "mode: composite  paste the input's masked region onto a reference (needs a reference)"
+    echo "      putalpha   write the mask as the input's alpha channel (an RGBA cutout)"
     echo ""
-    echo "renderer: cpu, cuda or mps (cuda / mps fall back to cpu if this build lacks them)"
+    echo "input: the source image the mask was computed for"
     echo ""
-    echo "plate: a clean background (the same scene without the subject); its cast shadow is kept"
+    echo "mask: an 8-bit grayscale mask / matte (255 = kept)"
     echo ""
-    echo "shadow threshold: darkening floor for the plate shadow (default $shadow_threshold);"
-    echo "                  raise it when a drifted plate ghosts the background. Plate only."
+    echo "reference: base canvas shown where the mask is black -- REQUIRED for composite (5 args),"
+    echo "           omit for putalpha (4 args). The original scene to restore, or a new backdrop."
     echo ""
     echo "examples:"
-    echo "    run birefnet cuda photo.png matte.png"
-    echo "    run lucida   cuda photo.png matte.png plate.png"
-    echo "    run lucida   cuda photo.png matte.png plate.png 40"
+    echo "    image-mask-apply composite edited.png mask.png output.png original.png"
+    echo "    image-mask-apply putalpha  photo.png  matte.png cutout.png"
 
     exit 1
 fi
@@ -143,7 +133,7 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_REMOVE_BACKGROUND:-$sky/remove-background}"
+bin="${SKY_PATH_TURBOCLI:-$sky/turbo}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
@@ -156,17 +146,15 @@ else
     os="default"
 fi
 
-model="$1"
+mode="$1"
 
-renderer="$2"
+input=$(getPath "$2")
 
-input=$(getPath "$3")
+mask=$(getPath "$3")
 
 output=$(getPath "$4")
 
-if [ $# -ge 5 ]; then plate=$(getPath "$5"); fi
-
-if [ $# -ge 6 ]; then shadow_threshold="$6"; fi   # optional override of the Settings default
+if [ "$mode" = "composite" ]; then reference=$(getPath "$5"); fi
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -177,23 +165,9 @@ case `uname` in
     *)                    export PATH="$python/bin:$PATH";;
 esac
 
-export HF_HUB_OFFLINE=1
-export HF_DATASETS_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
-
-if [ "$renderer" = "cuda" ]; then
-
-    # Use CUDA's stream ordered allocator to avoid the WDDM RAM spill on Windows.
-    export PYTORCH_CUDA_ALLOC_CONF="backend:cudaMallocAsync"
-
-elif [ "$renderer" = "mps" ]; then
-
-    # NOTE macOS: Fallback on CPU if needed.
-    export PYTORCH_ENABLE_MPS_FALLBACK=1
-
-    # NOTE macOS: Disable the memory cap to avoid allocation failures on large models.
-    export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
-fi
+#--------------------------------------------------------------------------------------------------
+# Run
+#--------------------------------------------------------------------------------------------------
 
 cd "$bin"
 
@@ -205,16 +179,11 @@ else
     . ".venv/bin/activate"
 fi
 
-#--------------------------------------------------------------------------------------------------
-# Run
-#--------------------------------------------------------------------------------------------------
+if [ "$mode" = "composite" ]; then
 
-if [ -n "$plate" ]; then
-
-    python extract.py --model "$model" --device "$renderer" \
-                      --input "$input" --output "$output" \
-                      --plate "$plate" --shadow-threshold "$shadow_threshold"
+    python -m runner.apply --mode composite \
+           --input "$input" --mask "$mask" --output "$output" --reference "$reference"
 else
-    python extract.py --model "$model" --device "$renderer" \
-                      --input "$input" --output "$output"
+    python -m runner.apply --mode putalpha \
+           --input "$input" --mask "$mask" --output "$output"
 fi

@@ -20,19 +20,20 @@
 #
 #==================================================================================================
 
-# Standalone mask/merge: restore a reference image outside an edited region. NOT generation -- no
-# engine, no prompt, no torch (only PIL + numpy), so it starts instantly and needs no GPU. Run it
-# after an image-to-image edit to keep only the changed region and paste the byte-exact reference
-# back everywhere else.
+# Standalone mask GENERATOR for image-mask: emit a soft [0..255] mask of where an edit differs from
+# its reference. NOT generation -- no engine, no prompt, no torch (only PIL + numpy), so it starts
+# instantly and needs no GPU. Apply the mask with image-mask-apply (runner.apply): `composite` to
+# restore the reference outside the changed region, `putalpha` to cut it out. To generate a subject
+# matte from a model instead, see image-mask-background.
 #
 # The edit pipeline redraws + VAE-decodes the whole frame, so every pixel drifts; this diffs the
-# edit against the reference and merges only where it really changed. Two modes:
+# edit against the reference and keeps only where it really changed. Two modes:
 #   mask   soft pixel-diff mask -- tight, best for adding an object / recoloring
 #   region grown bounding boxes -- ghost-free, best for removal / replace (a diff mask leaves a
 #          removed object's low-contrast edges behind as an outline; the box replaces the whole
 #          footprint wholesale)
 #
-# Run as: python -m runner.mask --reference orig.png --input edit.png --output out.png --mode mask
+# Run as: python -m runner.mask --reference orig.png --input edit.png --output mask.png --mode mask
 #         [--threshold N]  (N = change threshold; higher keeps less, restores more reference)
 
 import sys
@@ -144,25 +145,17 @@ def _region_mask(generated, ref, thr, grow, feather, min_area):
     return out
 
 
-def merge(reference, edit, mode, thr=THR):
-    """Composite `edit`'s changed region onto `reference`; return (result, mask). Output is at the
-    reference's resolution: the mask is built at the edit's resolution against a downscaled
-    reference (what the edit is a version of), then mask + edit are upscaled onto the full-res
-    reference. Same-size inputs => the resizes are identities. Byte-exact outside the mask.
-
-    `thr` is the change threshold (default THR); a full-res reference + a smaller edit lands the
-    merge at full resolution automatically."""
+def build_mask(reference, edit, mode, thr=THR):
+    """Soft [0..255] `L` mask (255 = changed) of where `edit` differs from `reference`, at the
+    edit's own resolution. The reference is downscaled to the edit's canvas first, so a full-res
+    reference + a smaller edit yields a mask at the edit res; `image-mask-apply composite` upscales
+    it back to the reference at apply time. Same-size inputs => that resize is an identity."""
     ref = reference.resize(edit.size, LR)                  # reference as the edit's own canvas
 
     if mode == "region":
-        mask = _region_mask(edit, ref, thr, GROW, FEATHER_REGION, MIN_AREA)
-    else:
-        mask = _diff_mask(edit, ref, thr, DILATE, FEATHER_MASK)
+        return _region_mask(edit, ref, thr, GROW, FEATHER_REGION, MIN_AREA)
 
-    up = edit.resize(reference.size, LR)
-    m  = mask.resize(reference.size, LR)
-
-    return Image.composite(up, reference, m), mask
+    return _diff_mask(edit, ref, thr, DILATE, FEATHER_MASK)
 
 
 def main():
@@ -180,8 +173,8 @@ def main():
         reference = Image.open(args.reference).convert("RGB")
         edit      = Image.open(args.input).convert("RGB")
 
-        result, mask = merge(reference, edit, args.mode, args.threshold)
-        result.save(args.output)
+        mask = build_mask(reference, edit, args.mode, args.threshold)
+        mask.save(args.output)
 
         print("mask[%s thr=%d]: masked %.0f%%"
               % (args.mode, args.threshold, np.asarray(mask).mean() / 255 * 100), flush=True)

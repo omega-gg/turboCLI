@@ -26,9 +26,9 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-# Change threshold: pixels differing from the reference beyond this are kept, the rest restored.
-# Higher = tighter (more reference), lower = keeps more. Raise it when the generator drifts the
-# whole frame (e.g. a flux2 img2img edit). Override per-call with the optional [threshold] arg.
+# Change threshold: pixels differing from the reference beyond this are kept in the mask (255).
+# Higher = tighter (keeps less), lower = keeps more. Raise it when the generator drifts the whole
+# frame (e.g. a flux2 img2img edit). Override per-call with the optional [threshold] arg.
 threshold="24"
 
 #--------------------------------------------------------------------------------------------------
@@ -106,12 +106,10 @@ if [ $# -lt 4 -o $# -gt 5 ] \
    || \
    [ "$1" != "mask" -a "$1" != "region" ]; then
 
-    echo "Usage: image-mask <mode> <reference image> <input image> <output image> [threshold]"
+    echo "Usage: image-mask <mode> <reference image> <input image> <mask output> [threshold]"
     echo ""
-    echo "Merge an edited image back onto its reference: keep the changed region from the input,"
-    echo "restore the byte-exact reference everywhere else. No generation, pure image processing"
-    echo "(PIL + numpy, no GPU). Run it after an image-to-image edit to undo the whole-frame"
-    echo "color/tone drift outside the part you actually changed."
+    echo "Generate a soft mask of where an edit differs from its reference -- no compositing. Pure"
+    echo "image processing (PIL + numpy, no GPU). Apply it with image-mask-apply."
     echo ""
     echo "mode: mask   soft pixel diff, best for adding an object / recoloring"
     echo "      region grown bounding boxes, best for removal / replace (ghost-free)"
@@ -120,19 +118,18 @@ if [ $# -lt 4 -o $# -gt 5 ] \
     echo ""
     echo "input: the edited / generated image"
     echo ""
-    echo "threshold: pixels differing from the reference beyond this are kept, the rest restored."
-    echo "           Higher = tighter (more reference), lower = keeps more. Default $threshold;"
-    echo "           raise it when the generator drifts the whole frame (e.g. flux2 img2img)."
+    echo "threshold: pixels differing from the reference beyond this are kept in the mask. Default"
+    echo "           $threshold; higher = tighter, lower keeps more. Raise when the frame drifts."
     echo ""
-    echo "The output is at the reference resolution: a full-res reference with a smaller input"
-    echo "merges back at full resolution."
+    echo "The mask is an 8-bit grayscale PNG at the input resolution."
     echo ""
-    echo "To cut a subject onto a transparent background instead, see image-remove-background."
+    echo "To apply: image-mask-apply composite (restore the reference outside the change), or"
+    echo "putalpha (cut it out). For a model-based subject matte, see image-mask-background."
     echo ""
     echo "examples:"
-    echo "    image-mask mask   original.png edited.png output.png"
-    echo "    image-mask mask   original.png edited.png output.png 40"
-    echo "    image-mask region original.png edited.png output.png"
+    echo "    image-mask mask   original.png edited.png mask.png"
+    echo "    image-mask mask   original.png edited.png mask.png 40"
+    echo "    image-mask region original.png edited.png mask.png"
 
     exit 1
 fi

@@ -22,8 +22,8 @@ set -e
 #
 #==================================================================================================
 
-# Standalone background remover (BiRefNet + InSPyReNet) for image-remove-background. Installs its
-# own venv + models under gg.omega/remove-background, isolated from the turbo venv.
+# Subject-matte generator (BiRefNet + InSPyReNet) for image-mask-background. Installs its own venv
+# + models under gg.omega/remove-background, isolated from the turbo venv.
 
 #--------------------------------------------------------------------------------------------------
 # Settings

@@ -22,9 +22,10 @@ set -e
 #
 #==================================================================================================
 
-# Cut a subject out of an image onto a transparent background, via the standalone remove-background
+# Generate a subject matte (8-bit grayscale) from an image, via the standalone remove-background
 # tool. This is the turbo-namespace front-end; it delegates to bash/remove-background/run.sh, which
-# owns the tool's venv + models under gg.omega/remove-background.
+# owns the tool's venv + models under gg.omega/remove-background. Apply the matte with
+# image-mask-apply (putalpha to cut out, composite to drop onto a new background).
 
 #--------------------------------------------------------------------------------------------------
 # Syntax
@@ -36,11 +37,12 @@ if [ $# -lt 4 -o $# -gt 6 ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
 
-    echo "Usage: image-remove-background <model> <renderer> <input> <output> [plate]"
-    echo "                               [shadow threshold]"
+    echo "Usage: image-mask-background <model> <renderer> <input> <mask output> [plate]"
+    echo "                             [shadow threshold]"
     echo ""
-    echo "Cut the subject out of the input onto a transparent background (RGBA PNG, same size and"
-    echo "placement). Delegates to the remove-background tool (see bash/remove-background)."
+    echo "Generate a subject matte (8-bit grayscale PNG, same size and placement) from the input."
+    echo "Delegates to the remove-background tool (see bash/remove-background)."
+    echo "Apply the matte with image-mask-apply (putalpha to cut out, composite onto a new bg)."
     echo ""
     echo "model: birefnet   (ZhengPeng7/BiRefNet) -- strong on thin glows (a neon sign, a saber)"
     echo "       lucida     (egeorcun fine-tune) -- glass / camouflage / text / print"
@@ -54,9 +56,9 @@ if [ $# -lt 4 -o $# -gt 6 ] \
     echo "                  ghosts the background. Only used with a plate."
     echo ""
     echo "examples:"
-    echo "    image-remove-background birefnet cuda photo.png cutout.png"
-    echo "    image-remove-background lucida   cuda photo.png cutout.png plate.png"
-    echo "    image-remove-background lucida   cuda photo.png cutout.png plate.png 40"
+    echo "    image-mask-background birefnet cuda photo.png matte.png"
+    echo "    image-mask-background lucida   cuda photo.png matte.png plate.png"
+    echo "    image-mask-background lucida   cuda photo.png matte.png plate.png 40"
 
     exit 1
 fi
@@ -65,8 +67,8 @@ fi
 # Run
 #--------------------------------------------------------------------------------------------------
 
-# NOTE: the arguments match run.sh's <model> <renderer> <input> <output> [plate], so pass them
-#       straight through; run.sh resolves the paths and runs in the tool's venv (own subshell).
+# NOTE: the arguments match run.sh's <model> <renderer> <input> <matte> [plate] [shadow threshold],
+#       so pass them straight through; run.sh resolves the paths and runs in the tool's own venv.
 run="$(cd "$(dirname "$0")" && pwd)/../remove-background/run.sh"
 
 sh "$run" "$@"
