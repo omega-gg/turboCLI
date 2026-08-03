@@ -22,19 +22,11 @@ set -e
 #
 #==================================================================================================
 
-# Run the background remover: produce a subject matte (8-bit grayscale PNG, same size/placement)
-# from <input>. With a [plate] (the same scene without the subject) the cast shadow is kept in the
-# matte too. Used standalone or by the image-mask-background turbo command.
-
 #--------------------------------------------------------------------------------------------------
 # Settings
 #--------------------------------------------------------------------------------------------------
 
-# Plate shadow threshold: with a [plate], areas where the input is darker than the plate become
-# the cast shadow (kept as soft alpha). This is the darkening floor -- higher rejects faint
-# differences (e.g. a drifted plate ghosting the background), lower keeps more. Only used with a
-# plate; override per-call with the optional [shadow threshold] arg.
-shadow_threshold="12"
+options=""
 
 #--------------------------------------------------------------------------------------------------
 # Functions
@@ -107,32 +99,39 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
+valid=""
+
+case "$1" in mask|mask-region|mask-birefnet|mask-lucida|mask-inspyrenet) valid="yes";; esac
+
 if [ $# -lt 4 -o $# -gt 6 ] \
    || \
-   [ "$1" != "birefnet" -a "$1" != "lucida" -a "$1" != "inspyrenet" ] \
+   [ -z "$valid" ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
 
-    echo "Usage: run <model> <renderer> <input image> <matte output> [plate image]"
-    echo "           [shadow threshold]"
+    echo "Usage: image-to-mask <engine> <renderer> <input images> <mask output> [options] [server]"
     echo ""
-    echo "Produce a subject matte (8-bit grayscale PNG, same size/placement)."
+    echo "Generate a mask / matte (an 8-bit grayscale PNG). Apply it with image-mask-apply."
     echo ""
-    echo "model: birefnet   (ZhengPeng7/BiRefNet) -- strong on thin glows (a neon sign, a saber)"
-    echo "       lucida     (egeorcun/lucida fine-tune) -- glass / camouflage / text / print"
-    echo "       inspyrenet (transparent-background) -- InSPyReNet, also strong on thin glows"
+    echo "engine: mask            diff mask, best for adding an object / recoloring"
+    echo "        mask-region     grown boxes, best for removal / replace (ghost-free)"
+    echo "        mask-birefnet   subject matte via BiRefNet"
+    echo "        mask-lucida     subject matte via Lucida (glass / camouflage / text / print)"
+    echo "        mask-inspyrenet subject matte via InSPyReNet"
     echo ""
-    echo "renderer: cpu, cuda or mps (cuda / mps fall back to cpu if this build lacks them)"
+    echo "renderer: cpu, cuda, mps (mask / mask-region ignore it; the matte engines use it)"
     echo ""
-    echo "plate: a clean background (the same scene without the subject); its cast shadow is kept"
+    echo "input images: separated by a comma. mask / mask-region: reference,input. matte engines:"
+    echo "              input, or input,plate (a plate keeps the cast shadow)."
     echo ""
-    echo "shadow threshold: darkening floor for the plate shadow (default $shadow_threshold);"
-    echo "                  raise it when a drifted plate ghosts the background. Plate only."
+    echo "options: key=value,... -- threshold=N (mask: change threshold; matte: shadow floor)"
+    echo ""
+    echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    run birefnet cuda photo.png matte.png"
-    echo "    run lucida   cuda photo.png matte.png plate.png"
-    echo "    run lucida   cuda photo.png matte.png plate.png 40"
+    echo "    image-to-mask mask          cpu  original.png,edited.png mask.png threshold=40"
+    echo "    image-to-mask mask-birefnet cuda photo.png matte.png"
+    echo "    image-to-mask mask-birefnet cuda photo.png,plate.png matte.png threshold=40"
 
     exit 1
 fi
@@ -143,9 +142,17 @@ fi
 
 sky="$(getSky)"
 
-bin="${SKY_PATH_REMOVE_BACKGROUND:-$sky/remove-background}"
+bin="${SKY_PATH_TURBOCLI:-$sky/turbo}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
+
+engine="$1"
+
+renderer="$2"
+
+if [ $# -ge 5 ]; then options="$5"; fi
+
+if [ $# -ge 6 ]; then server="$6"; fi
 
 host=$(getOs)
 
@@ -156,17 +163,69 @@ else
     os="default"
 fi
 
-model="$1"
+path=$(getPath "$4")
 
-renderer="$2"
+#--------------------------------------------------------------------------------------------------
+# Images
+#--------------------------------------------------------------------------------------------------
 
-input=$(getPath "$3")
+separator=","
 
-output=$(getPath "$4")
+temp=$IFS
 
-if [ $# -ge 5 ]; then plate=$(getPath "$5"); fi
+IFS="$separator"
 
-if [ $# -ge 6 ]; then shadow_threshold="$6"; fi   # optional override of the Settings default
+for p in $3; do
+
+    image=$(getPath "$p")
+
+    images="$images$image$separator"
+done
+
+IFS=$temp
+
+images="${images%$separator}"
+
+#--------------------------------------------------------------------------------------------------
+# Server
+#--------------------------------------------------------------------------------------------------
+
+if [ -n "$server" ]; then
+
+    case "$server" in
+        *:*) host="${server%:*}"; port="${server##*:}";;
+        *)   host="127.0.0.1";    port="$server";;
+    esac
+
+    base="http://$host:$port"
+
+    echo "Using server at $base"
+
+    stream=$(mktemp)
+
+    curl -sS -N --max-time "3600" \
+                --data-urlencode "engine=$engine" \
+                --data-urlencode "mode=image-to-mask" \
+                --data-urlencode "images=$images" \
+                --data-urlencode "output=$path" \
+                --data-urlencode "options=$options" \
+                --data-urlencode "renderer=$renderer" \
+                --data-urlencode "offload=none" \
+                "$base/generate" | tee "$stream"
+
+    if grep -q '^Saved: ' "$stream"; then
+
+        rm -f "$stream"
+
+        exit 0
+    fi
+
+    echo "Server request failed"
+
+    rm -f "$stream"
+
+    exit 1
+fi
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -183,7 +242,7 @@ export TRANSFORMERS_OFFLINE=1
 
 if [ "$renderer" = "cuda" ]; then
 
-    # Use CUDA's stream ordered allocator to avoid the WDDM RAM spill on Windows.
+    # Use CUDA's stream ordered allocator so large decodes fit and avoid the WDDM RAM spill.
     export PYTORCH_CUDA_ALLOC_CONF="backend:cudaMallocAsync"
 
 elif [ "$renderer" = "mps" ]; then
@@ -209,12 +268,11 @@ fi
 # Run
 #--------------------------------------------------------------------------------------------------
 
-if [ -n "$plate" ]; then
-
-    python extract.py --model "$model" --device "$renderer" \
-                      --input "$input" --output "$output" \
-                      --plate "$plate" --shadow-threshold "$shadow_threshold"
-else
-    python extract.py --model "$model" --device "$renderer" \
-                      --input "$input" --output "$output"
-fi
+python -m runner.cli \
+       --engine "$engine" \
+       --mode "image-to-mask" \
+       --images "$images" \
+       --output "$path" \
+       --options "$options" \
+       --renderer "$renderer" \
+       --offload none

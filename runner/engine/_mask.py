@@ -20,11 +20,9 @@
 #
 #==================================================================================================
 
-# Standalone mask GENERATOR for image-mask: emit a soft [0..255] mask of where an edit differs from
-# its reference. NOT generation -- no engine, no prompt, no torch (only PIL + numpy), so it starts
-# instantly and needs no GPU. Apply the mask with image-mask-apply (runner.apply): `composite` to
-# restore the reference outside the changed region, `putalpha` to cut it out. To generate a subject
-# matte from a model instead, see image-mask-background.
+# Diff/region mask GENERATION for the mask + mask-region engines. Torch-free (PIL + numpy only), a
+# helper (underscore) so discovery skips it. `build_mask` emits a soft [0..255] `L` mask of where
+# an edit differs from its reference; image-mask-apply then composites or cuts it out.
 #
 # The edit pipeline redraws + VAE-decodes the whole frame, so every pixel drifts; this diffs the
 # edit against the reference and keeps only where it really changed. Two modes:
@@ -32,22 +30,15 @@
 #   region grown bounding boxes -- ghost-free, best for removal / replace (a diff mask leaves a
 #          removed object's low-contrast edges behind as an outline; the box replaces the whole
 #          footprint wholesale)
-#
-# Run as: python -m runner.mask --reference orig.png --input edit.png --output mask.png --mode mask
-#         [--threshold N]  (N = change threshold; higher keeps less, restores more reference)
-
-import sys
-import argparse
-import traceback
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 LR = Image.Resampling.LANCZOS
 
-# THR is the default change threshold (overridable with --threshold): a pixel differing from the
-# reference by more than THR counts as changed (kept from the input). Higher -> tighter, restores
-# more reference; lower -> keeps more, including whole-frame edit drift. MIN_AREA + the per-mode
+# THR is the default change threshold (options threshold=N): a pixel differing from the reference
+# by more than THR is changed (kept from the input). Higher -> tighter, keeps more reference;
+# lower -> keeps more, including whole-frame edit drift. MIN_AREA + the per-mode
 # margins below stay fixed (not exposed).
 THR, MIN_AREA          = 24, 400
 DILATE, FEATHER_MASK   = 5, 3
@@ -148,7 +139,7 @@ def _region_mask(generated, ref, thr, grow, feather, min_area):
 def build_mask(reference, edit, mode, thr=THR):
     """Soft [0..255] `L` mask (255 = changed) of where `edit` differs from `reference`, at the
     edit's own resolution. The reference is downscaled to the edit's canvas first, so a full-res
-    reference + a smaller edit yields a mask at the edit res; `image-mask-apply composite` upscales
+    reference + a smaller edit yields a mask at the edit res; image-mask-apply composite upscales
     it back to the reference at apply time. Same-size inputs => that resize is an identity."""
     ref = reference.resize(edit.size, LR)                  # reference as the edit's own canvas
 
@@ -156,36 +147,3 @@ def build_mask(reference, edit, mode, thr=THR):
         return _region_mask(edit, ref, thr, GROW, FEATHER_REGION, MIN_AREA)
 
     return _diff_mask(edit, ref, thr, DILATE, FEATHER_MASK)
-
-
-def main():
-    parser = argparse.ArgumentParser(prog="runner.mask")
-
-    parser.add_argument("--reference", required=True)      # the original scene (base canvas)
-    parser.add_argument("--input",     required=True)      # the edited / generated frame
-    parser.add_argument("--output",    required=True)
-    parser.add_argument("--mode",      default="mask")     # mask | region
-    parser.add_argument("--threshold", type=int, default=THR)  # change threshold, up = tighter
-
-    args = parser.parse_args()
-
-    try:
-        reference = Image.open(args.reference).convert("RGB")
-        edit      = Image.open(args.input).convert("RGB")
-
-        mask = build_mask(reference, edit, args.mode, args.threshold)
-        mask.save(args.output)
-
-        print("mask[%s thr=%d]: masked %.0f%%"
-              % (args.mode, args.threshold, np.asarray(mask).mean() / 255 * 100), flush=True)
-        print("Saved: %s" % args.output, flush=True)
-    except Exception:
-        print("ERROR: " + traceback.format_exc(), flush=True)
-
-        sys.exit(1)
-
-    sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()

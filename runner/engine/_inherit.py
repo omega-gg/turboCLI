@@ -34,7 +34,7 @@
 _INHERITED = (
     "TYPE", "PIPELINE", "TRANSFORMER", "MODES", "CFG", "INFERENCE",
     "MODEL", "COMFY", "SCAFFOLD", "LORAS",
-    "load", "loras", "extra_key",
+    "load", "loras", "extra_key", "run",
 )
 
 

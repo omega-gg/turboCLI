@@ -31,6 +31,7 @@ PR(s) are welcomed
 - Z-Image-Turbo
 - Qwen-Image-Edit-2511
 - Krea2-Turbo
+- Masking / matting: diff & region masks, BiRefNet / Lucida / InSPyReNet mattes
 
 ## Platforms
 

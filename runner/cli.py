@@ -46,6 +46,8 @@ def main():
     parser.add_argument("--images", default="")
     # "<path>@<weight>,..." (weight 0.0-1.0, default 1.0)
     parser.add_argument("--loras", default="")
+    # engine options "key=value,..." (e.g. threshold=40 / op=composite); engine-specific
+    parser.add_argument("--options", default="")
     parser.add_argument("--width", default="512")
     parser.add_argument("--height", default="512")
     parser.add_argument("--seed", default="-1")
@@ -62,6 +64,7 @@ def main():
         "prompt": args.prompt,
         "images": args.images,
         "loras": args.loras,
+        "options": args.options,
         "output": args.output,
         "width": args.width,
         "height": args.height,

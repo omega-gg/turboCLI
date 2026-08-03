@@ -4,4 +4,3 @@
 
 - [python](python/README.md)
 - [turboCLI](turbo/README.md)
-- [remove-background](remove-background/README.md)

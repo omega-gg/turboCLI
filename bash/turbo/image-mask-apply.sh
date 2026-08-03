@@ -22,11 +22,6 @@ set -e
 #
 #==================================================================================================
 
-# Apply a precomputed mask (from image-mask or image-mask-background) onto an image. Torch-free
-# (PIL, no GPU), runs in the turbo venv via runner.apply. Two modes: composite pastes the input's
-# masked region onto a reference (the original scene, or a new backdrop); putalpha writes the mask
-# as the input's alpha channel (an RGBA cutout, transparent elsewhere).
-
 #--------------------------------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------------------------------
@@ -98,31 +93,25 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-# composite needs a reference (5 args); putalpha does not (4 args).
-valid=""
+if [ $# -lt 3 -o $# -gt 4 ] \
+   || \
+   [ "$1" != "composite" -a "$1" != "putalpha" ]; then
 
-if [ "$1" = "composite" ] && [ $# -eq 5 ]; then valid="yes"; fi
-if [ "$1" = "putalpha"  ] && [ $# -eq 4 ]; then valid="yes"; fi
-
-if [ -z "$valid" ]; then
-
-    echo "Usage: image-mask-apply <mode> <input image> <mask image> <output image> [reference]"
+    echo "Usage: image-mask-apply <mode> <input images> <output image> [server]"
     echo ""
-    echo "Apply a precomputed mask (from image-mask or image-mask-background). Torch-free (PIL)."
+    echo "Apply a precomputed mask (from image-to-mask). Torch-free (PIL, no GPU)."
     echo ""
     echo "mode: composite  paste the input's masked region onto a reference (needs a reference)"
     echo "      putalpha   write the mask as the input's alpha channel (an RGBA cutout)"
     echo ""
-    echo "input: the source image the mask was computed for"
+    echo "input images: separated by a comma -- input,mask for putalpha; input,mask,reference for"
+    echo "              composite (the reference is shown where the mask is black)."
     echo ""
-    echo "mask: an 8-bit grayscale mask / matte (255 = kept)"
-    echo ""
-    echo "reference: base canvas shown where the mask is black -- REQUIRED for composite (5 args),"
-    echo "           omit for putalpha (4 args). The original scene to restore, or a new backdrop."
+    echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    image-mask-apply composite edited.png mask.png output.png original.png"
-    echo "    image-mask-apply putalpha  photo.png  matte.png cutout.png"
+    echo "    image-mask-apply putalpha  photo.png,matte.png cutout.png"
+    echo "    image-mask-apply composite edited.png,mask.png,original.png output.png"
 
     exit 1
 fi
@@ -137,6 +126,10 @@ bin="${SKY_PATH_TURBOCLI:-$sky/turbo}"
 
 python="${SKY_PATH_PYTHON:-$sky/python}"
 
+mode="$1"
+
+if [ $# -ge 4 ]; then server="$4"; fi
+
 host=$(getOs)
 
 if [ $host = "win32" -o $host = "win64" ]; then
@@ -146,15 +139,69 @@ else
     os="default"
 fi
 
-mode="$1"
+path=$(getPath "$3")
 
-input=$(getPath "$2")
+#--------------------------------------------------------------------------------------------------
+# Images
+#--------------------------------------------------------------------------------------------------
 
-mask=$(getPath "$3")
+separator=","
 
-output=$(getPath "$4")
+temp=$IFS
 
-if [ "$mode" = "composite" ]; then reference=$(getPath "$5"); fi
+IFS="$separator"
+
+for p in $2; do
+
+    image=$(getPath "$p")
+
+    images="$images$image$separator"
+done
+
+IFS=$temp
+
+images="${images%$separator}"
+
+#--------------------------------------------------------------------------------------------------
+# Server
+#--------------------------------------------------------------------------------------------------
+
+if [ -n "$server" ]; then
+
+    case "$server" in
+        *:*) host="${server%:*}"; port="${server##*:}";;
+        *)   host="127.0.0.1";    port="$server";;
+    esac
+
+    base="http://$host:$port"
+
+    echo "Using server at $base"
+
+    stream=$(mktemp)
+
+    curl -sS -N --max-time "3600" \
+                --data-urlencode "engine=mask-apply" \
+                --data-urlencode "mode=image-mask-apply" \
+                --data-urlencode "images=$images" \
+                --data-urlencode "output=$path" \
+                --data-urlencode "options=mode=$mode" \
+                --data-urlencode "renderer=cpu" \
+                --data-urlencode "offload=none" \
+                "$base/generate" | tee "$stream"
+
+    if grep -q '^Saved: ' "$stream"; then
+
+        rm -f "$stream"
+
+        exit 0
+    fi
+
+    echo "Server request failed"
+
+    rm -f "$stream"
+
+    exit 1
+fi
 
 #--------------------------------------------------------------------------------------------------
 # Environment
@@ -164,10 +211,6 @@ case `uname` in
     MINGW*|MSYS*|CYGWIN*) export PATH="$python:$PATH";;
     *)                    export PATH="$python/bin:$PATH";;
 esac
-
-#--------------------------------------------------------------------------------------------------
-# Run
-#--------------------------------------------------------------------------------------------------
 
 cd "$bin"
 
@@ -179,11 +222,15 @@ else
     . ".venv/bin/activate"
 fi
 
-if [ "$mode" = "composite" ]; then
+#--------------------------------------------------------------------------------------------------
+# Run
+#--------------------------------------------------------------------------------------------------
 
-    python -m runner.apply --mode composite \
-           --input "$input" --mask "$mask" --output "$output" --reference "$reference"
-else
-    python -m runner.apply --mode putalpha \
-           --input "$input" --mask "$mask" --output "$output"
-fi
+python -m runner.cli \
+       --engine "mask-apply" \
+       --mode "image-mask-apply" \
+       --images "$images" \
+       --output "$path" \
+       --options "mode=$mode" \
+       --renderer "cpu" \
+       --offload none

@@ -14,6 +14,7 @@ OTHER_FILES += README.md  \
                doc/IMPLEMENTATION_PLAN.md \
                doc/image-mask-plan.md \
                doc/image-mask-split-plan.md \
+               doc/mask-engines-plan.md \
                test/README.md \
                test/knight.png \
                test/courtyard.png \
@@ -24,11 +25,19 @@ OTHER_FILES += runner/__init__.py \
                runner/cli.py \
                runner/core.py \
                runner/install.py \
-               runner/mask.py \
-               runner/apply.py \
                runner/server.py \
                runner/engine/__init__.py \
                runner/engine/_inherit.py \
+               runner/engine/_options.py \
+               runner/engine/_mask.py \
+               runner/engine/_apply.py \
+               runner/engine/_segment.py \
+               runner/engine/mask.py \
+               runner/engine/mask_region.py \
+               runner/engine/mask_apply.py \
+               runner/engine/mask_birefnet.py \
+               runner/engine/mask_lucida.py \
+               runner/engine/mask_inspyrenet.py \
                runner/engine/comfy_flux2_4b.py \
                runner/engine/comfy_krea2_turbo.py \
                runner/engine/comfy_krea2_turbo_realism.py \

@@ -534,6 +534,20 @@ def generate(params, emit, should_stop=None):
 
         return False
 
+    # A "compute" engine (mask / matte / apply) owns its own generation: no diffusion pipeline and
+    # no offloader. It reads inputs from `images`, a scalar from `options`, and returns the
+    # finished PIL image. Short-circuit here -- before the offload ladder and get_pipe -- so the
+    # resident diffusion pipe is untouched and none of the pipe machinery (progress bar) runs.
+    if hasattr(mod, "run"):
+        ctx = Ctx(params["renderer"], "none", None, resolve_model(mod, params), [])
+
+        image = mod.run(ctx, params, emit)
+        image.save(params["output"])
+
+        emit("Saved: " + params["output"])
+
+        return True
+
     offload = params["offload"]
 
     # Offload backends are validated generically so this names no specific backend.

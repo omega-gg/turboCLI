@@ -148,6 +148,74 @@ def _stock_record(engine_id, model, revision, loras):
             "loras": [{"file": lora["file"], "revision": lora.get("revision")} for lora in loras]}
 
 
+def _kind_record(engine_id, model, revision, kind, file=None):
+    """Registry record for a snapshot/url model engine: like _stock_record (no LoRAs) plus a `kind`
+    (+ `file` for url) so check derives the right installed-marker."""
+    record = {"id": engine_id, "model": model, "revision": revision, "loras": [], "kind": kind}
+
+    if file is not None:
+        record["file"] = file
+
+    return record
+
+
+def _install_snapshot(mod, name, revision, out):
+    """Install a non-diffusers model by snapshotting its whole HF repo verbatim (weights + any
+    trust_remote_code) into model/<name> -- the segmentation models (birefnet / lucida)."""
+    base_ok = (bool(revision) and os.path.isdir(out) and bool(os.listdir(out))
+               and _model_revision(name) == revision)
+
+    if not base_ok:
+        from huggingface_hub import scan_cache_dir, snapshot_download
+        from huggingface_hub.errors import CacheNotFound
+
+        shutil.rmtree(out, ignore_errors=True)
+        os.makedirs(default_folder(), exist_ok=True)
+
+        repo = mod.MODEL["repository"] + "/" + name
+
+        print("Prefetching model: %s" % name, flush=True)
+
+        snapshot_download(repo_id=repo, revision=revision or None, local_dir=out)
+
+        # Trim the HF cache for the repo we just pulled (the local copy is self-contained).
+        try:
+            cache = scan_cache_dir()
+
+            for r in cache.repos:
+                if r.repo_id == repo:
+                    cache.delete_revisions(*[rev.commit_hash for rev in r.revisions]).execute()
+        except CacheNotFound:
+            pass
+
+    _write_engine(_kind_record(mod.ID, name, revision, "snapshot"))
+
+    print("Done.", flush=True)
+
+
+def _install_url(mod, name, revision, out):
+    """Install a raw asset (a GitHub release file) into model/<name>/<file> -- inspyrenet's
+    checkpoint, whose revision is a release tag, not an HF commit."""
+    import urllib.request
+
+    spec = mod.MODEL
+    dest = os.path.join(out, spec["file"])
+
+    base_ok = os.path.isfile(dest) and _model_revision(name) == revision
+
+    if not base_ok:
+        shutil.rmtree(out, ignore_errors=True)
+        os.makedirs(out, exist_ok=True)
+
+        print("Downloading %s -> model/%s" % (spec["url"], name), flush=True)
+
+        urllib.request.urlretrieve(spec["url"], dest)
+
+    _write_engine(_kind_record(mod.ID, name, revision, "url", spec["file"]))
+
+    print("Done.", flush=True)
+
+
 def _discover():
     # name -> engine module (cheap: modules hold constants only, no torch/diffusers at top).
     engines = {}
@@ -205,9 +273,22 @@ def _engine_installed(mod):
 
         return bool(components) and all(os.path.isfile(_comp_path(comfy, c)) for c in components)
 
-    model_dir = os.path.join(default_folder(), record["model"])
+    model = record.get("model")
 
-    if not os.path.isfile(os.path.join(model_dir, "model_index.json")):
+    if model is None:                                      # register-only (no download)
+        return True
+
+    kind      = record.get("kind", "diffusers")
+    model_dir = os.path.join(default_folder(), model)
+
+    if kind == "snapshot":                                 # verbatim HF repo (birefnet / lucida)
+        marker = os.path.isdir(model_dir) and bool(os.listdir(model_dir))
+    elif kind == "url":                                    # raw asset (inspyrenet ckpt)
+        marker = os.path.isfile(os.path.join(model_dir, record["file"]))
+    else:                                                  # diffusers repo
+        marker = os.path.isfile(os.path.join(model_dir, "model_index.json"))
+
+    if not marker:
         return False
 
     return all(os.path.isfile(os.path.join(model_dir, LORA_DIR, lora["file"]))
@@ -480,13 +561,9 @@ def main():
         print("ERROR: unknown engine '%s'" % args.engine)
         sys.exit(1)
 
-    # A COMFY engine needs no MODEL: its registry entry + scaffold key off ID (see the COMFY
-    # dispatch below), so only a stock engine must name the canonical repo it installs.
+    # A COMFY engine (scaffold keys off ID) and a compute engine (mask / mask-region / mask-apply,
+    # register-only) both declare no MODEL; only a stock engine names the repo it installs.
     model = getattr(mod, "MODEL", None)
-
-    if model is None and not hasattr(mod, "COMFY"):
-        print("ERROR: engine '%s' is not installable (no MODEL)" % args.engine)
-        sys.exit(1)
 
     # --remove: reference-counted -- drop the registry entry, then GC any model/LoRAs/comfy
     # components no other installed engine still references (see _remove).
@@ -510,20 +587,36 @@ def main():
               % args.engine)
         sys.exit(1)
 
-    # --- stock install: canonical diffusers repo into model/<name> (shared across engines) ---
-    # The model name comes from --model, or from the engine's own MODEL["model"] when it declares
-    # one (e.g. qwen-image-edit-2511, a single fixed model). One of the two must be present.
-    name = args.model or model.get("model")
+    # Register-only: a compute engine (mask / mask-region / mask-apply) declares no MODEL and has
+    # nothing to download; write its registry entry so check-model lists it and remove drops it.
+    if model is None:
+        _write_engine(_stock_record(mod.ID, None, None, []))
+        print("Registered %s" % mod.ID, flush=True)
+        return
 
+    # A model engine may install by "kind": snapshot (whole HF repo verbatim, birefnet / lucida) or
+    # url (a raw release asset, inspyrenet). Default (absent) is the diffusers path below.
+    kind     = model.get("kind", "diffusers")
+    name     = args.model or model.get("model")
+    revision = model.get("revision")
+
+    if kind in ("snapshot", "url"):
+        out = os.path.join(default_folder(), name)
+
+        if kind == "snapshot":
+            _install_snapshot(mod, name, revision, out)
+        else:
+            _install_url(mod, name, revision, out)
+
+        return
+
+    # --- stock install: canonical diffusers repo into model/<name> (shared across engines) ---
+    # name/revision computed above (--model or the engine's own MODEL["model"]); one must exist.
     if name is None:
         print("ERROR: engine '%s' needs --model (it declares no default model)" % args.engine)
         sys.exit(1)
 
     loras = getattr(mod, "LORAS", [])
-
-    # The base-model revision is pinned in the engine's MODEL (mutable HF repos -> reproducible
-    # installs). The model is saved into "<install>/model/<model>" (default_folder()).
-    revision = model.get("revision")
 
     out = os.path.join(default_folder(), name)
 

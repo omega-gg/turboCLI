@@ -26,17 +26,16 @@ turboCLI/
     core.py          shared engine: discovery, resident-pipe cache, one generation
     install.py       online installer + engine registry + reference-counted remove
     check.py         install verifier (torch-free)
-    mask.py          post-generation diff/region mask generator for image-mask (torch-free)
-    apply.py         mask applier for image-mask-apply -- composite / putalpha (torch-free)
-    engine/          one declaration module per engine (+ _inherit.py, not an engine)
+    engine/          one declaration module per engine (+ _*.py helpers, not engines): the mask /
+                     mask-region / mask-apply / mask-birefnet / mask-lucida / mask-inspyrenet
+                     "compute" engines live here too, over _mask/_apply/_segment/_options helpers
   bash/
     python/          build.sh / check.sh -- bundled standalone CPython + uv
     turbo/           build/install/remove/check/check-model/server/text-to-image/image-to-image/
-                     image-mask/image-mask-background/image-mask-apply
-    remove-background/  build/check/run + extract.py -- standalone BiRefNet + InSPyReNet matte gen
+                     image-to-mask/image-mask-apply
   backend/           EMPTY in-repo (a .gitignore placeholder); build.sh grafts the offloader here
   doc/               plan docs, kept as records after implementation
-  test/              reference images + README for re-running the image-mask / -background / -apply
+  test/              reference images + README for re-running the mask-engine checks
 ```
 
 Deployed layout (created by `bash/turbo/build.sh` under `$SKY_PATH_BIN/gg.omega`):
@@ -169,66 +168,54 @@ inside the base-reinstall branch (`install.py:561-562`).
 Reuses `install._discover` + `install._engine_installed`. "Light by design: no torch/diffusers
 import, so it runs under the bundled python without the venv" (check.py:33-35).
 
-### `mask.py` / `apply.py` — mask generate + apply (post-generation, torch-free)
+### Mask engines — generate + apply as compute engines (image-to-mask / image-mask-apply)
 
-A mask is a first-class artifact: `image-mask` (and `image-mask-background`) GENERATE one, then
-`image-mask-apply` APPLIES it. That split makes a matte reusable — generate the expensive one once,
-then apply it several ways (transparency now, composite over a new backdrop later). `mask.py` and
-`apply.py`, like `install.py`/`check.py`, do NOT import core (PIL only, no torch, no GPU) so they
-start instantly; only the matte generator needs a model, in its own venv.
+Masks fold into the engine system as **compute engines**: engines that declare a
+`run(ctx, params, emit) -> image` hook instead of a diffusers pipeline. `core.generate`
+short-circuits to `run` right after mode validation — before the offload ladder and `get_pipe` —
+so a mask call never touches the diffusion machinery (no offloader, no `progress_bar`) and leaves
+the resident pipe untouched. `"run"` is in `_inherit._INHERITED`, so a variant inherits it. Two
+modes, six engines:
 
-`mask.py` (`python -m runner.mask`, driven by `image-mask.sh`) emits a soft mask of where an edit
-differs from its reference. The edit pipeline redraws the whole frame (global color/tone drift);
-`build_mask()` diffs the edit against the reference and keeps only where it really changed. Two
-modes: `mask` (soft pixel-diff mask — tight, best for adding/recoloring) and `region` (grown
-bounding boxes around changed blobs — ghost-free, best for removal/replace, where a diff mask
-leaves a removed object's low-contrast edges behind as an outline). The change threshold (a pixel
-differing from the reference by more than it counts as changed, and is kept) is the one knob
-exposed: an optional `[threshold]` CLI arg, defaulting to `THR` (tuned for light edits) — raise it
-when the generator drifts the whole frame, e.g. a flux2 img2img edit; the blob margins stay fixed.
-The mask is built and saved at the edit's resolution — an 8-bit grayscale PNG. Prints
-`mask[<mode> thr=N]: masked N%` + `Saved:` (the wrappers' success sentinel).
+- **`image-to-mask`** generates an 8-bit grayscale mask/matte. `mask` / `mask-region` (torch-free
+  pixel-diff / grown-box masks, `_mask.build_mask`) diff an edit against its reference; the three
+  matte engines segment a subject — `mask-birefnet` + `mask-lucida` via transformers'
+  `AutoModelForImageSegmentation`, `mask-inspyrenet` via `transparent-background`'s `Remover`; all
+  in `_segment`, torch imported inside the functions. A second image is an optional clean **plate**
+  whose cast shadow is recovered by luminance diff and merged into the matte (`build_matte`).
+- **`image-mask-apply`** (engine `mask-apply`, `_apply.apply`) lays a mask onto an image:
+  `composite` pastes the masked region onto a reference (restore the scene, or a new backdrop);
+  `putalpha` writes the mask as the alpha channel (an RGBA cutout). The mask source is irrelevant,
+  so a diff mask or a model matte feeds either op.
 
-`apply.py` (`python -m runner.apply`, driven by `image-mask-apply.sh`) lays a precomputed mask onto
-an image. `composite` upscales the source and mask to the reference resolution and pastes the
-masked region onto the reference (`Image.composite` — byte-exact where the mask is black),
-restoring the original scene after an edit or dropping a subject onto a new backdrop (a full-res
-reference + a smaller edit merges back at full resolution here). `putalpha` writes the mask as the
-source's alpha channel — an RGBA cutout, transparent where the mask is black, no reference. The
-mask source is irrelevant, so a diff/region mask or a model matte feeds either mode. The split is
-byte-exact with the old fused paths: generate+composite reproduces the previous `merge`, and
-matte+putalpha the previous cutout — apply issues the same resizes / `Image.composite` / `putalpha`
-on the same pixels.
+Inputs ride the comma-separated **`images`** param (ordered): `reference,input` for mask/region,
+`input[,plate]` for the matte engines, `input,mask[,reference]` for apply. The one scalar per call
+rides a general-purpose **`--options`** field (`key=value,...`): `threshold=N` (mask threshold /
+matte shadow floor) and `mode=composite|putalpha`. The engine modules stay torch-free at import
+(heavy imports live in `run()`), so discovery and the diffusion path never load the segmentation
+stack — the load-bearing zero-regression guarantee.
 
-**`image-mask-background.sh`** (`<model> <renderer> <input> <matte> [plate] [shadow threshold]`)
-generates the subject matte. It is not part of `mask.py` (that stays torch-free): it **delegates**
-to the **remove-background** tool's own `run.sh` (`bash/remove-background`), installed under
-`gg.omega/remove-background` with its own venv, keeping its torch stack out of the turbo venv. It
-ships **three** models via `--model`: **`birefnet`** (default, `ZhengPeng7/BiRefNet`) and
-**`lucida`** (`egeorcun/lucida` fine-tune — glass/camo/text/print) both load via transformers'
-`AutoModelForImageSegmentation` from `model/<name>`; **`inspyrenet`** (`transparent-background`'s
-InSPyReNet, also strong on thin glows) loads via its `Remover` from a pinned checkpoint
-`model/inspyrenet/ckpt_base.pth`. `extract.py` dispatches by model and saves an 8-bit grayscale
-matte; the plate/shadow step is model-agnostic: without a `plate` it is subject only; with one it
-recovers the cast shadow from that clean-plate by luminance diff -- the model alone covers the
-subject, not the cast shadow. That diff has a tunable darkening floor (`--shadow-threshold`,
-default 12, exposed as the optional `[shadow threshold]` arg): raise it when a drifted plate would
-otherwise ghost the background back in. The tool has its own `build.sh <cpu|cuda|mps> [latest]` +
-`check.sh`; the deps (torch/transformers/timm/einops/kornia + transparent-background, and the three
-~0.4–0.9 GB models, revisions/tag pinned) live only in that venv, via `snapshot_download` + a
-GitHub release asset (VPN off — see the network note).
+**Install** (`python -m runner.install <engine>`): `mask` / `mask-region` / `mask-apply` are
+**register-only** (they own no model — install just writes the engine.json record so check/remove
+is uniform). The matte engines add a MODEL `"kind"`: **`snapshot`** (the whole HF repo verbatim,
+incl. `trust_remote_code`, into `model/<name>` — birefnet `ZhengPeng7/BiRefNet`, lucida
+`egeorcun/lucida`) and **`url`** (a raw GitHub release asset — inspyrenet's `ckpt_base.pth`, pinned
+by tag not commit). `mask-lucida` BASE-inherits `mask-birefnet`'s `run` and only swaps the MODEL.
+The reference-counted GC is unchanged (it keys off the model-dir name). The turbo venv gains
+`timm`/`einops`/`kornia`/`transparent-background` (`bash/turbo/build.sh`); uv keeps the pinned
+cu130 torch, so the diffusion stack is unperturbed.
+
+This replaces the old standalone `runner/mask.py`/`apply.py` and the `bash/remove-background` tool,
+and is byte-exact with them: `mask`→`mask-apply composite` reproduces the old fused merge and a
+matte→`putalpha` the old cutout (verified via `cmp`, including through the server).
 
 **Benchmark** (RTX A1000 laptop; BiRefNet always infers at 1024², so input size barely matters):
-inference ~0.45s on cuda (half) / ~19s on cpu; a full `image-mask-background` matte call is ~7s
-(cuda) / ~24s (cpu), dominated by per-process ~4.5s torch import + ~1–2s model load — each call is
-a fresh process, so repeated calls do not amortise. `birefnet`/`lucida` (same BiRefNet arch) share
-those numbers; `inspyrenet` is a different architecture and slower -- ~2s cuda inference (a full
-call ~9s). Prefer cuda; cpu is a slow fallback. Splitting apply into its own process is cheap but
-not free: `image-mask-apply` (and `image-mask`) is torch-free PIL, ~1.7s wall-clock -- almost all
-python + PIL startup, the pixel work is milliseconds -- plus one grayscale-PNG round-trip. So a
-background cutout is the ~7s matte call + ~1.7s (about +20%); a mask/region restore is two ~1.7s
-calls (~3.4s vs the old ~1.7s fused). The compute is identical -- no second model run -- the added
-cost is a second interpreter start.
+matte inference ~0.45s on cuda (half) / ~19s on cpu; a full `image-to-mask mask-birefnet` call is
+~7s (cuda) / ~24s (cpu), dominated by per-process ~4.5s torch import + ~1–2s model load.
+`mask-birefnet`/`mask-lucida` share those numbers; `mask-inspyrenet` is slower (~2s cuda
+inference). The torch-free engines (`mask` / `mask-region` / `mask-apply`) are ~1.7s wall-clock —
+almost all python + PIL startup, the pixel work is milliseconds. So a cutout is the ~7s matte call
++ ~1.7s apply; a mask/region restore is two ~1.7s calls. Prefer cuda; cpu is a slow fallback.
 
 ## The engine system
 
@@ -245,16 +232,17 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `BASE` | base engine ID to inherit from (below) |
 | `PIPELINE` | `"diffusers:XxxPipeline"` string, resolved lazily |
 | `TRANSFORMER` | `"diffusers:XxxTransformer2DModel"`; **presence = offload-wired** (core.py:553-558) |
-| `MODES` | wire modes tuple: `"text-to-image"` / `"image-to-image"` |
+| `MODES` | wire modes tuple: `"text-to-image"` / `"image-to-image"` / `"image-to-mask"` / `"image-mask-apply"` |
 | `CFG` | one `(kwarg, value)` pair injected into the pipe call (core.py:599-600) |
 | `INFERENCE` | default step count when the caller passes `-1` (fallback 4, core.py:586-587) |
-| `MODEL` | install spec `{repository, model, revision}` (stock); it only *renames* the folder — omitted, `resolve_model` falls back to `ID` (core.py:173), which is why COMFY engines declare none |
+| `MODEL` | install spec `{repository, model, revision}` (stock); optional `kind` = `snapshot`\|`url` picks a non-diffusers install (verbatim HF repo / raw asset); it only *renames* the folder — omitted, `resolve_model` falls back to `ID` (core.py:173), which is why COMFY engines declare none |
 | `COMFY` | ComfyUI-reuse spec `{repository?, revision, components: [{role, path, ...}]}`; presence dispatches both install and `resolve_model` (core.py:177) |
 | `SCAFFOLD` | tiny config-only snapshot spec (`allow_patterns`, no weights) |
 | `LORAS` | install-time LoRA list `[{repository, file, revision}]` |
 | `loras(params)` | runtime preset hook → `[(filename, weight)]`, may be prompt-dependent |
 | `extra_key(params)` | extra tuple folded into the pipe cache key (core.py:297-301) |
 | `load(ctx, params)` | full custom loader, bypasses `_default_load` |
+| `run(ctx, params, emit)` | **compute engine**: owns generation, returns a PIL image; short-circuits before the offload ladder / pipeline (core.py:537-549) — mask / matte / apply engines |
 
 **Inheritance** (`engine/_inherit.py`, design in `doc/engine-inheritance-plan.md`): a variant
 declares `BASE = "<base id>"` and writes only its delta. `resolve()` folds each BASE chain once
@@ -277,8 +265,8 @@ multi-GB download for a ComfyUI user). Dispatch is purely `hasattr(mod, "COMFY")
 
 - **`turboCLI.pro`** lists every runner file in `OTHER_FILES`, and `bash/*.pri` lists the scripts —
   a new module missing there ships in no package. Keep the deployed copy in step too.
-- **The usage engine lists** in `bash/turbo/install.sh` (everything installable) and
-  `text-to-image.sh` / `image-to-image.sh` (filtered by the engine's `MODES`).
+- **The usage engine lists** in `bash/turbo/install.sh` (everything installable) and the mode
+  wrappers `text-to-image.sh` / `image-to-image.sh` / `image-to-mask.sh` (each mode-filtered).
 - **`bash/turbo/README.md`**, which mirrors each script's usage block verbatim — update both or
   they drift.
 - **This table**, below.
@@ -300,6 +288,9 @@ answer is derivable.
 | `comfy-qwen-image-edit-2511-lightning` | BASE = the above; entire delta = one extra COMFY component (the LoRA) + 4 steps |
 | `comfy-krea2-turbo` | both DiT and TE scaled-fp8; hand-written key converter (validated 1:1, 430/430); offloader-only; deliberately standalone — it differs on transformer, TE and pipeline, so BASE would override nearly everything (`doc/comfy-krea2-turbo-plan.md`). `_lora_keys` (copied from ComfyUI's `model_lora_keys_unet` Krea2 branch on `krea2_to_diffusers`) maps every published LoRA naming — ComfyUI-native, diffusers, lycoris — onto the diffusers module tree, so stock Civitai/HF Krea2 LoRAs (lora_A/B, `diff`, LoKr) load unmodified via the offloader's `lora_keys` spec |
 | `comfy-krea2-turbo-realism` | BASE = the above; entire delta = one extra COMFY component (the Krea2-realism-V2 LoKr into ComfyUI's `models/loras/`, explicit `filename` since it sits at a plain repo's root, revision-pinned) + a `load()` that prepends it to `ctx.loras` at 1.5 before delegating to the base assembly |
+| `mask` / `mask-region` | **compute engines** (declare `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box masks; register-only install; options `threshold=N` |
+| `mask-birefnet` / `mask-lucida` / `mask-inspyrenet` | compute matte engines, mode `image-to-mask`; MODEL `kind` snapshot (birefnet/lucida) or url (inspyrenet); `mask-lucida` BASE = `mask-birefnet`; optional plate keeps the cast shadow; options `threshold=N` (shadow floor) |
+| `mask-apply` | compute engine, mode `image-mask-apply`; applies a mask via `composite` or `putalpha`; register-only; options `mode=composite\|putalpha` |
 
 ## The backend seam (runner side)
 
@@ -436,8 +427,8 @@ into the body (cli.py:82-89, server.py:237-246).
 - Doc records: `doc/engine-inheritance-plan.md` (the BASE mechanism),
   `doc/comfy-z-image-turbo-plan.md` (the first ComfyUI-reuse engine),
   `doc/comfy-krea2-turbo-plan.md` (fp8 engines, the `(1 + weight)` RMSNorm trap, per-step parity
-  with ComfyUI), `doc/image-mask-plan.md` (the standalone mask/merge command) +
-  `doc/image-mask-split-plan.md` (splitting it into generate + apply),
+  with ComfyUI), `doc/image-mask-plan.md` + `doc/image-mask-split-plan.md` (the earlier standalone
+  mask tool) then `doc/mask-engines-plan.md` (folding mask/matte/apply in as engines),
   `doc/IMPLEMENTATION_PLAN.md` (this document's plan). Script usage blocks live
   in `bash/README.md`, `bash/turbo/README.md`, `bash/python/README.md`.
 - The offload backend's internals — vendored ComfyUI subsystem, native vs VBAR paths, CPU

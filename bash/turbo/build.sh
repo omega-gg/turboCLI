@@ -52,6 +52,14 @@ transformers_version="5.12.1"
 accelerate_version="1.14.0"
 peft_version="0.19.1"
 
+# Segmentation stack for the mask-birefnet / mask-lucida / mask-inspyrenet engines (matched to
+# bash/remove-background). transparent-background pulls numba/llvmlite; uv keeps the pinned cu130
+# torch since it already satisfies the requirement (no re-pin needed, unlike pip).
+timm_version="1.0.28"
+einops_version="0.8.2"
+kornia_version="0.8.3"
+transparent_background_version="1.3.4"
+
 huggingface_hub_version="1.21.0"
 hf_xet_version="1.5.1"
 hf_transfer_version="0.1.9"
@@ -263,6 +271,10 @@ uv pip install \
     "$(require peft $peft_version)" \
     "$(require huggingface_hub $huggingface_hub_version)" \
     "$(require psutil $psutil_version)" \
+    "$(require timm $timm_version)" \
+    "$(require einops $einops_version)" \
+    "$(require kornia $kornia_version)" \
+    "$(require transparent-background $transparent_background_version)" \
     "git+https://github.com/huggingface/diffusers@$diffusers_ref"
 
 #--------------------------------------------------------------------------------------------------

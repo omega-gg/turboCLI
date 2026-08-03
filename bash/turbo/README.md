@@ -28,6 +28,12 @@ engine: flux2-4b
         qwen-image-edit-2511
         qwen-image-edit-2511-lightning
         qwen-image-edit-2511-lightning-angles
+        mask                 (no download -- registers a compute engine)
+        mask-region          (no download)
+        mask-apply           (no download)
+        mask-birefnet        (BiRefNet matte model)
+        mask-lucida          (Lucida matte model)
+        mask-inspyrenet      (InSPyReNet matte model)
 
 dtype: default, bfloat16, float16, float32
        (bfloat16 is recommended for CUDA, float16 for Apple MPS)
@@ -162,78 +168,50 @@ examples:
     image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none 8080
 ```
 
-### [image-mask.sh](image-mask.sh) - Generate a diff/region mask
+### [image-to-mask.sh](image-to-mask.sh) - Generate a mask / matte
 
 ```
-Usage: image-mask <mode> <reference image> <input image> <mask output> [threshold]
+Usage: image-to-mask <engine> <renderer> <input images> <mask output> [options] [server]
 
-Generate a soft mask of where an edit differs from its reference -- no compositing. Pure image
-processing (PIL + numpy, no GPU). Apply it with image-mask-apply.
+Generate a mask / matte (an 8-bit grayscale PNG). Apply it with image-mask-apply.
 
-mode: mask   soft pixel diff, best for adding an object / recoloring
-      region grown bounding boxes, best for removal / replace (ghost-free)
+engine: mask            diff mask, best for adding an object / recoloring
+        mask-region     grown boxes, best for removal / replace (ghost-free)
+        mask-birefnet   subject matte via BiRefNet
+        mask-lucida     subject matte via Lucida (glass / camouflage / text / print)
+        mask-inspyrenet subject matte via InSPyReNet
 
-reference: the base canvas (the original scene)
+renderer: cpu, cuda, mps (mask / mask-region ignore it; the matte engines use it)
 
-input: the edited / generated image
+input images: separated by a comma. mask / mask-region: reference,input. matte engines:
+              input, or input,plate (a plate keeps the cast shadow).
 
-threshold: pixels differing from the reference beyond this are kept in the mask. Default 24;
-           higher = tighter, lower keeps more. Raise it when the generator drifts the whole frame.
+options: key=value,... -- threshold=N (mask: change threshold; matte: shadow floor)
 
-The mask is an 8-bit grayscale PNG at the input resolution.
+server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    image-mask mask   original.png edited.png mask.png
-    image-mask mask   original.png edited.png mask.png 40
-    image-mask region original.png edited.png mask.png
-```
-
-### [image-mask-background.sh](image-mask-background.sh) - Generate a subject matte
-
-```
-Usage: image-mask-background <model> <renderer> <input> <mask output> [plate] [shadow threshold]
-
-Generate a subject matte (8-bit grayscale PNG, same size and placement) from the input. Delegates
-to the remove-background tool (own venv; see bash/remove-background). Apply the matte with
-image-mask-apply (putalpha to cut out, composite onto a new background).
-
-model: birefnet   (ZhengPeng7/BiRefNet) -- strong on thin glows like a neon sign or a lightsaber
-       lucida     (egeorcun fine-tune) -- better on glass / camouflage / text / print
-       inspyrenet (transparent-background) -- InSPyReNet, also strong on thin glows
-
-renderer: cpu, cuda or mps (cuda/mps fall back to cpu if the build lacks them,
-          bash/remove-background/build.sh <cpu|cuda|mps>; cpu is slow)
-
-plate: a clean background (the same scene without the subject); where the input is darker than the
-       plate is the cast shadow, recovered as soft alpha so it is kept. Omit it for subject only.
-
-shadow threshold: darkening floor for the plate shadow (default 12); raise it when a drifted plate
-                  ghosts the background back in. Only used with a plate.
-
-examples:
-    image-mask-background birefnet cuda photo.png matte.png
-    image-mask-background lucida   cuda photo.png matte.png plate.png
-    image-mask-background lucida   cuda photo.png matte.png plate.png 40
+    image-to-mask mask          cpu  original.png,edited.png mask.png threshold=40
+    image-to-mask mask-birefnet cuda photo.png matte.png
+    image-to-mask mask-birefnet cuda photo.png,plate.png matte.png threshold=40
 ```
 
 ### [image-mask-apply.sh](image-mask-apply.sh) - Apply a mask (composite or putalpha)
 
 ```
-Usage: image-mask-apply <mode> <input image> <mask image> <output image> [reference]
+Usage: image-mask-apply <mode> <input images> <output image> [server]
 
-Apply a precomputed mask (from image-mask or image-mask-background). Torch-free (PIL, no GPU).
+Apply a precomputed mask (from image-to-mask). Torch-free (PIL, no GPU).
 
 mode: composite  paste the input's masked region onto a reference (needs a reference)
       putalpha   write the mask as the input's alpha channel (an RGBA cutout)
 
-input: the source image the mask was computed for
+input images: separated by a comma -- input,mask for putalpha; input,mask,reference for
+              composite (the reference is shown where the mask is black).
 
-mask: an 8-bit grayscale mask / matte (255 = kept)
-
-reference: base canvas shown where the mask is black -- REQUIRED for composite (5 args), omit for
-           putalpha (4 args). The original scene to restore, or a new backdrop to composite onto.
+server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    image-mask-apply composite edited.png mask.png output.png original.png
-    image-mask-apply putalpha  photo.png  matte.png cutout.png
+    image-mask-apply putalpha  photo.png,matte.png cutout.png
+    image-mask-apply composite edited.png,mask.png,original.png output.png
 ```
