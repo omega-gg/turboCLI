@@ -97,7 +97,7 @@ if [ $# -lt 3 -o $# -gt 4 ] \
    || \
    [ "$1" != "composite" -a "$1" != "putalpha" ]; then
 
-    echo "Usage: image-mask-apply <mode> <input images> <output image> [server]"
+    echo "Usage: image-apply-mask <mode> <input images> <output image> [server]"
     echo ""
     echo "Apply a precomputed mask (from image-to-mask). Torch-free (PIL, no GPU)."
     echo ""
@@ -110,8 +110,8 @@ if [ $# -lt 3 -o $# -gt 4 ] \
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    image-mask-apply putalpha  photo.png,matte.png cutout.png"
-    echo "    image-mask-apply composite edited.png,mask.png,original.png output.png"
+    echo "    image-apply-mask putalpha  photo.png,matte.png cutout.png"
+    echo "    image-apply-mask composite edited.png,mask.png,original.png output.png"
 
     exit 1
 fi
@@ -181,7 +181,7 @@ if [ -n "$server" ]; then
 
     curl -sS -N --max-time "3600" \
                 --data-urlencode "engine=mask-apply" \
-                --data-urlencode "mode=image-mask-apply" \
+                --data-urlencode "mode=image-apply-mask" \
                 --data-urlencode "images=$images" \
                 --data-urlencode "output=$path" \
                 --data-urlencode "options=mode=$mode" \
@@ -228,7 +228,7 @@ fi
 
 python -m runner.cli \
        --engine "mask-apply" \
-       --mode "image-mask-apply" \
+       --mode "image-apply-mask" \
        --images "$images" \
        --output "$path" \
        --options "mode=$mode" \

@@ -23,7 +23,7 @@
 # mask engine -- a soft pixel-diff mask of where an edit differs from its reference, best for
 # adding an object / recoloring. A "compute" engine: core's run() seam calls run() directly (no
 # diffusion, no offloader, torch-free). images = "reference,input"; options threshold=N (default
-# 24). Apply the mask with image-mask-apply.
+# 24). Apply the mask with image-apply-mask.
 
 ID    = "mask"
 MODES = ("image-to-mask",)

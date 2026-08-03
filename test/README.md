@@ -10,25 +10,25 @@ Reference images (736x1024, flux2-4b generations) for re-running the mask-engine
 
 Masks are generated then applied. `image-to-mask <engine> <renderer> <input images> <mask>`
 generates a mask/matte (engine = mask | mask-region | mask-birefnet | mask-lucida | mask-inspyrenet);
-`image-mask-apply <mode> <input images> <output>` applies it (mode = composite | putalpha). Inputs
+`image-apply-mask <mode> <input images> <output>` applies it (mode = composite | putalpha). Inputs
 are a comma-separated, ordered list. `SKY_PATH_BIN` must point at the install; run from anywhere:
 
 ```sh
 # background matte, then cut the subject onto transparency (birefnet)
 image-to-mask mask-birefnet cuda knight.png matte.png
-image-mask-apply putalpha knight.png,matte.png subject_only.png
+image-apply-mask putalpha knight.png,matte.png subject_only.png
 
 # lucida, keeping the cast shadow recovered from a clean plate (the empty courtyard)
 image-to-mask mask-lucida cuda knight.png,courtyard.png matte_shadow.png
-image-mask-apply putalpha knight.png,matte_shadow.png knight_cutout.png
+image-apply-mask putalpha knight.png,matte_shadow.png knight_cutout.png
 
 # region: remove the knight (reference = knight scene, input = empty courtyard edit)
 image-to-mask mask-region cpu knight.png,courtyard.png remove_mask.png
-image-mask-apply composite courtyard.png,remove_mask.png,knight.png knight_removed.png
+image-apply-mask composite courtyard.png,remove_mask.png,knight.png knight_removed.png
 
 # mask: keep an added object (reference = empty courtyard, input = chest edit)
 image-to-mask mask cpu courtyard.png,chest.png chest_mask.png
-image-mask-apply composite chest.png,chest_mask.png,courtyard.png chest_kept.png
+image-apply-mask composite chest.png,chest_mask.png,courtyard.png chest_kept.png
 ```
 
 The matte engines (mask-birefnet / mask-lucida / mask-inspyrenet) need their model installed
@@ -47,16 +47,16 @@ knights scene (add a knight, then a second doing an accolade) does exactly this:
 image-to-image flux2-4b cuda "a knight ...; keep the original background identical" \
     courtyard.png kn1.png 736 1024 7 4
 image-to-mask mask cpu courtyard.png,kn1.png kn1_mask.png threshold=40
-image-mask-apply composite kn1.png,kn1_mask.png,courtyard.png kn1_clean.png
+image-apply-mask composite kn1.png,kn1_mask.png,courtyard.png kn1_clean.png
 
 # stage 2: add the second knight from the CLEAN base, then mask both onto the temple
 image-to-image flux2-4b cuda "two knights ... accolade ...; keep the original background identical" \
     kn1_clean.png kn2.png 736 1024 7 4
 image-to-mask mask cpu courtyard.png,kn2.png kn2_mask.png threshold=40
-image-mask-apply composite kn2.png,kn2_mask.png,courtyard.png kn2_clean.png
+image-apply-mask composite kn2.png,kn2_mask.png,courtyard.png kn2_clean.png
 
 # reuse that same mask to cut both knights onto transparency
-image-mask-apply putalpha kn2.png,kn2_mask.png kn2_cutout.png
+image-apply-mask putalpha kn2.png,kn2_mask.png kn2_cutout.png
 ```
 
 Raise the mask threshold (`threshold=40` here) when flux2's whole-frame drift speckles the mask; the

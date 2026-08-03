@@ -173,7 +173,7 @@ examples:
 ```
 Usage: image-to-mask <engine> <renderer> <input images> <mask output> [options] [server]
 
-Generate a mask / matte (an 8-bit grayscale PNG). Apply it with image-mask-apply.
+Generate a mask / matte (an 8-bit grayscale PNG). Apply it with image-apply-mask.
 
 engine: mask            diff mask, best for adding an object / recoloring
         mask-region     grown boxes, best for removal / replace (ghost-free)
@@ -196,10 +196,10 @@ examples:
     image-to-mask mask-birefnet cuda photo.png,plate.png matte.png threshold=40
 ```
 
-### [image-mask-apply.sh](image-mask-apply.sh) - Apply a mask (composite or putalpha)
+### [image-apply-mask.sh](image-apply-mask.sh) - Apply a mask (composite or putalpha)
 
 ```
-Usage: image-mask-apply <mode> <input images> <output image> [server]
+Usage: image-apply-mask <mode> <input images> <output image> [server]
 
 Apply a precomputed mask (from image-to-mask). Torch-free (PIL, no GPU).
 
@@ -212,6 +212,6 @@ input images: separated by a comma -- input,mask for putalpha; input,mask,refere
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    image-mask-apply putalpha  photo.png,matte.png cutout.png
-    image-mask-apply composite edited.png,mask.png,original.png output.png
+    image-apply-mask putalpha  photo.png,matte.png cutout.png
+    image-apply-mask composite edited.png,mask.png,original.png output.png
 ```

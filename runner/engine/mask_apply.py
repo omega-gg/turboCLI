@@ -26,7 +26,7 @@
 # writes the mask as the source's alpha -> an RGBA cutout (images = "input,mask").
 
 ID    = "mask-apply"
-MODES = ("image-mask-apply",)
+MODES = ("image-apply-mask",)
 
 
 def run(ctx, params, emit):

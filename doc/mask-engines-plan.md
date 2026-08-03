@@ -16,7 +16,7 @@ imports live inside `run()`, so `text-to-image`/`image-to-image` never import th
 
 ## Modes + engines
 
-Modes: `image-to-mask`, `image-mask-apply`. Inputs ride the existing comma-separated `images` param;
+Modes: `image-to-mask`, `image-apply-mask`. Inputs ride the existing comma-separated `images` param;
 the scalar option rides a new general-purpose `--options` (`key=value,...`).
 
 | engine | mode | model install | images | options |
@@ -26,7 +26,7 @@ the scalar option rides a new general-purpose `--options` (`key=value,...`).
 | `mask-birefnet` | image-to-mask | snapshot `ZhengPeng7/BiRefNet` | input[,plate] | threshold=N (shadow) |
 | `mask-lucida` | image-to-mask | snapshot `egeorcun/lucida`, BASE=`mask-birefnet` | input[,plate] | threshold=N |
 | `mask-inspyrenet` | image-to-mask | url `ckpt_base.pth` (tag 1.2.12) | input[,plate] | threshold=N |
-| `mask-apply` | image-mask-apply | register-only | input,mask[,reference] | mode=composite\|putalpha |
+| `mask-apply` | image-apply-mask | register-only | input,mask[,reference] | mode=composite\|putalpha |
 
 ## Implementation
 
@@ -50,7 +50,7 @@ the scalar option rides a new general-purpose `--options` (`key=value,...`).
 - **bash/turbo/build.sh**: add timm/einops/kornia/transparent-background to the turbo venv (uv keeps
   the pinned cu130 torch -- no re-pin needed, unlike pip).
 - **Wrappers**: `image-to-mask.sh` (`<engine> <renderer> <input images> <output> [options] [server]`)
-  and `image-mask-apply.sh` (`<mode> <input images> <output> [server]`), mirroring image-to-image.sh
+  and `image-apply-mask.sh` (`<mode> <input images> <output> [server]`), mirroring image-to-image.sh
   (local + server branches). `install.sh` usage lists the 6.
 - **Deleted**: `bash/remove-background/`, `runner/mask.py`, `runner/apply.py`, the three
   `image-mask*.sh` wrappers; all satellites de-registered.

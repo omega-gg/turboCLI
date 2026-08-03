@@ -32,7 +32,7 @@ turboCLI/
   bash/
     python/          build.sh / check.sh -- bundled standalone CPython + uv
     turbo/           build/install/remove/check/check-model/server/text-to-image/image-to-image/
-                     image-to-mask/image-mask-apply
+                     image-to-mask/image-apply-mask
   backend/           EMPTY in-repo (a .gitignore placeholder); build.sh grafts the offloader here
   doc/               plan docs, kept as records after implementation
   test/              reference images + README for re-running the mask-engine checks
@@ -168,7 +168,7 @@ inside the base-reinstall branch (`install.py:561-562`).
 Reuses `install._discover` + `install._engine_installed`. "Light by design: no torch/diffusers
 import, so it runs under the bundled python without the venv" (check.py:33-35).
 
-### Mask engines — generate + apply as compute engines (image-to-mask / image-mask-apply)
+### Mask engines — generate + apply as compute engines (image-to-mask / image-apply-mask)
 
 Masks fold into the engine system as **compute engines**: engines that declare a
 `run(ctx, params, emit) -> image` hook instead of a diffusers pipeline. `core.generate`
@@ -183,7 +183,7 @@ modes, six engines:
   `AutoModelForImageSegmentation`, `mask-inspyrenet` via `transparent-background`'s `Remover`; all
   in `_segment`, torch imported inside the functions. A second image is an optional clean **plate**
   whose cast shadow is recovered by luminance diff and merged into the matte (`build_matte`).
-- **`image-mask-apply`** (engine `mask-apply`, `_apply.apply`) lays a mask onto an image:
+- **`image-apply-mask`** (engine `mask-apply`, `_apply.apply`) lays a mask onto an image:
   `composite` pastes the masked region onto a reference (restore the scene, or a new backdrop);
   `putalpha` writes the mask as the alpha channel (an RGBA cutout). The mask source is irrelevant,
   so a diff mask or a model matte feeds either op.
@@ -232,7 +232,7 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `BASE` | base engine ID to inherit from (below) |
 | `PIPELINE` | `"diffusers:XxxPipeline"` string, resolved lazily |
 | `TRANSFORMER` | `"diffusers:XxxTransformer2DModel"`; **presence = offload-wired** (core.py:553-558) |
-| `MODES` | wire modes tuple: `"text-to-image"` / `"image-to-image"` / `"image-to-mask"` / `"image-mask-apply"` |
+| `MODES` | wire modes tuple: `"text-to-image"` / `"image-to-image"` / `"image-to-mask"` / `"image-apply-mask"` |
 | `CFG` | one `(kwarg, value)` pair injected into the pipe call (core.py:599-600) |
 | `INFERENCE` | default step count when the caller passes `-1` (fallback 4, core.py:586-587) |
 | `MODEL` | install spec `{repository, model, revision}` (stock); optional `kind` = `snapshot`\|`url` picks a non-diffusers install (verbatim HF repo / raw asset); it only *renames* the folder — omitted, `resolve_model` falls back to `ID` (core.py:173), which is why COMFY engines declare none |
@@ -290,7 +290,7 @@ answer is derivable.
 | `comfy-krea2-turbo-realism` | BASE = the above; entire delta = one extra COMFY component (the Krea2-realism-V2 LoKr into ComfyUI's `models/loras/`, explicit `filename` since it sits at a plain repo's root, revision-pinned) + a `load()` that prepends it to `ctx.loras` at 1.5 before delegating to the base assembly |
 | `mask` / `mask-region` | **compute engines** (declare `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box masks; register-only install; options `threshold=N` |
 | `mask-birefnet` / `mask-lucida` / `mask-inspyrenet` | compute matte engines, mode `image-to-mask`; MODEL `kind` snapshot (birefnet/lucida) or url (inspyrenet); `mask-lucida` BASE = `mask-birefnet`; optional plate keeps the cast shadow; options `threshold=N` (shadow floor) |
-| `mask-apply` | compute engine, mode `image-mask-apply`; applies a mask via `composite` or `putalpha`; register-only; options `mode=composite\|putalpha` |
+| `mask-apply` | compute engine, mode `image-apply-mask`; applies a mask via `composite` or `putalpha`; register-only; options `mode=composite\|putalpha` |
 
 ## The backend seam (runner side)
 

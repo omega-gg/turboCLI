@@ -23,7 +23,7 @@
 # mask-region engine -- grown bounding boxes around changed blobs, best for removal / replace
 # (ghost-free, where a diff mask would leave an outline). A "compute" engine, torch-free. Same as
 # `mask` but the region mode; a separate module because the mode literal cannot be inherited.
-# images = "reference,input"; options threshold=N (default 24). Apply with image-mask-apply.
+# images = "reference,input"; options threshold=N (default 24). Apply with image-apply-mask.
 
 ID    = "mask-region"
 MODES = ("image-to-mask",)

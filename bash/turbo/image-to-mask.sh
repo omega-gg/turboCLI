@@ -99,19 +99,13 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-valid=""
-
-case "$1" in mask|mask-region|mask-birefnet|mask-lucida|mask-inspyrenet) valid="yes";; esac
-
 if [ $# -lt 4 -o $# -gt 6 ] \
-   || \
-   [ -z "$valid" ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ]; then
 
     echo "Usage: image-to-mask <engine> <renderer> <input images> <mask output> [options] [server]"
     echo ""
-    echo "Generate a mask / matte (an 8-bit grayscale PNG). Apply it with image-mask-apply."
+    echo "Generate a mask / matte (an 8-bit grayscale PNG). Apply it with image-apply-mask."
     echo ""
     echo "engine: mask            diff mask, best for adding an object / recoloring"
     echo "        mask-region     grown boxes, best for removal / replace (ghost-free)"

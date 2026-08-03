@@ -22,7 +22,7 @@
 
 # mask-inspyrenet engine -- a subject matte via InSPyReNet (transparent-background). A "compute"
 # engine; the transparent_background stack loads only inside run(). images = "input[,plate]";
-# options threshold=N (shadow floor, default 12). Apply the matte with image-mask-apply.
+# options threshold=N (shadow floor, default 12). Apply the matte with image-apply-mask.
 #
 # Install (python -m runner.install): kind "url" -> the checkpoint (a GitHub release asset) into
 # model/inspyrenet/ckpt_base.pth. revision is the release tag (1.2.12), not an HF commit.

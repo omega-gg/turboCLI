@@ -23,7 +23,7 @@
 # mask-birefnet engine -- a subject matte via BiRefNet (ZhengPeng7/BiRefNet). A "compute" engine:
 # core's run() seam calls run() directly (no diffusion, no offloader). torch/transformers load only
 # inside run(). images = "input[,plate]" (a plate keeps the cast shadow); options threshold=N (the
-# shadow darkening floor, default 12). Apply the matte with image-mask-apply.
+# shadow darkening floor, default 12). Apply the matte with image-apply-mask.
 #
 # Install (python -m runner.install): kind "snapshot" -> the whole HF repo verbatim (weights + the
 # trust_remote_code birefnet.py) into model/<model>. revision pins the HF commit.

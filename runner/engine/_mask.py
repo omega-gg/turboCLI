@@ -22,7 +22,7 @@
 
 # Diff/region mask GENERATION for the mask + mask-region engines. Torch-free (PIL + numpy only), a
 # helper (underscore) so discovery skips it. `build_mask` emits a soft [0..255] `L` mask of where
-# an edit differs from its reference; image-mask-apply then composites or cuts it out.
+# an edit differs from its reference; image-apply-mask then composites or cuts it out.
 #
 # The edit pipeline redraws + VAE-decodes the whole frame, so every pixel drifts; this diffs the
 # edit against the reference and keeps only where it really changed. Two modes:
@@ -139,7 +139,7 @@ def _region_mask(generated, ref, thr, grow, feather, min_area):
 def build_mask(reference, edit, mode, thr=THR):
     """Soft [0..255] `L` mask (255 = changed) of where `edit` differs from `reference`, at the
     edit's own resolution. The reference is downscaled to the edit's canvas first, so a full-res
-    reference + a smaller edit yields a mask at the edit res; image-mask-apply composite upscales
+    reference + a smaller edit yields a mask at the edit res; image-apply-mask composite upscales
     it back to the reference at apply time. Same-size inputs => that resize is an identity."""
     ref = reference.resize(edit.size, LR)                  # reference as the edit's own canvas
 
