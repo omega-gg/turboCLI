@@ -188,10 +188,10 @@ modes, six engines:
   `putalpha` writes the mask as the alpha channel (an RGBA cutout). The mask source is irrelevant,
   so a diff mask or a model matte feeds either op.
 
-Inputs ride the comma-separated **`images`** param (ordered): `reference,input` for mask/region,
-`input[,plate]` for the matte engines, `input,mask[,reference]` for apply. The one scalar per call
-rides a general-purpose **`--options`** field (`key=value,...`): `threshold=N` (mask threshold /
-matte shadow floor) and `mode=composite|putalpha`. The engine modules stay torch-free at import
+Inputs ride the comma-separated **`images`** param (ordered), the input always first:
+`input,reference` for mask/region, `input[,plate]` for the matte engines, `input,mask[,reference]`
+for apply. The one scalar per call rides a general-purpose **`--options`** field (`key=value,...`):
+`threshold=N` (mask threshold / matte shadow floor) and `mode=composite|putalpha`. The engine modules stay torch-free at import
 (heavy imports live in `run()`), so discovery and the diffusion path never load the segmentation
 stack — the load-bearing zero-regression guarantee.
 
@@ -415,6 +415,9 @@ into the body (cli.py:82-89, server.py:237-246).
   `PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0` set by the wrappers.
 - **Run-time dtype** is independent of the install dtype: cuda→bf16, mps→fp16, cpu→fp32
   (`_device_dtype`, core.py:117-124); install.sh coerces a float32 install request to bfloat16.
+  The matte engines skip that seam - `AutoModelForImageSegmentation` keeps the dtype of the
+  checkpoint, and BiRefNet ships fp16 - so `_segment.birefnet_alpha` halves on cuda and calls
+  `net.float()` everywhere else, a cpu conv refusing a half bias against a float input.
 - **Offline generation**: the wrappers export `HF_HUB_OFFLINE=1` (+ datasets/transformers
   variants) for every run; install is the only online step.
 

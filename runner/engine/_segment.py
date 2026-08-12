@@ -69,6 +69,10 @@ def birefnet_alpha(image, device, model_dir):
 
     if half:
         net.half()
+    else:
+        # NOTE: The checkpoint carries its own dtype and BiRefNet ships fp16, which a cpu conv
+        # cannot mix with a float input -- "Input type (float) and bias type (c10::Half)".
+        net.float()
 
     pre = transforms.Compose([
         transforms.Resize((1024, 1024)),                   # BiRefNet's trained resolution

@@ -21,8 +21,8 @@ the scalar option rides a new general-purpose `--options` (`key=value,...`).
 
 | engine | mode | model install | images | options |
 |---|---|---|---|---|
-| `mask` | image-to-mask | register-only | reference,input | threshold=N |
-| `mask-region` | image-to-mask | register-only | reference,input | threshold=N |
+| `mask` | image-to-mask | register-only | input,reference | threshold=N |
+| `mask-region` | image-to-mask | register-only | input,reference | threshold=N |
 | `mask-birefnet` | image-to-mask | snapshot `ZhengPeng7/BiRefNet` | input[,plate] | threshold=N (shadow) |
 | `mask-lucida` | image-to-mask | snapshot `egeorcun/lucida`, BASE=`mask-birefnet` | input[,plate] | threshold=N |
 | `mask-inspyrenet` | image-to-mask | url `ckpt_base.pth` (tag 1.2.12) | input[,plate] | threshold=N |

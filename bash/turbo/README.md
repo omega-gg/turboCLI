@@ -183,15 +183,15 @@ engine: mask            diff mask, best for adding an object / recoloring
 
 renderer: cpu, cuda, mps (mask / mask-region ignore it; the matte engines use it)
 
-input images: separated by a comma. mask / mask-region: reference,input. matte engines:
-              input, or input,plate (a plate keeps the cast shadow).
+input images: separated by a comma, the input first. mask / mask-region: input,reference.
+              matte engines: input, or input,plate (a plate keeps the cast shadow).
 
 options: key=value,... -- threshold=N (mask: change threshold; matte: shadow floor)
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    image-to-mask mask          cpu  original.png,edited.png mask.png threshold=40
+    image-to-mask mask          cpu  edited.png,original.png mask.png threshold=40
     image-to-mask mask-birefnet cuda photo.png matte.png
     image-to-mask mask-birefnet cuda photo.png,plate.png matte.png threshold=40
 ```
