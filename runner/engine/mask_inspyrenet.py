@@ -22,7 +22,8 @@
 
 # mask-inspyrenet engine -- a subject matte via InSPyReNet (transparent-background). A "compute"
 # engine; the transparent_background stack loads only inside run(). images = "input[,plate]";
-# options threshold=N (shadow floor, default 12). Apply the matte with image-apply-mask.
+# options tolerance=N (0-255, the plate-shadow floor -- more = more shadow, default 243; inert
+# without a plate). Apply the matte with image-apply-mask.
 #
 # Install (python -m runner.install): kind "url" -> the checkpoint (a GitHub release asset) into
 # model/inspyrenet/ckpt_base.pth. revision is the release tag (1.2.12), not an HF commit.
@@ -39,10 +40,10 @@ def run(ctx, params, emit):
     import os
     from PIL import Image, ImageStat
 
-    from ._segment import pick_device, inspyrenet_alpha, build_matte, SHAD_THR
+    from ._segment import pick_device, inspyrenet_alpha, build_matte, SHADOW_TOLERANCE
     from ._options import parse_options
 
-    thr  = float(parse_options(params.get("options", "")).get("threshold", SHAD_THR))
+    thr  = 255 - int(parse_options(params.get("options", "")).get("tolerance", SHADOW_TOLERANCE))
     imgs = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
 
     if not imgs:

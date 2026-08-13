@@ -20,10 +20,11 @@
 #
 #==================================================================================================
 
-# mask engine -- a soft pixel-diff mask of where an edit differs from its reference, best for
-# adding an object / recoloring. A "compute" engine: core's run() seam calls run() directly (no
-# diffusion, no offloader, torch-free). images = "input,reference"; options threshold=N (default
-# 24). Apply the mask with image-apply-mask.
+# mask engine -- a mask of where an edit differs from its reference. A "compute" engine: core's
+# run() seam calls it directly (no diffusion, torch-free). images = "input,reference".
+# options: mode=default (soft pixel-diff, best for adding / recoloring) | region (grown boxes, best
+# for removal / replace); tolerance=N (0-255, more = more pixels kept, default 231). Apply the mask
+# with image-apply-mask.
 
 ID    = "mask"
 MODES = ("image-to-mask",)
@@ -33,11 +34,16 @@ def run(ctx, params, emit):
     import numpy as np
     from PIL import Image
 
-    from ._mask import build_mask, THR
+    from ._mask import build_mask, TOLERANCE
     from ._options import parse_options
 
-    thr  = int(parse_options(params.get("options", "")).get("threshold", THR))
+    opts = parse_options(params.get("options", ""))
+    sub  = opts.get("mode", "default")
+    tol  = int(opts.get("tolerance", TOLERANCE))
     imgs = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
+
+    if sub not in ("default", "region"):
+        raise ValueError("mode must be default or region")
 
     if len(imgs) < 2:
         raise ValueError("mask needs images=input,reference")
@@ -45,8 +51,8 @@ def run(ctx, params, emit):
     edit = Image.open(imgs[0]).convert("RGB")
     ref  = Image.open(imgs[1]).convert("RGB")
 
-    mask = build_mask(ref, edit, "mask", thr)
+    mask = build_mask(ref, edit, "region" if sub == "region" else "mask", 255 - tol)
 
-    emit("mask[mask thr=%d]: masked %.0f%%" % (thr, np.asarray(mask).mean() / 255 * 100))
+    emit("mask[%s tol=%d]: masked %.0f%%" % (sub, tol, np.asarray(mask).mean() / 255 * 100))
 
     return mask

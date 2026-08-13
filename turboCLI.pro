@@ -7,6 +7,7 @@ OTHER_FILES += README.md  \
                implementation.md \
                dummy.md \
                update.sh \
+               doc/comfy-flux2-4b-plan.md \
                doc/comfy-krea2-turbo-plan.md \
                doc/comfy-z-image-turbo-plan.md \
                doc/engine-inheritance-plan.md \
@@ -15,6 +16,8 @@ OTHER_FILES += README.md  \
                doc/image-mask-plan.md \
                doc/image-mask-split-plan.md \
                doc/mask-engines-plan.md \
+               doc/mask-tolerance-plan.md \
+               doc/reinstall-prune-plan.md \
                test/README.md \
                test/knight.png \
                test/courtyard.png \
@@ -33,7 +36,6 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/_apply.py \
                runner/engine/_segment.py \
                runner/engine/mask.py \
-               runner/engine/mask_region.py \
                runner/engine/mask_apply.py \
                runner/engine/mask_birefnet.py \
                runner/engine/mask_lucida.py \

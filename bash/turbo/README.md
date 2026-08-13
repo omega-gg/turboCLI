@@ -29,7 +29,6 @@ engine: flux2-4b
         qwen-image-edit-2511-lightning
         qwen-image-edit-2511-lightning-angles
         mask                 (no download -- registers a compute engine)
-        mask-region          (no download)
         mask-apply           (no download)
         mask-birefnet        (BiRefNet matte model)
         mask-lucida          (Lucida matte model)
@@ -175,25 +174,26 @@ Usage: image-to-mask <engine> <renderer> <input images> <mask output> [options] 
 
 Generate a mask / matte (an 8-bit grayscale PNG). Apply it with image-apply-mask.
 
-engine: mask            diff mask, best for adding an object / recoloring
-        mask-region     grown boxes, best for removal / replace (ghost-free)
+engine: mask            diff / region mask (options mode=default|region)
         mask-birefnet   subject matte via BiRefNet
         mask-lucida     subject matte via Lucida (glass / camouflage / text / print)
         mask-inspyrenet subject matte via InSPyReNet
 
-renderer: cpu, cuda, mps (mask / mask-region ignore it; the matte engines use it)
+renderer: cpu, cuda, mps (mask ignores it; the matte engines use it)
 
-input images: separated by a comma, the input first. mask / mask-region: input,reference.
-              matte engines: input, or input,plate (a plate keeps the cast shadow).
+input images: separated by a comma, the input first. mask: input,reference. matte engines:
+              input, or input,plate (a plate keeps the cast shadow).
 
-options: key=value,... -- threshold=N (mask: change threshold; matte: shadow floor)
+options: key=value,... -- tolerance=N (0-255, more = more pixels/shadow); mask also takes
+         mode=default|region (default = diff mask, region = grown boxes)
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    image-to-mask mask          cpu  edited.png,original.png mask.png threshold=40
+    image-to-mask mask          cpu  edited.png,original.png mask.png tolerance=215
+    image-to-mask mask          cpu  edited.png,original.png mask.png mode=region
     image-to-mask mask-birefnet cuda photo.png matte.png
-    image-to-mask mask-birefnet cuda photo.png,plate.png matte.png threshold=40
+    image-to-mask mask-birefnet cuda photo.png,plate.png matte.png tolerance=215
 ```
 
 ### [image-apply-mask.sh](image-apply-mask.sh) - Apply a mask (composite or putalpha)

@@ -20,27 +20,27 @@
 #
 #==================================================================================================
 
-# Diff/region mask GENERATION for the mask + mask-region engines. Torch-free (PIL + numpy only), a
-# helper (underscore) so discovery skips it. `build_mask` emits a soft [0..255] `L` mask of where
-# an edit differs from its reference; image-apply-mask then composites or cuts it out.
+# Diff/region mask GENERATION for the mask engine. Torch-free (PIL + numpy only), a helper
+# (underscore) so discovery skips it. `build_mask` emits a soft [0..255] `L` mask of where an edit
+# differs from its reference; image-apply-mask then composites or cuts it out.
 #
 # The edit pipeline redraws + VAE-decodes the whole frame, so every pixel drifts; this diffs the
-# edit against the reference and keeps only where it really changed. Two modes:
-#   mask   soft pixel-diff mask -- tight, best for adding an object / recoloring
-#   region grown bounding boxes -- ghost-free, best for removal / replace (a diff mask leaves a
-#          removed object's low-contrast edges behind as an outline; the box replaces the whole
-#          footprint wholesale)
+# edit against the reference and keeps only where it really changed. Two sub-modes (options mode=):
+#   default soft pixel-diff mask -- tight, best for adding an object / recoloring
+#   region  grown bounding boxes -- ghost-free, best for removal / replace (a diff mask leaves a
+#           removed object's low-contrast edges behind as an outline; the box replaces the whole
+#           footprint wholesale)
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 LR = Image.Resampling.LANCZOS
 
-# THR is the default change threshold (options threshold=N): a pixel differing from the reference
-# by more than THR is changed (kept from the input). Higher -> tighter, keeps more reference;
-# lower -> keeps more, including whole-frame edit drift. MIN_AREA + the per-mode
-# margins below stay fixed (not exposed).
-THR, MIN_AREA          = 24, 400
+# TOLERANCE is the default (options tolerance=N, 0-255): how many pixels the mask keeps -- 0 =
+# strict (few), 255 = loose (more). The engine passes 255 - tolerance as the change threshold
+# `thr`: a pixel differing from the reference by more than `thr` is changed (kept). MIN_AREA + the
+# per-mode margins below stay fixed (not exposed). Default 231 = 255 - 24 (the previous threshold).
+TOLERANCE, MIN_AREA    = 231, 400
 DILATE, FEATHER_MASK   = 5, 3
 GROW,   FEATHER_REGION = 60, 18
 
@@ -136,11 +136,12 @@ def _region_mask(generated, ref, thr, grow, feather, min_area):
     return out
 
 
-def build_mask(reference, edit, mode, thr=THR):
-    """Soft [0..255] `L` mask (255 = changed) of where `edit` differs from `reference`, at the
-    edit's own resolution. The reference is downscaled to the edit's canvas first, so a full-res
-    reference + a smaller edit yields a mask at the edit res; image-apply-mask composite upscales
-    it back to the reference at apply time. Same-size inputs => that resize is an identity."""
+def build_mask(reference, edit, mode, thr):
+    """Soft [0..255] `L` mask (255 = changed) of where `edit` differs from `reference` by more than
+    `thr` (= 255 - tolerance), at the edit's own resolution. The reference is downscaled to the
+    edit's canvas first, so a full-res reference + a smaller edit yields a mask at the edit res;
+    image-apply-mask composite upscales it back to the reference. Same-size => that resize is an
+    identity. mode `region` = grown boxes, anything else (`default`) = the soft pixel-diff mask."""
     ref = reference.resize(edit.size, LR)                  # reference as the edit's own canvas
 
     if mode == "region":

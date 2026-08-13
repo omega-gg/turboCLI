@@ -33,9 +33,11 @@
 import numpy as np
 from PIL import Image, ImageFilter
 
-# Shadow tuning. SHAD_THR (the darkening floor) is the default for options threshold=N; SHAD_NORM
-# (normalisation) and SHAD_MAX (max opacity -- a cast shadow is never fully opaque) stay fixed.
-SHAD_THR, SHAD_NORM, SHAD_MAX = 12.0, 70.0, 0.7
+# Shadow tuning. SHADOW_TOLERANCE is the default (options tolerance=N, 0-255): how much cast
+# shadow to keep -- the engine passes 255 - tolerance as the darkening floor `thr`. SHAD_NORM
+# (normalisation) and SHAD_MAX (max opacity, never fully opaque) stay fixed. Default 243 = 255 - 12
+# (the previous shadow threshold).
+SHADOW_TOLERANCE, SHAD_NORM, SHAD_MAX = 243, 70.0, 0.7
 
 
 def pick_device(want):

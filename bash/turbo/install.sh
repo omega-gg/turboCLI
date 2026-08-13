@@ -120,7 +120,6 @@ if [ $# -lt 1 -o $# -gt 3 ] \
     echo "        qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511-lightning-angles"
     echo "        mask                 (no download -- registers a compute engine)"
-    echo "        mask-region          (no download)"
     echo "        mask-apply           (no download)"
     echo "        mask-birefnet        (BiRefNet matte model)"
     echo "        mask-lucida          (Lucida matte model)"

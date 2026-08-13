@@ -561,8 +561,8 @@ def main():
         print("ERROR: unknown engine '%s'" % args.engine)
         sys.exit(1)
 
-    # A COMFY engine (scaffold keys off ID) and a compute engine (mask / mask-region / mask-apply,
-    # register-only) both declare no MODEL; only a stock engine names the repo it installs.
+    # A COMFY engine (scaffold keys off ID) and a compute engine (mask / mask-apply, register-only)
+    # both declare no MODEL; only a stock engine names the repo it installs.
     model = getattr(mod, "MODEL", None)
 
     # --remove: reference-counted -- drop the registry entry, then GC any model/LoRAs/comfy
@@ -587,8 +587,8 @@ def main():
               % args.engine)
         sys.exit(1)
 
-    # Register-only: a compute engine (mask / mask-region / mask-apply) declares no MODEL and has
-    # nothing to download; write its registry entry so check-model lists it and remove drops it.
+    # Register-only: a compute engine (mask / mask-apply) declares no MODEL and has nothing to
+    # download; write its registry entry so check-model lists it and remove drops it.
     if model is None:
         _write_engine(_stock_record(mod.ID, None, None, []))
         print("Registered %s" % mod.ID, flush=True)
