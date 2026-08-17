@@ -184,16 +184,16 @@ renderer: cpu, cuda, mps (mask ignores it; the matte engines use it)
 input images: separated by a comma, the input first. mask: input,reference. matte engines:
               input, or input,plate (a plate keeps the cast shadow).
 
-options: key=value,... -- tolerance=N (0-255, more = more pixels/shadow); mask also takes
+options: key=value,... -- cutoff=N (0-255, higher = fewer pixels/shadow); mask also takes
          mode=default|region (default = diff mask, region = grown boxes)
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    image-to-mask mask          cpu  edited.png,original.png mask.png tolerance=215
+    image-to-mask mask          cpu  edited.png,original.png mask.png cutoff=40
     image-to-mask mask          cpu  edited.png,original.png mask.png mode=region
     image-to-mask mask-birefnet cuda photo.png matte.png
-    image-to-mask mask-birefnet cuda photo.png,plate.png matte.png tolerance=215
+    image-to-mask mask-birefnet cuda photo.png,plate.png matte.png cutoff=40
 ```
 
 ### [image-apply-mask.sh](image-apply-mask.sh) - Apply a mask (composite or putalpha)

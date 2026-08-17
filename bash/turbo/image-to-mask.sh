@@ -117,16 +117,16 @@ if [ $# -lt 4 -o $# -gt 6 ] \
     echo "input images: comma-separated, the input first. mask: input,reference. matte engines:"
     echo "              input, or input,plate (a plate keeps the cast shadow)."
     echo ""
-    echo "options: key=value,... -- tolerance=N (0-255, more = more pixels/shadow); mask takes"
+    echo "options: key=value,... -- cutoff=N (0-255, higher = fewer pixels/shadow); mask takes"
     echo "         mode=default|region (default = diff mask, region = grown boxes)"
     echo ""
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    image-to-mask mask          cpu  edited.png,original.png mask.png tolerance=215"
+    echo "    image-to-mask mask          cpu  edited.png,original.png mask.png cutoff=40"
     echo "    image-to-mask mask          cpu  edited.png,original.png mask.png mode=region"
     echo "    image-to-mask mask-birefnet cuda photo.png matte.png"
-    echo "    image-to-mask mask-birefnet cuda photo.png,plate.png matte.png tolerance=215"
+    echo "    image-to-mask mask-birefnet cuda photo.png,plate.png matte.png cutoff=40"
 
     exit 1
 fi

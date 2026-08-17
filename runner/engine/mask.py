@@ -23,7 +23,7 @@
 # mask engine -- a mask of where an edit differs from its reference. A "compute" engine: core's
 # run() seam calls it directly (no diffusion, torch-free). images = "input,reference".
 # options: mode=default (soft pixel-diff, best for adding / recoloring) | region (grown boxes, best
-# for removal / replace); tolerance=N (0-255, more = more pixels kept, default 231). Apply the mask
+# for removal / replace); cutoff=N (0-255, higher = fewer pixels, default 24). Apply the mask
 # with image-apply-mask.
 
 ID    = "mask"
@@ -34,12 +34,12 @@ def run(ctx, params, emit):
     import numpy as np
     from PIL import Image
 
-    from ._mask import build_mask, TOLERANCE
+    from ._mask import build_mask, CUTOFF
     from ._options import parse_options
 
     opts = parse_options(params.get("options", ""))
     sub  = opts.get("mode", "default")
-    tol  = int(opts.get("tolerance", TOLERANCE))
+    cut  = int(opts.get("cutoff", CUTOFF))
     imgs = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
 
     if sub not in ("default", "region"):
@@ -51,8 +51,8 @@ def run(ctx, params, emit):
     edit = Image.open(imgs[0]).convert("RGB")
     ref  = Image.open(imgs[1]).convert("RGB")
 
-    mask = build_mask(ref, edit, "region" if sub == "region" else "mask", 255 - tol)
+    mask = build_mask(ref, edit, "region" if sub == "region" else "mask", cut)
 
-    emit("mask[%s tol=%d]: masked %.0f%%" % (sub, tol, np.asarray(mask).mean() / 255 * 100))
+    emit("mask[%s cut=%d]: masked %.0f%%" % (sub, cut, np.asarray(mask).mean() / 255 * 100))
 
     return mask

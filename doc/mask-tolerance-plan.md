@@ -1,5 +1,9 @@
 # Mask engines: tolerance option + merge mask / mask-region
 
+> **Update:** the option shipped as **`cutoff`** (the direct change threshold, 0-255, higher =
+> fewer pixels/shadow; defaults 24 diff/region, 12 shadow) rather than the reversed `tolerance`
+> described below. The merge and everything else below stand as implemented.
+
 ## Context
 
 Two ergonomics changes to the mask engines:

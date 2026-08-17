@@ -22,8 +22,8 @@
 
 # mask-birefnet engine -- a subject matte via BiRefNet (ZhengPeng7/BiRefNet). A "compute" engine:
 # core's run() seam calls run() directly (no diffusion, no offloader). torch/transformers load only
-# inside run(). images = "input[,plate]" (a plate keeps the cast shadow); options tolerance=N
-# (0-255, the plate-shadow floor -- more = more shadow, default 243; inert without a plate). Apply
+# inside run(). images = "input[,plate]" (a plate keeps the cast shadow); options cutoff=N
+# (0-255, the plate-shadow floor -- higher = less shadow, default 12; inert without a plate). Apply
 # the matte with image-apply-mask.
 #
 # Install (python -m runner.install): kind "snapshot" -> the whole HF repo verbatim (weights + the
@@ -40,10 +40,10 @@ def run(ctx, params, emit):
     import os
     from PIL import Image, ImageStat
 
-    from ._segment import pick_device, birefnet_alpha, build_matte, SHADOW_TOLERANCE
+    from ._segment import pick_device, birefnet_alpha, build_matte, SHADOW_CUTOFF
     from ._options import parse_options
 
-    thr  = 255 - int(parse_options(params.get("options", "")).get("tolerance", SHADOW_TOLERANCE))
+    thr  = int(parse_options(params.get("options", "")).get("cutoff", SHADOW_CUTOFF))
     imgs = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
 
     if not imgs:

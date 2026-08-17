@@ -36,11 +36,10 @@ from PIL import Image, ImageDraw, ImageFilter
 
 LR = Image.Resampling.LANCZOS
 
-# TOLERANCE is the default (options tolerance=N, 0-255): how many pixels the mask keeps -- 0 =
-# strict (few), 255 = loose (more). The engine passes 255 - tolerance as the change threshold
-# `thr`: a pixel differing from the reference by more than `thr` is changed (kept). MIN_AREA + the
-# per-mode margins below stay fixed (not exposed). Default 231 = 255 - 24 (the previous threshold).
-TOLERANCE, MIN_AREA    = 231, 400
+# CUTOFF is the default (options cutoff=N, 0-255): the per-pixel change threshold `thr` -- a pixel
+# differing from the reference by more than `thr` is changed (kept). Higher = fewer pixels, lower =
+# more. MIN_AREA + the per-mode margins below stay fixed (not exposed). Default 24.
+CUTOFF, MIN_AREA       = 24, 400
 DILATE, FEATHER_MASK   = 5, 3
 GROW,   FEATHER_REGION = 60, 18
 
@@ -138,7 +137,7 @@ def _region_mask(generated, ref, thr, grow, feather, min_area):
 
 def build_mask(reference, edit, mode, thr):
     """Soft [0..255] `L` mask (255 = changed) of where `edit` differs from `reference` by more than
-    `thr` (= 255 - tolerance), at the edit's own resolution. The reference is downscaled to the
+    `thr` (the cutoff), at the edit's own resolution. The reference is downscaled to the
     edit's canvas first, so a full-res reference + a smaller edit yields a mask at the edit res;
     image-apply-mask composite upscales it back to the reference. Same-size => that resize is an
     identity. mode `region` = grown boxes, anything else (`default`) = the soft pixel-diff mask."""

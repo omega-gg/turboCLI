@@ -190,8 +190,8 @@ modes, six engines:
 
 Inputs ride the comma-separated **`images`** param (ordered), the input always first:
 `input,reference` for mask, `input[,plate]` for the matte engines, `input,mask[,reference]` for
-apply. Per-call scalars ride a general-purpose **`--options`** field (`key=value,...`): `tolerance=N`
-(0-255, more = more pixels/shadow kept — the mask change knob / matte shadow floor) and `mode`
+apply. Per-call scalars ride a general-purpose **`--options`** field (`key=value,...`): `cutoff=N`
+(0-255, higher = fewer pixels/shadow — the mask change threshold / matte shadow floor) and `mode`
 (`default|region` for mask, `composite|putalpha` for apply). The engine modules stay torch-free at
 import (heavy imports live in `run()`), so discovery and the diffusion path never load the
 segmentation stack — the load-bearing zero-regression guarantee.
@@ -289,8 +289,8 @@ answer is derivable.
 | `comfy-qwen-image-edit-2511-lightning` | BASE = the above; entire delta = one extra COMFY component (the LoRA) + 4 steps |
 | `comfy-krea2-turbo` | both DiT and TE scaled-fp8; hand-written key converter (validated 1:1, 430/430); offloader-only; deliberately standalone — it differs on transformer, TE and pipeline, so BASE would override nearly everything (`doc/comfy-krea2-turbo-plan.md`). `_lora_keys` (copied from ComfyUI's `model_lora_keys_unet` Krea2 branch on `krea2_to_diffusers`) maps every published LoRA naming — ComfyUI-native, diffusers, lycoris — onto the diffusers module tree, so stock Civitai/HF Krea2 LoRAs (lora_A/B, `diff`, LoKr) load unmodified via the offloader's `lora_keys` spec |
 | `comfy-krea2-turbo-realism` | BASE = the above; entire delta = one extra COMFY component (the Krea2-realism-V2 LoKr into ComfyUI's `models/loras/`, explicit `filename` since it sits at a plain repo's root, revision-pinned) + a `load()` that prepends it to `ctx.loras` at 1.5 before delegating to the base assembly |
-| `mask` | **compute engine** (declares `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box mask (options `mode=default\|region`); register-only install; options `tolerance=N` (0-255) |
-| `mask-birefnet` / `mask-lucida` / `mask-inspyrenet` | compute matte engines, mode `image-to-mask`; MODEL `kind` snapshot (birefnet/lucida) or url (inspyrenet); `mask-lucida` BASE = `mask-birefnet`; optional plate keeps the cast shadow; options `tolerance=N` (shadow floor) |
+| `mask` | **compute engine** (declares `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box mask (options `mode=default\|region`); register-only install; options `cutoff=N` (0-255) |
+| `mask-birefnet` / `mask-lucida` / `mask-inspyrenet` | compute matte engines, mode `image-to-mask`; MODEL `kind` snapshot (birefnet/lucida) or url (inspyrenet); `mask-lucida` BASE = `mask-birefnet`; optional plate keeps the cast shadow; options `cutoff=N` (shadow floor) |
 | `mask-apply` | compute engine, mode `image-apply-mask`; applies a mask via `composite` or `putalpha`; register-only; options `mode=composite\|putalpha` |
 
 ## The backend seam (runner side)
@@ -433,7 +433,7 @@ into the body (cli.py:82-89, server.py:237-246).
   `doc/comfy-krea2-turbo-plan.md` (fp8 engines, the `(1 + weight)` RMSNorm trap, per-step parity
   with ComfyUI), `doc/image-mask-plan.md` + `doc/image-mask-split-plan.md` (the earlier standalone
   mask tool) then `doc/mask-engines-plan.md` (folding mask/matte/apply in as engines) then
-  `doc/mask-tolerance-plan.md` (the `tolerance` knob + the mask/region merge),
+  `doc/mask-tolerance-plan.md` (the `cutoff` knob + the mask/region merge),
   `doc/IMPLEMENTATION_PLAN.md` (this document's plan). Script usage blocks live
   in `bash/README.md`, `bash/turbo/README.md`, `bash/python/README.md`.
 - The offload backend's internals — vendored ComfyUI subsystem, native vs VBAR paths, CPU

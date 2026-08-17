@@ -47,19 +47,19 @@ knights scene (add a knight, then a second doing an accolade) does exactly this:
 # stage 1: add a knight (keep the background), then mask it onto the clean temple
 image-to-image flux2-4b cuda "a knight ...; keep the original background identical" \
     courtyard.png kn1.png 736 1024 7 4
-image-to-mask mask cpu kn1.png,courtyard.png kn1_mask.png tolerance=215
+image-to-mask mask cpu kn1.png,courtyard.png kn1_mask.png cutoff=40
 image-apply-mask composite kn1.png,kn1_mask.png,courtyard.png kn1_clean.png
 
 # stage 2: add the second knight from the CLEAN base, then mask both onto the temple
 image-to-image flux2-4b cuda "two knights ... accolade ...; keep the original background identical" \
     kn1_clean.png kn2.png 736 1024 7 4
-image-to-mask mask cpu kn2.png,courtyard.png kn2_mask.png tolerance=215
+image-to-mask mask cpu kn2.png,courtyard.png kn2_mask.png cutoff=40
 image-apply-mask composite kn2.png,kn2_mask.png,courtyard.png kn2_clean.png
 
 # reuse that same mask to cut both knights onto transparency
 image-apply-mask putalpha kn2.png,kn2_mask.png kn2_cutout.png
 ```
 
-Lower the mask tolerance below the default 231 (`tolerance=215` here) when flux2's whole-frame drift
+Raise the mask cutoff above the default 24 (`cutoff=40` here) when flux2's whole-frame drift
 speckles the mask; the last two lines show one generated mask feeding both apply modes (composite +
 putalpha).
