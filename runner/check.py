@@ -27,6 +27,7 @@
 #   python -m runner.check --engine <name>   # check one engine
 #   python -m runner.check                   # list installed engine ids
 #   python -m runner.check --modes <a,b>     # list installed engine ids supporting any listed mode
+#   python -m runner.check --settings <name> # the run settings that install recorded
 #
 # An engine is "installed" when it has a registry entry AND its referenced files exist: for a stock
 # engine the model dir's model_index.json + every recorded LoRA (the record carries the revision);
@@ -38,7 +39,7 @@
 import sys
 import argparse
 
-from runner.install import _discover, _engine_installed
+from runner.install import _discover, _engine_installed, _read_engine, settings
 
 
 def main():
@@ -46,6 +47,7 @@ def main():
 
     parser.add_argument("--engine", default=None)
     parser.add_argument("--modes", default=None)
+    parser.add_argument("--settings", default=None)
 
     args = parser.parse_args()
 
@@ -63,6 +65,22 @@ def main():
 
             if _engine_installed(mod) and any(m in mod.MODES for m in wanted):
                 print(eid)
+
+        sys.exit(0)
+
+    # --settings: what install recorded for this engine. The renderer it was set up for and the
+    # options a run would take, so a host offers them rather than guessing. An engine installed
+    # before the record held them reads as the defaults (install.SETTINGS_DEFAULT).
+    if args.settings is not None:
+        mod = engines.get(args.settings)
+
+        if mod is None or not _engine_installed(mod):
+            sys.exit(1)
+
+        values = settings(_read_engine(mod.ID))
+
+        for key in ("renderer", "dtype", "inference", "offload", "slicing"):
+            print("%s: %s" % (key, values[key]))
 
         sys.exit(0)
 

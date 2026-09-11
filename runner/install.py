@@ -64,6 +64,22 @@ import importlib
 # LoRAs install into a "lora/" subfolder of the model dir (apart from the base checkpoint files).
 LORA_DIR = "lora"
 
+# How a run of this engine is meant to go: set in main(), written on every record, and what an
+# engine installed before the block reads as.
+SETTINGS_DEFAULT = {"renderer": "cpu", "dtype": "default", "inference": "-1",
+                    "offload": "offloader", "slicing": "none"}
+
+_settings = dict(SETTINGS_DEFAULT)
+
+
+def settings(record):
+    """The run settings a record carries, filling what an older one omits."""
+    values = dict(SETTINGS_DEFAULT)
+
+    values.update((record or {}).get("settings") or {})
+
+    return values
+
 
 def default_folder():
     """The model folder: `model` inside the install dir, side by side with runner/
@@ -105,12 +121,16 @@ def _write_engine(record):
     out = _engine_dir(record["id"])
     old = _read_engine(record["id"])
 
+    # The install command line rides along, whichever record shape this is. A reinstall re-assigns
+    # it without every install path having to carry it.
+    record["settings"] = _settings
+
     os.makedirs(out, exist_ok=True)
 
     with open(os.path.join(out, "engine.json"), "w") as f:
         json.dump(record, f, indent=2)
 
-    # After the write, so the new record counts as a live reference -- otherwise a plain reinstall
+    # After the write, so the new record counts as a live reference. Otherwise a plain reinstall
     # would GC the files it just downloaded.
     if old is not None:
         _gc(old, _referenced())
@@ -546,6 +566,12 @@ def main():
     # this (core._device_dtype picks it from the renderer), so "default" is the right install
     # choice unless you specifically want a smaller/larger on-disk copy.
     parser.add_argument("--dtype", default="default")
+    # The run settings recorded with the install, for a host to read back and offer. They
+    # change nothing about what is downloaded.
+    parser.add_argument("--renderer", default="cpu")
+    parser.add_argument("--inference", default="-1")
+    parser.add_argument("--offload", default="offloader")
+    parser.add_argument("--slicing", default="none")
     # --remove: delete the engine's model directory (base model + any LoRAs in it) instead of
     # installing.
     parser.add_argument("--remove", action="store_true")
@@ -554,6 +580,11 @@ def main():
     parser.add_argument("--comfy", default=None)
 
     args = parser.parse_args()
+
+    global _settings
+
+    _settings = {"renderer": args.renderer, "dtype": args.dtype, "inference": args.inference,
+                 "offload": args.offload, "slicing": args.slicing}
 
     mod = _discover().get(args.engine)
 
@@ -629,6 +660,12 @@ def main():
 
     loras_present = all(os.path.isfile(os.path.join(out, LORA_DIR, lora["file"]))
                         for lora in loras)
+
+    # A base already here is never re-downloaded, and the cast happens on that download alone.
+    # A dtype that changed is a wish the files do not hold, whatever else this install fetches.
+    if base_ok and args.dtype != settings(_read_engine(mod.ID))["dtype"]:
+        print("The weights keep the dtype they were installed with; remove first to recast.",
+              flush=True)
 
     # Fully installed already -> just ensure the registry entry (this is also the migration path:
     # re-running install over a present model writes engine.json without re-downloading).

@@ -69,13 +69,17 @@ gg.omega/
    stack" (build.sh:43-44). `latest` drops all pins with a "not reproducible" warning.
    `model/` and `engine/` are detached to `.turbo-model`/`.turbo-engine` before the wipe and
    reattached after (build.sh:178-211), so a rebuild never re-downloads ~20 GB of weights.
-3. **`bash/turbo/install.sh <engine> [dtype] [ComfyUI dir]`** → `python -m runner.install` — the
-   only ONLINE step (exports `HF_HOME`, `hf-transfer`); generation itself runs with
-   `HF_HUB_OFFLINE=1`. Details under `install.py` below.
+3. **`bash/turbo/install.sh <engine> <renderer> [dtype] [inference] [offload] [slicing]
+   [ComfyUI dir]`** → `python -m runner.install` — the only ONLINE step (exports `HF_HOME`,
+   `hf-transfer`); generation itself runs with `HF_HUB_OFFLINE=1`. The renderer and the three
+   options after the dtype download nothing: they are recorded in the engine's registry entry so
+   a host can offer them back, see `install.py` below.
 
 `bash/turbo/check.sh` (turboCLI installed?) and `check-model.sh` (engine installed? `list`) are
 the machine contracts a host app polls: fixed one-line outputs + exit code 0/1, both torch-free
-and venv-free so they run under the bundled python.
+and venv-free so they run under the bundled python. `check-model SETTINGS:<engine>` is the one
+query that answers in several lines — `key: value` per recorded setting — which is why it is a
+query of its own rather than more output on the installed check.
 
 ## The runner package
 
@@ -138,6 +142,13 @@ inside the base-reinstall branch (`install.py:561-562`).
   pinned revision, LoRA list; for a comfy engine its component refs + scaffold source
   (`install.py:40-50`). No per-model-dir markers: a shared dir's revision is derived from any
   engine record referencing it (`_model_revision`, install.py:177).
+- **Run settings ride the record**: the renderer, dtype, inference, offload and slicing the
+  install was given land in `settings`, written by `_write_engine` whatever record shape it is
+  handed — so every path records them and a reinstall re-assigns them, download or not. They
+  download nothing; `check-model SETTINGS:<engine>` reads them back for a host, and a record
+  written before the block reads as `SETTINGS_DEFAULT` (`settings()`, install.py:71-90). The
+  dtype is a *wish* once a base is present: `base_ok` skips the re-download, so nothing is
+  recast and install says to `remove` first.
 - **Stock install** (`install.py:508-630`): `from_pretrained(repo, revision=pin)` →
   `save_pretrained` into `model/<name>` (a self-contained canonical copy), fetch the engine's
   declared LoRAs into `model/<name>/lora/`, then trim the HF cache for everything pulled — disk

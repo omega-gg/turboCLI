@@ -15,7 +15,9 @@ example:
 ### [install.sh](install.sh) - Install a model into the model folder
 
 ```
-Usage: install <engine> [dtype = default] [ComfyUI folder]
+Usage: install <engine> <renderer> [dtype = default] [inference = -1]
+               [offload = offloader] [slicing = none]
+               [ComfyUI folder]
 
 engine: flux2-4b
         z-image-turbo
@@ -34,15 +36,27 @@ engine: flux2-4b
         mask-lucida          (Lucida matte model)
         mask-inspyrenet      (InSPyReNet matte model)
 
+renderer: cpu, cuda, mps
+
 dtype: default, bfloat16, float16, float32
        (bfloat16 is recommended for CUDA, float16 for Apple MPS)
+       (the weights are cast on a fresh install alone, remove first to recast)
+
+offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
+
+slicing: none, slice
 
 ComfyUI folder: reuse an existing ComfyUI install's model files (comfy-* engines).
                 Missing components are fetched into ComfyUI's own models hierarchy.
 
+NOTE: The renderer and the options after it are recorded with the install, so a host
+      reads them back with 'check-model SETTINGS:<engine>'. Installing again over an
+      installed engine re-assigns them.
+
 examples:
-    install flux2-4b
-    install comfy-z-image-turbo default C:/dev/test/ComfyUI_windows_portable
+    install flux2-4b cuda
+    install comfy-z-image-turbo cuda bfloat16 -1 offloader none
+    install comfy-z-image-turbo cuda default -1 offloader none C:/dev/ComfyUI_portable
 ```
 
 ### [remove.sh](remove.sh) - Remove an installed engine (reference-counted)
@@ -76,6 +90,9 @@ engine: an installed id, reports whether it is installed
 
 MODES: list the installed engine id(s) supporting ANY of the listed modes
        (text-to-image, image-to-image)
+
+SETTINGS: the run settings an engine was installed with, one 'key: value' per line
+          (renderer, dtype, inference, offload, slicing)
 ```
 
 ### [server.sh](server.sh) - Start and control the rendering server

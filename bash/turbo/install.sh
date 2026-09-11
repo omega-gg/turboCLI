@@ -28,6 +28,12 @@ set -e
 
 dtype="default"
 
+inference="-1"
+
+offload="offloader"
+
+slicing="none"
+
 comfy=""
 
 #--------------------------------------------------------------------------------------------------
@@ -101,12 +107,18 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 1 -o $# -gt 3 ] \
+if [ $# -lt 2 -o $# -gt 7 ] \
    || \
-   [ $# -ge 2 -a "$2" != "default" \
-              -a "$2" != "bfloat16" -a "$2" != "float16" -a "$2" != "float32" ]; then
+   [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ] \
+   || \
+   [ $# -ge 3 -a "$3" != "default" \
+              -a "$3" != "bfloat16" -a "$3" != "float16" -a "$3" != "float32" ] \
+   || \
+   [ $# -ge 6 -a "$6" != "none" -a "$6" != "slice" ]; then
 
-    echo "Usage: install <engine> [dtype = $dtype] [ComfyUI folder]"
+    echo "Usage: install <engine> <renderer> [dtype = $dtype] [inference = $inference]"
+    echo "               [offload = $offload] [slicing = $slicing]"
+    echo "               [ComfyUI folder]"
     echo ""
     echo "engine: flux2-4b"
     echo "        z-image-turbo"
@@ -125,16 +137,27 @@ if [ $# -lt 1 -o $# -gt 3 ] \
     echo "        mask-lucida          (Lucida matte model)"
     echo "        mask-inspyrenet      (InSPyReNet matte model)"
     echo ""
+    echo "renderer: cpu, cuda, mps"
+    echo ""
     echo "dtype: default, bfloat16, float16, float32"
     echo "       (bfloat16 is recommended for CUDA, float16 for Apple MPS)"
+    echo "       (the weights are cast on a fresh install alone, remove first to recast)"
+    echo ""
+    echo "offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)"
+    echo ""
+    echo "slicing: none, slice"
     echo ""
     echo "ComfyUI folder: optional. Reuse an existing ComfyUI install's model files;"
     echo "                if omitted, components download into turbo/model/ComfyUI/models/."
     echo ""
+    echo "NOTE: The renderer and the options after it are recorded with the install, so a host"
+    echo "      reads them back with 'check-model SETTINGS:<engine>'. Installing again over an"
+    echo "      installed engine re-assigns them."
+    echo ""
     echo "examples:"
-    echo "    install flux2-4b"
-    echo "    install comfy-z-image-turbo"
-    echo "    install comfy-z-image-turbo default C:/dev/test/ComfyUI_windows_portable"
+    echo "    install flux2-4b cuda"
+    echo "    install comfy-z-image-turbo cuda bfloat16 -1 offloader none"
+    echo "    install comfy-z-image-turbo cuda default -1 offloader none C:/dev/ComfyUI_portable"
 
     exit 1
 fi
@@ -151,9 +174,17 @@ python="${SKY_PATH_PYTHON:-$sky/python}"
 
 engine="$1"
 
-if [ $# -ge 2 ]; then dtype="$2"; fi
+renderer="$2"
 
-if [ $# -ge 3 ]; then comfy="$3"; fi
+if [ $# -ge 3 ]; then dtype="$3"; fi
+
+if [ $# -ge 4 ]; then inference="$4"; fi
+
+if [ $# -ge 5 ]; then offload="$5"; fi
+
+if [ $# -ge 6 ]; then slicing="$6"; fi
+
+if [ $# -ge 7 ]; then comfy="$7"; fi
 
 host=$(getOs)
 
@@ -208,11 +239,19 @@ if [ -n "$comfy" ]; then
 
     # Reuse a ComfyUI install's model files (comfy-* engines).
     python -m runner.install \
-           --engine "$engine" \
-           --dtype  "$dtype" \
-           --comfy  "$comfy"
+           --engine    "$engine" \
+           --renderer  "$renderer" \
+           --dtype     "$dtype" \
+           --inference "$inference" \
+           --offload   "$offload" \
+           --slicing   "$slicing" \
+           --comfy     "$comfy"
 else
     python -m runner.install \
-           --engine "$engine" \
-           --dtype  "$dtype"
+           --engine    "$engine" \
+           --renderer  "$renderer" \
+           --dtype     "$dtype" \
+           --inference "$inference" \
+           --offload   "$offload" \
+           --slicing   "$slicing"
 fi

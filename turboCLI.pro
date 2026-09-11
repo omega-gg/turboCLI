@@ -13,6 +13,7 @@ OTHER_FILES += README.md  \
                doc/engine-inheritance-plan.md \
                doc/DUMMY_PLAN.md \
                doc/IMPLEMENTATION_PLAN.md \
+               doc/install-settings-plan.md \
                doc/image-mask-plan.md \
                doc/image-mask-split-plan.md \
                doc/mask-engines-plan.md \
