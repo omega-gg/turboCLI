@@ -82,7 +82,7 @@ Usage: check
 ### [check-model.sh](check-model.sh) - Check the installed models
 
 ```
-Usage: check-model [engine | MODES:<mode,...>]
+Usage: check-model [engine | MODES:<mode,...> | ENGINES:<mode> | SETTINGS:<engine>]
 
 no argument (or 'list'): list the installed engine id(s)
 
@@ -90,6 +90,9 @@ engine: an installed id, reports whether it is installed
 
 MODES: list the installed engine id(s) supporting ANY of the listed modes
        (text-to-image, image-to-image)
+
+ENGINES: every engine supporting the mode, with 'installed' or 'absent'
+         (text-to-image, image-to-image, image-to-mask)
 
 SETTINGS: the run settings an engine was installed with, one 'key: value' per line
           (renderer, dtype, inference, offload, slicing)

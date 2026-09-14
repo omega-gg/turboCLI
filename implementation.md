@@ -77,9 +77,10 @@ gg.omega/
 
 `bash/turbo/check.sh` (turboCLI installed?) and `check-model.sh` (engine installed? `list`) are
 the machine contracts a host app polls: fixed one-line outputs + exit code 0/1, both torch-free
-and venv-free so they run under the bundled python. `check-model SETTINGS:<engine>` is the one
-query that answers in several lines — `key: value` per recorded setting — which is why it is a
-query of its own rather than more output on the installed check.
+and venv-free so they run under the bundled python. `check-model SETTINGS:<engine>` and
+`ENGINES:<mode>` answer in several lines — `key: value` per recorded setting, `<id>
+installed|absent` per engine of the mode — which is why they are queries of their own rather than
+more output on the installed check.
 
 ## The runner package
 

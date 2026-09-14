@@ -27,6 +27,7 @@
 #   python -m runner.check --engine <name>   # check one engine
 #   python -m runner.check                   # list installed engine ids
 #   python -m runner.check --modes <a,b>     # list installed engine ids supporting any listed mode
+#   python -m runner.check --engines <mode>  # every engine of a mode, installed or absent
 #   python -m runner.check --settings <name> # the run settings that install recorded
 #
 # An engine is "installed" when it has a registry entry AND its referenced files exist: for a stock
@@ -47,6 +48,7 @@ def main():
 
     parser.add_argument("--engine", default=None)
     parser.add_argument("--modes", default=None)
+    parser.add_argument("--engines", default=None)
     parser.add_argument("--settings", default=None)
 
     args = parser.parse_args()
@@ -65,6 +67,19 @@ def main():
 
             if _engine_installed(mod) and any(m in mod.MODES for m in wanted):
                 print(eid)
+
+        sys.exit(0)
+
+    # --engines: every engine a mode has, installed or not, as `<id> installed|absent` - what a
+    # host installs from, where --modes lists what it can already run.
+    if args.engines is not None:
+        for eid in sorted(engines):
+            mod = engines[eid]
+
+            if args.engines not in mod.MODES:
+                continue
+
+            print("%s %s" % (eid, "installed" if _engine_installed(mod) else "absent"))
 
         sys.exit(0)
 

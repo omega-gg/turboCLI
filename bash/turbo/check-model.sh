@@ -49,7 +49,7 @@ getSky()
 
 if [ $# -gt 1 ]; then
 
-    echo "Usage: check-model [engine | MODES:<mode,...> | SETTINGS:<engine>]"
+    echo "Usage: check-model [engine | MODES:<mode,...> | ENGINES:<mode> | SETTINGS:<engine>]"
     echo ""
     echo "no argument (or 'list'): list the installed engine id(s)"
     echo ""
@@ -57,6 +57,9 @@ if [ $# -gt 1 ]; then
     echo ""
     echo "MODES: list the installed engine id(s) supporting ANY of the listed modes"
     echo "       (text-to-image, image-to-image)"
+    echo ""
+    echo "ENGINES: every engine supporting the mode, with 'installed' or 'absent'"
+    echo "         (text-to-image, image-to-image, image-to-mask)"
     echo ""
     echo "SETTINGS: the run settings an engine was installed with, one 'key: value' per line"
     echo "          (renderer, dtype, inference, offload, slicing)"
@@ -96,6 +99,8 @@ case "$engine" in
         python -m runner.check;;
     MODES:*)
         python -m runner.check --modes "${engine#MODES:}";;
+    ENGINES:*)
+        python -m runner.check --engines "${engine#ENGINES:}";;
     SETTINGS:*)
         python -m runner.check --settings "${engine#SETTINGS:}";;
     *)
