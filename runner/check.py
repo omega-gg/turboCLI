@@ -28,7 +28,8 @@
 #   python -m runner.check                   # list installed engine ids
 #   python -m runner.check --modes <a,b>     # list installed engine ids supporting any listed mode
 #   python -m runner.check --engines <mode>  # every engine of a mode, installed or absent
-#   python -m runner.check --settings <name> # the run settings that install recorded
+#   python -m runner.check --settings <name> # the run settings that install recorded, and the
+#                                            # ComfyUI folder a comfy engine was installed inside
 #
 # An engine is "installed" when it has a registry entry AND its referenced files exist: for a stock
 # engine the model dir's model_index.json + every recorded LoRA (the record carries the revision);
@@ -40,7 +41,8 @@
 import sys
 import argparse
 
-from runner.install import _discover, _engine_installed, _read_engine, settings
+from runner.install import _discover, _engine_installed, _read_engine, _under, default_folder, \
+                           settings
 
 
 def main():
@@ -92,10 +94,19 @@ def main():
         if mod is None or not _engine_installed(mod):
             sys.exit(1)
 
-        values = settings(_read_engine(mod.ID))
+        record = _read_engine(mod.ID)
+
+        values = settings(record)
 
         for key in ("renderer", "dtype", "inference", "offload", "slicing"):
             print("%s: %s" % (key, values[key]))
+
+        # A comfy engine installed inside an existing ComfyUI names that folder, so a reinstall can
+        # pass it again - without it the engine would move into our own folder and download anew.
+        comfy = record.get("comfy")
+
+        if comfy and not _under(comfy["root"], default_folder()):
+            print("comfy: %s" % comfy["root"])
 
         sys.exit(0)
 

@@ -95,7 +95,8 @@ ENGINES: every engine supporting the mode, with 'installed' or 'absent'
          (text-to-image, image-to-image, image-to-mask)
 
 SETTINGS: the run settings an engine was installed with, one 'key: value' per line
-          (renderer, dtype, inference, offload, slicing)
+          (renderer, dtype, inference, offload, slicing), and 'comfy: <folder>'
+          for a comfy engine installed inside an existing ComfyUI
 ```
 
 ### [server.sh](server.sh) - Start and control the rendering server

@@ -62,7 +62,8 @@ if [ $# -gt 1 ]; then
     echo "         (text-to-image, image-to-image, image-to-mask)"
     echo ""
     echo "SETTINGS: the run settings an engine was installed with, one 'key: value' per line"
-    echo "          (renderer, dtype, inference, offload, slicing)"
+    echo "          (renderer, dtype, inference, offload, slicing), and 'comfy: <folder>'"
+    echo "          for a comfy engine installed inside an existing ComfyUI"
 
     exit 1
 fi

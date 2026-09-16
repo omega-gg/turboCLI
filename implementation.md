@@ -78,9 +78,10 @@ gg.omega/
 `bash/turbo/check.sh` (turboCLI installed?) and `check-model.sh` (engine installed? `list`) are
 the machine contracts a host app polls: fixed one-line outputs + exit code 0/1, both torch-free
 and venv-free so they run under the bundled python. `check-model SETTINGS:<engine>` and
-`ENGINES:<mode>` answer in several lines — `key: value` per recorded setting, `<id>
-installed|absent` per engine of the mode — which is why they are queries of their own rather than
-more output on the installed check.
+`ENGINES:<mode>` answer in several lines — `key: value` per recorded setting, plus `comfy:
+<folder>` for a comfy engine installed inside an existing ComfyUI (so a reinstall passes it again
+rather than moving the engine into our own folder), `<id> installed|absent` per engine of the
+mode — which is why they are queries of their own rather than more output on the installed check.
 
 ## The runner package
 
@@ -164,7 +165,9 @@ inside the base-reinstall branch (`install.py:561-562`).
   and write engine.json with `external` flagging weights outside our model folder. `external` is
   *diagnostic only* — nothing reads it; what actually protects a user's ComfyUI is `_gc`'s live
   `_under(path, default_folder())` guard, recomputed from the real path. Without `--comfy` a
-  self-contained `model/ComfyUI/` layout is used. The scaffold is pruned after the fetch
+  self-contained `model/ComfyUI/` layout is used - so a reinstall that forgets the folder moves the
+  engine there and downloads every component again, which is why `check-model SETTINGS:` hands
+  the folder back as `comfy:`. The scaffold is pruned after the fetch
   (`_prune_scaffold`) so narrowing `SCAFFOLD.allow_patterns` cannot leave orphans behind.
 - **Removal and reinstall share one GC** (`_referenced` + `_gc`): delete what a record referenced
   that the registry no longer names — only models / LoRAs / comfy components no surviving engine
