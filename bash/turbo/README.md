@@ -206,9 +206,11 @@ input images: separated by a comma, the input first. mask: input,reference. matt
               input, or input,plate (a plate keeps the cast shadow).
 
 options: key=value,... -- cutoff=N (0-255, higher = fewer pixels/shadow); mask also takes
-         mode=default|region (default = diff mask, region = grown boxes) and glow=N (pixels,
+         mode=default|region (default = diff mask, region = grown boxes), glow=N (pixels,
          mode=default only: the mask reaches that far past the change, faded, which covers the
-         outline a removal leaves behind)
+         outline a removal leaves behind) and fade=<sides> (any of ltrb, mode=region only:
+         softens the mask on the borders the caller cut, for an input that is a crop of a bigger
+         picture. A side left out keeps its hard edge)
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
@@ -216,6 +218,7 @@ examples:
     image-to-mask mask          cpu  edited.png,original.png mask.png cutoff=40
     image-to-mask mask          cpu  edited.png,original.png mask.png mode=region
     image-to-mask mask          cpu  edited.png,original.png mask.png glow=16
+    image-to-mask mask          cpu  crop.png,crop_plate.png mask.png mode=region,fade=ltrb
     image-to-mask mask-birefnet cuda photo.png matte.png
     image-to-mask mask-birefnet cuda photo.png,plate.png matte.png cutoff=40
 ```

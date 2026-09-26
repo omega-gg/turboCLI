@@ -25,7 +25,9 @@
 # options: mode=default (soft pixel-diff, best for adding / recoloring) | region (grown boxes, best
 # for removal / replace); cutoff=N (0-255, higher = fewer pixels, default 24); glow=N (pixels,
 # default 0, mode=default only) reaches that far past the change, faded, which covers the outline a
-# removal leaves behind. Apply the mask with image-apply-mask.
+# removal leaves behind; fade=<sides> (any of "ltrb", none by default, mode=region only) softens
+# the mask on the borders the caller cut, for a mask made of part of a picture. Apply the mask
+# with image-apply-mask.
 
 ID    = "mask"
 MODES = ("image-to-mask",)
@@ -42,10 +44,14 @@ def run(ctx, params, emit):
     sub  = opts.get("mode", "default")
     cut  = int(opts.get("cutoff", CUTOFF))
     glow = int(opts.get("glow", 0))
+    fade = opts.get("fade", "")
     imgs = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
 
     if sub not in ("default", "region"):
         raise ValueError("mode must be default or region")
+
+    if set(fade) - set("ltrb"):
+        raise ValueError("fade takes the sides to soften, any of ltrb")
 
     if len(imgs) < 2:
         raise ValueError("mask needs images=input,reference")
@@ -53,7 +59,7 @@ def run(ctx, params, emit):
     edit = Image.open(imgs[0]).convert("RGB")
     ref  = Image.open(imgs[1]).convert("RGB")
 
-    mask = build_mask(ref, edit, "region" if sub == "region" else "mask", cut, glow)
+    mask = build_mask(ref, edit, "region" if sub == "region" else "mask", cut, glow, fade)
 
     emit("mask[%s cut=%d glow=%d]: masked %.0f%%"
          % (sub, cut, glow, np.asarray(mask).mean() / 255 * 100))

@@ -14,6 +14,12 @@ generates a mask/matte (engine = mask | mask-birefnet | mask-lucida | mask-inspy
 are a comma-separated, ordered list -- the input always first. `SKY_PATH_BIN` must point at the
 install; run from anywhere:
 
+The `mask` engine takes two more options. `glow=N` carries a `default` mask N pixels further out,
+which covers the outline a removal leaves behind, and `fade=<sides>` softens a `region` mask on
+the borders the caller cut, for a mask made of part of a picture. Both are off unless sent, see
+[doc/mask-glow-plan.md](../doc/mask-glow-plan.md) and
+[doc/mask-fade-plan.md](../doc/mask-fade-plan.md).
+
 ```sh
 # background matte, then cut the subject onto transparency (birefnet)
 image-to-mask mask-birefnet cuda knight.png matte.png
@@ -25,6 +31,9 @@ image-apply-mask putalpha knight.png,matte_shadow.png knight_cutout.png
 
 # region: remove the knight (input = empty courtyard edit, reference = knight scene)
 image-to-mask mask cpu courtyard.png,knight.png remove_mask.png mode=region
+
+# the same on a crop of the scene: every border of it is the cut, so every border fades
+image-to-mask mask cpu crop.png,crop_plate.png crop_mask.png mode=region,fade=ltrb
 image-apply-mask composite courtyard.png,remove_mask.png,knight.png knight_removed.png
 
 # mask: keep an added object (input = chest edit, reference = empty courtyard)

@@ -120,7 +120,9 @@ if [ $# -lt 4 -o $# -gt 6 ] \
     echo "options: key=value,... -- cutoff=N (0-255, higher = fewer pixels/shadow); mask takes"
     echo "         mode=default|region (default = diff mask, region = grown boxes) and glow=N"
     echo "         (pixels, mode=default only: the mask reaches that far past the change, faded,"
-    echo "         which covers the outline a removal leaves behind)"
+    echo "         which covers the outline a removal leaves behind) and fade=<sides> (any of"
+    echo "         ltrb, mode=region only: softens the mask on the borders the caller cut, for an"
+    echo "         input that is a crop of a bigger picture. A side left out keeps its hard edge)"
     echo ""
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
@@ -128,6 +130,7 @@ if [ $# -lt 4 -o $# -gt 6 ] \
     echo "    image-to-mask mask          cpu  edited.png,original.png mask.png cutoff=40"
     echo "    image-to-mask mask          cpu  edited.png,original.png mask.png mode=region"
     echo "    image-to-mask mask          cpu  edited.png,original.png mask.png glow=16"
+    echo "    image-to-mask mask          cpu  crop.png,plate.png mask.png mode=region,fade=ltrb"
     echo "    image-to-mask mask-birefnet cuda photo.png matte.png"
     echo "    image-to-mask mask-birefnet cuda photo.png,plate.png matte.png cutoff=40"
 
