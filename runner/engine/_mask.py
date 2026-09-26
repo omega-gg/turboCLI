@@ -32,7 +32,7 @@
 #           footprint wholesale)
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 LR = Image.Resampling.LANCZOS
 
@@ -43,11 +43,15 @@ CUTOFF, MIN_AREA       = 24, 400
 DILATE, FEATHER_MASK   = 5, 3
 GROW,   FEATHER_REGION = 60, 18
 
+# GLOW_GAIN takes a glow's blur back to solid, and where that lands is what a glow means: at 6 the
+# grown edge falls one radius out, so glow=N carries the mask N further out.
+GLOW_GAIN = 6
 
-def _diff_mask(generated, ref, thr, dilate, feather):
+
+def _diff_mask(generated, ref, thr, dilate, feather, glow):
     """Soft [0..255] mask (255 = changed) of where `generated` differs from `ref` beyond `thr`.
     Closes interior holes so a flat drawn object stays solid, dilates a margin for soft edges /
-    contact shadows, then feathers the seam."""
+    contact shadows, feathers the seam, then reaches `glow` past the change."""
     g = np.asarray(generated, dtype=np.int16)
     o = np.asarray(ref,       dtype=np.int16)
 
@@ -67,6 +71,23 @@ def _diff_mask(generated, ref, thr, dilate, feather):
 
     if feather > 0:
         mask = mask.filter(ImageFilter.GaussianBlur(feather))
+
+    # A removal leaves the object's low-contrast edge under the threshold, so the mask stops short
+    # of it and that edge survives as an outline. Region answers with a box, a glow by reaching
+    # past the change. Every radius down from the one asked for, since a wide blur alone spreads
+    # too thin to hold a narrow feature, and their maximum can only ever add. The last blur is
+    # what makes the growth one graded selection rather than a solid step with a fringe.
+    if glow > 0:
+        grown  = mask
+        radius = glow
+
+        while radius >= 2:
+            blur = mask.filter(ImageFilter.GaussianBlur(radius))
+
+            grown  = ImageChops.lighter(grown, blur.point(lambda v: min(255, v * GLOW_GAIN)))
+            radius //= 2
+
+        mask = ImageChops.lighter(mask, grown.filter(ImageFilter.GaussianBlur(glow / 2)))
 
     return mask
 
@@ -135,15 +156,16 @@ def _region_mask(generated, ref, thr, grow, feather, min_area):
     return out
 
 
-def build_mask(reference, edit, mode, thr):
+def build_mask(reference, edit, mode, thr, glow=0):
     """Soft [0..255] `L` mask (255 = changed) of where `edit` differs from `reference` by more than
     `thr` (the cutoff), at the edit's own resolution. The reference is downscaled to the
     edit's canvas first, so a full-res reference + a smaller edit yields a mask at the edit res;
     image-apply-mask composite upscales it back to the reference. Same-size => that resize is an
-    identity. mode `region` = grown boxes, anything else (`default`) = the soft pixel-diff mask."""
+    identity. mode `region` = grown boxes, anything else (`default`) = the soft pixel-diff mask,
+    which `glow` (pixels, 0 = none) makes reach that far past the change."""
     ref = reference.resize(edit.size, LR)                  # reference as the edit's own canvas
 
     if mode == "region":
         return _region_mask(edit, ref, thr, GROW, FEATHER_REGION, MIN_AREA)
 
-    return _diff_mask(edit, ref, thr, DILATE, FEATHER_MASK)
+    return _diff_mask(edit, ref, thr, DILATE, FEATHER_MASK, glow)

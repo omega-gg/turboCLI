@@ -23,8 +23,9 @@
 # mask engine -- a mask of where an edit differs from its reference. A "compute" engine: core's
 # run() seam calls it directly (no diffusion, torch-free). images = "input,reference".
 # options: mode=default (soft pixel-diff, best for adding / recoloring) | region (grown boxes, best
-# for removal / replace); cutoff=N (0-255, higher = fewer pixels, default 24). Apply the mask
-# with image-apply-mask.
+# for removal / replace); cutoff=N (0-255, higher = fewer pixels, default 24); glow=N (pixels,
+# default 0, mode=default only) reaches that far past the change, faded, which covers the outline a
+# removal leaves behind. Apply the mask with image-apply-mask.
 
 ID    = "mask"
 MODES = ("image-to-mask",)
@@ -40,6 +41,7 @@ def run(ctx, params, emit):
     opts = parse_options(params.get("options", ""))
     sub  = opts.get("mode", "default")
     cut  = int(opts.get("cutoff", CUTOFF))
+    glow = int(opts.get("glow", 0))
     imgs = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
 
     if sub not in ("default", "region"):
@@ -51,8 +53,9 @@ def run(ctx, params, emit):
     edit = Image.open(imgs[0]).convert("RGB")
     ref  = Image.open(imgs[1]).convert("RGB")
 
-    mask = build_mask(ref, edit, "region" if sub == "region" else "mask", cut)
+    mask = build_mask(ref, edit, "region" if sub == "region" else "mask", cut, glow)
 
-    emit("mask[%s cut=%d]: masked %.0f%%" % (sub, cut, np.asarray(mask).mean() / 255 * 100))
+    emit("mask[%s cut=%d glow=%d]: masked %.0f%%"
+         % (sub, cut, glow, np.asarray(mask).mean() / 255 * 100))
 
     return mask
