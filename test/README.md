@@ -15,8 +15,9 @@ are a comma-separated, ordered list -- the input always first. `SKY_PATH_BIN` mu
 install; run from anywhere:
 
 The `mask` engine takes two more options. `glow=N` carries a `default` mask N pixels further out,
-which covers the outline a removal leaves behind, and `fade=<sides>` softens a `region` mask on
-the borders the caller cut, for a mask made of part of a picture. Both are off unless sent, see
+which covers the outline a removal leaves behind, and `fade=<l>:<t>:<r>:<b>` softens a `region`
+mask by that many pixels on the borders the caller cut, for a mask made of part of a picture. Both
+are off unless sent, see
 [doc/mask-glow-plan.md](../doc/mask-glow-plan.md) and
 [doc/mask-fade-plan.md](../doc/mask-fade-plan.md).
 
@@ -33,7 +34,7 @@ image-apply-mask putalpha knight.png,matte_shadow.png knight_cutout.png
 image-to-mask mask cpu courtyard.png,knight.png remove_mask.png mode=region
 
 # the same on a crop of the scene: every border of it is the cut, so every border fades
-image-to-mask mask cpu crop.png,crop_plate.png crop_mask.png mode=region,fade=ltrb
+image-to-mask mask cpu crop.png,crop_plate.png crop_mask.png mode=region,fade=24:24:24:24
 image-apply-mask composite courtyard.png,remove_mask.png,knight.png knight_removed.png
 
 # mask: keep an added object (input = chest edit, reference = empty courtyard)

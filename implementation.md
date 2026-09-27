@@ -208,8 +208,10 @@ Inputs ride the comma-separated **`images`** param (ordered), the input always f
 apply. Per-call scalars ride a general-purpose **`--options`** field (`key=value,...`): `cutoff=N`
 (0-255, higher = fewer pixels/shadow — the mask change threshold / matte shadow floor), `mode`
 (`default|region` for mask, `composite|putalpha` for apply), `glow=N` (pixels, `mask`
-`mode=default` only, how much thicker the mask gets) and `fade=<sides>` (`mask` `mode=region`
-only, the borders of a crop to soften). The engine modules stay torch-free at
+`mode=default` only, how much thicker the mask gets) and `fade=<l>:<t>:<r>:<b>` (pixels, `mask`
+`mode=region` only, how far each border of a crop softens; the parser splits on commas before it
+reads `=`, so a value that carries several numbers separates them with colons). The engine modules
+stay torch-free at
 import (heavy imports live in `run()`), so discovery and the diffusion path never load the
 segmentation stack — the load-bearing zero-regression guarantee.
 
@@ -306,7 +308,7 @@ answer is derivable.
 | `comfy-qwen-image-edit-2511-lightning` | BASE = the above; entire delta = one extra COMFY component (the LoRA) + 4 steps |
 | `comfy-krea2-turbo` | both DiT and TE scaled-fp8; hand-written key converter (validated 1:1, 430/430); offloader-only; deliberately standalone — it differs on transformer, TE and pipeline, so BASE would override nearly everything (`doc/comfy-krea2-turbo-plan.md`). `_lora_keys` (copied from ComfyUI's `model_lora_keys_unet` Krea2 branch on `krea2_to_diffusers`) maps every published LoRA naming — ComfyUI-native, diffusers, lycoris — onto the diffusers module tree, so stock Civitai/HF Krea2 LoRAs (lora_A/B, `diff`, LoKr) load unmodified via the offloader's `lora_keys` spec |
 | `comfy-krea2-turbo-realism` | BASE = the above; entire delta = one extra COMFY component (the Krea2-realism-V2 LoKr into ComfyUI's `models/loras/`, explicit `filename` since it sits at a plain repo's root, revision-pinned) + a `load()` that prepends it to `ctx.loras` at 1.5 before delegating to the base assembly |
-| `mask` | **compute engine** (declares `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box mask (options `mode=default\|region`); register-only install; options `cutoff=N` (0-255) and `glow=N` (pixels, `default` only: every radius down from N, blurred and taken back to solid with `GLOW_GAIN`, kept by their maximum, then blurred once more over the grown shape so the growth is one graded selection rather than a solid step with a fringe. The mask grows by about N and turning it up only ever adds. It covers the outline a removal leaves where `region` would have boxed the whole footprint, but does not replace `region`, see `doc/mask-glow-plan.md`) and `fade=<sides>` (any of `ltrb`, `region` only, off unless sent: ramps the mask to 0 over `FEATHER_REGION` on the named borders, for an input that is a crop, since a grown box fills a crop to its edge and the caller pads it back into a seam. A side left out keeps its hard border, which is what an uncropped run gives it, see `doc/mask-fade-plan.md`) |
+| `mask` | **compute engine** (declares `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box mask (options `mode=default\|region`); register-only install; options `cutoff=N` (0-255), `glow=N` (pixels, `default` only: the mask grows by about N, graded, which covers the outline a removal leaves where `region` would have boxed the whole footprint. It does not replace `region`, see `doc/mask-glow-plan.md`) and `fade=<l>:<t>:<r>:<b>` (pixels per border, `region` only: the borders of a crop ramp to 0 over that many pixels, never more than a quarter of a side, since a grown box fills a crop to its edge and the caller pads it back into a seam. 0 keeps a border hard and the caller owns the distance, see `doc/mask-fade-plan.md`). Both are off unless sent |
 | `mask-birefnet` / `mask-lucida` / `mask-inspyrenet` | compute matte engines, mode `image-to-mask`; MODEL `kind` snapshot (birefnet/lucida) or url (inspyrenet); `mask-lucida` BASE = `mask-birefnet`; optional plate keeps the cast shadow; options `cutoff=N` (shadow floor) |
 | `mask-apply` | compute engine, mode `image-apply-mask`; applies a mask via `composite` or `putalpha`; register-only; options `mode=composite\|putalpha` |
 

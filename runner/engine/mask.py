@@ -25,9 +25,9 @@
 # options: mode=default (soft pixel-diff, best for adding / recoloring) | region (grown boxes, best
 # for removal / replace); cutoff=N (0-255, higher = fewer pixels, default 24); glow=N (pixels,
 # default 0, mode=default only) reaches that far past the change, faded, which covers the outline a
-# removal leaves behind; fade=<sides> (any of "ltrb", none by default, mode=region only) softens
-# the mask on the borders the caller cut, for a mask made of part of a picture. Apply the mask
-# with image-apply-mask.
+# removal leaves behind; fade=<left>:<top>:<right>:<bottom> (pixels, none by default, mode=region
+# only) softens the mask on the borders the caller cut, for a mask made of part of a picture, 0
+# leaving a border hard. Apply the mask with image-apply-mask.
 
 ID    = "mask"
 MODES = ("image-to-mask",)
@@ -45,13 +45,14 @@ def run(ctx, params, emit):
     cut  = int(opts.get("cutoff", CUTOFF))
     glow = int(opts.get("glow", 0))
     fade = opts.get("fade", "")
+    fade = [int(n) for n in fade.split(":")] if fade else []
     imgs = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
 
     if sub not in ("default", "region"):
         raise ValueError("mode must be default or region")
 
-    if set(fade) - set("ltrb"):
-        raise ValueError("fade takes the sides to soften, any of ltrb")
+    if fade and (len(fade) != 4 or min(fade) < 0):
+        raise ValueError("fade takes four pixel counts, left:top:right:bottom")
 
     if len(imgs) < 2:
         raise ValueError("mask needs images=input,reference")

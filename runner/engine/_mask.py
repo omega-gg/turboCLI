@@ -127,23 +127,25 @@ def _blob_boxes(mask, min_area):
     return out
 
 
-def _fade_edges(mask, sides, size):
-    """Ramp an `L` mask to 0 over `size` pixels on the named borders, any of "ltrb". A mask made of
-    a crop stops where the crop does, which is no edge of the picture: padded back into the whole
-    of it, that border lands as a seam. The ramp never takes more than a quarter of a side, so a
-    small crop keeps a mask."""
+def _fade_edges(mask, sides):
+    """Ramp an `L` mask to 0 over as many pixels as each border asks for, `sides` being (left, top,
+    right, bottom) and 0 leaving that one hard. A mask made of a crop stops where the crop does,
+    which is no edge of the picture: padded back into the whole of it, that border lands as a seam.
+    No ramp takes more than a quarter of its side, so a small crop keeps a mask."""
     w, h = mask.size
 
-    n = max(1, min(size, w // 4, h // 4))
+    left, right  = min(sides[0], w // 4), min(sides[2], w // 4)
+    top,  bottom = min(sides[1], h // 4), min(sides[3], h // 4)
 
-    ramp = np.arange(n, dtype=np.float32) / n
+    def ramp(n):
+        return np.arange(n, dtype=np.float32) / n
 
     x, y = np.ones(w, np.float32), np.ones(h, np.float32)
 
-    if "l" in sides: x[:n]     = ramp
-    if "r" in sides: x[w - n:] = ramp[::-1]
-    if "t" in sides: y[:n]     = ramp
-    if "b" in sides: y[h - n:] = ramp[::-1]
+    if left   > 0: x[:left]       = ramp(left)
+    if right  > 0: x[w - right:]  = ramp(right)[::-1]
+    if top    > 0: y[:top]        = ramp(top)
+    if bottom > 0: y[h - bottom:] = ramp(bottom)[::-1]
 
     # The nearest faded border is what a pixel follows, so a corner between two of them falls off
     # once rather than twice.
@@ -179,20 +181,20 @@ def _region_mask(generated, ref, thr, grow, feather, min_area, fade):
         out = out.filter(ImageFilter.GaussianBlur(feather))
 
     # The border of a crop is ours, not the picture's, and a box that fills the crop lands on it
-    # as a step. The inside falls off over `feather`, so the sides we cut do too.
+    # as a step, so each side the caller asked for falls off instead.
     if fade:
-        out = _fade_edges(out, fade, feather)
+        out = _fade_edges(out, fade)
 
     return out
 
 
-def build_mask(reference, edit, mode, thr, glow=0, fade=""):
+def build_mask(reference, edit, mode, thr, glow=0, fade=()):
     """Soft [0..255] `L` mask (255 = changed) of where `edit` differs from `reference` by more than
     `thr` (the cutoff), at the edit's own resolution. The reference is downscaled to the
     edit's canvas first, so a full-res reference + a smaller edit yields a mask at the edit res;
     image-apply-mask composite upscales it back to the reference. Same-size => that resize is an
-    identity. mode `region` = grown boxes, which `fade` (any of "ltrb", none by default) softens
-    on the borders the caller cut; anything else (`default`) = the soft pixel-diff mask,
+    identity. mode `region` = grown boxes, which `fade` (pixels per border, none by default)
+    softens on the sides the caller cut; anything else (`default`) = the soft pixel-diff mask,
     which `glow` (pixels, 0 = none) makes reach that far past the change."""
     ref = reference.resize(edit.size, LR)                  # reference as the edit's own canvas
 
