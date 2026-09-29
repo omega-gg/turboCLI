@@ -113,7 +113,7 @@ install=$(cat "$path/.commit")
 
 if [ "$install" != "$commit" ]; then
 
-    echo "turboCLI is not installed"
+    echo "turboCLI is not up to date"
 
     exit 1
 fi
