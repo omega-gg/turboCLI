@@ -37,6 +37,9 @@ CFG   = ("true_cfg_scale", 1.0)
 
 INFERENCE = 40
 
+# The pipeline sizes every image to ~1 MP at its own ratio, so they go as they are.
+IMAGE_AREA = None
+
 # Install (python -m runner.install): the base model only, no LoRA.
 # "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.
 MODEL = {"repository": "Qwen", "model": "Qwen-Image-Edit-2511",

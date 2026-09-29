@@ -614,9 +614,13 @@ def generate(params, emit, should_stop=None):
     kwargs[cfg_name] = cfg_value
 
     if mode == "image-to-image":
-        from PIL import Image, ImageOps
+        from PIL import Image
 
         image_list = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
+
+        # NOTE: The engine caps the pixels an image keeps before its pipeline, None for no cap,
+        #       and the output's area when it says nothing. The ratio always stays.
+        area = getattr(mod, "IMAGE_AREA", width * height)
 
         prompt_images = []
 
@@ -625,12 +629,11 @@ def generate(params, emit, should_stop=None):
 
             img = Image.open(ip).convert("RGB")
 
-            scale = min(img.width / width, img.height / height, 1.0)
+            if area and img.width * img.height > area:
+                scale = (area / (img.width * img.height)) ** 0.5
 
-            image_width = max(1, round(width * scale))
-            image_height = max(1, round(height * scale))
-
-            img = ImageOps.fit(img, (image_width, image_height), Image.Resampling.LANCZOS)
+                img = img.resize((max(1, round(img.width * scale)),
+                                  max(1, round(img.height * scale))), Image.Resampling.LANCZOS)
 
             prompt_images.append(img)
 

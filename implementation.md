@@ -255,6 +255,7 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `MODES` | wire modes tuple: `"text-to-image"` / `"image-to-image"` / `"image-to-mask"` / `"image-apply-mask"` |
 | `CFG` | one `(kwarg, value)` pair injected into the pipe call (core.py:599-600) |
 | `INFERENCE` | default step count when the caller passes `-1` (fallback 4, core.py:586-587) |
+| `IMAGE_AREA` | the largest area an image-to-image input keeps before the pipeline, its ratio kept; `None` sends it as it is (Qwen, whose pipeline sizes every image to ~1 MP), the output's area by default. See `doc/image-area-plan.md` |
 | `MODEL` | install spec `{repository, model, revision}` (stock); optional `kind` = `snapshot`\|`url` picks a non-diffusers install (verbatim HF repo / raw asset); it only *renames* the folder — omitted, `resolve_model` falls back to `ID` (core.py:173), which is why COMFY engines declare none |
 | `COMFY` | ComfyUI-reuse spec `{repository?, revision, components: [{role, path, ...}]}`; presence dispatches both install and `resolve_model` (core.py:177) |
 | `SCAFFOLD` | tiny config-only snapshot spec (`allow_patterns`, no weights) |
@@ -359,9 +360,9 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
    (core.py:492-496). The safety checker is stubbed out (core.py:489-490).
 3. **Seed** (core.py:573-578): `-1` → nondeterministic; else `torch.Generator(device="cpu")` —
    a CPU generator regardless of renderer, for device-independent determinism.
-4. **image-to-image** (core.py:602-631): lazy PIL import; per input image, downscale-only fit
-   into the requested WxH preserving aspect (`scale = min(w/W, h/H, 1.0)`, LANCZOS), then a
-   gc + empty_cache "before the heavy lifting".
+4. **image-to-image** (core.py:616-640): lazy PIL import; per input image, a downscale to the
+   engine's `IMAGE_AREA` (the output's area by default), keeping its ratio and never cropping
+   (LANCZOS), then a gc + empty_cache "before the heavy lifting".
 5. **Progress** (core.py:661-725): diffusers' tqdm bar is kept fully alive but rendered into a
    sink ("a disabled bar computes no stats"), and `progress_bar` is hooked per generation: a
    heartbeat `  0%|step 0/N (00:00)` at bar creation (real loop start, after text-encoding, so
@@ -455,6 +456,7 @@ into the body (cli.py:82-89, server.py:237-246).
   `doc/mask-tolerance-plan.md` (the `cutoff` knob + the mask/region merge),
   `doc/mask-glow-plan.md` (the `glow` thickening, and why it does not retire `region`),
   `doc/mask-fade-plan.md` (the soft border a cropped `region` mask needs),
+  `doc/image-area-plan.md` (each input image keeps its ratio, sized per engine),
   `doc/IMPLEMENTATION_PLAN.md` (this document's plan). Script usage blocks live
   in `bash/README.md`, `bash/turbo/README.md`, `bash/python/README.md`.
 - The offload backend's internals — vendored ComfyUI subsystem, native vs VBAR paths, CPU

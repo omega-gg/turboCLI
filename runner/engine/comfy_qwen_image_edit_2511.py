@@ -55,6 +55,9 @@ CFG   = ("true_cfg_scale", 1.0)
 
 INFERENCE = 40
 
+# The pipeline sizes every image to ~1 MP at its own ratio, so they go as they are.
+IMAGE_AREA = None
+
 # ComfyUI split single files reused by this engine. The three live in DIFFERENT Comfy-Org repos, so
 # each carries its own `repository` (install downloads a missing one from there). The VAE's WAN-
 # style keys convert to the AutoencoderKLQwenImage layout at load (see _build_vae).
