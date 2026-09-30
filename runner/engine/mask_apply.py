@@ -21,9 +21,12 @@
 #==================================================================================================
 
 # mask-apply engine -- lay a precomputed mask (from any mask / mask-* engine) onto an image. A
-# "compute" engine, torch-free. options mode=composite|putalpha (default composite). composite
+# "compute" engine, torch-free. options mode=composite|putalpha|trim (default composite). composite
 # pastes the source's masked region onto a reference (images = "input,mask,reference"); putalpha
-# writes the mask as the source's alpha -> an RGBA cutout (images = "input,mask").
+# writes the mask as the source's alpha -> an RGBA cutout (images = "input,mask"). trim takes no
+# mask: it crops the input to what shows, options pad=N the most transparency it keeps around
+# (pixels, 32 by default) and speck=N the size under which a separate blob is left out (pixels,
+# 0 by default: off), images = "input".
 
 ID    = "mask-apply"
 MODES = ("image-apply-mask",)
@@ -32,14 +35,27 @@ MODES = ("image-apply-mask",)
 def run(ctx, params, emit):
     from PIL import Image, ImageStat
 
-    from ._apply import apply
+    from ._apply import TRIM_PAD, apply, trim
     from ._options import parse_options
 
-    mode = parse_options(params.get("options", "")).get("mode", "composite")
+    options = parse_options(params.get("options", ""))
+
+    mode = options.get("mode", "composite")
     imgs = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
 
-    if mode not in ("composite", "putalpha"):
-        raise ValueError("mode must be composite or putalpha")
+    if mode not in ("composite", "putalpha", "trim"):
+        raise ValueError("mode must be composite, putalpha or trim")
+
+    if mode == "trim":
+        if len(imgs) < 1:
+            raise ValueError("trim needs images=input")
+
+        out = trim(Image.open(imgs[0]), int(options.get("pad", TRIM_PAD)),
+                   int(options.get("speck", 0)))
+
+        emit("apply[trim]: %dx%d" % out.size)
+
+        return out
 
     if len(imgs) < 2:
         raise ValueError("mask-apply needs images=input,mask[,reference]")

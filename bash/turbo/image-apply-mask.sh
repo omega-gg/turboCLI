@@ -93,25 +93,32 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 3 -o $# -gt 4 ] \
+if [ $# -lt 3 -o $# -gt 5 ] \
    || \
-   [ "$1" != "composite" -a "$1" != "putalpha" ]; then
+   [ "$1" != "composite" -a "$1" != "putalpha" -a "$1" != "trim" ]; then
 
-    echo "Usage: image-apply-mask <mode> <input images> <output image> [server]"
+    echo "Usage: image-apply-mask <mode> <input images> <output image> [options] [server]"
     echo ""
     echo "Apply a precomputed mask (from image-to-mask). Torch-free (PIL, no GPU)."
     echo ""
     echo "mode: composite  paste the input's masked region onto a reference (needs a reference)"
     echo "      putalpha   write the mask as the input's alpha channel (an RGBA cutout)"
+    echo "      trim       crop the input to what shows, with a margin of transparency around it"
     echo ""
     echo "input images: separated by a comma -- input,mask for putalpha; input,mask,reference for"
-    echo "              composite (the reference is shown where the mask is black)."
+    echo "              composite (the reference is shown where the mask is black); input alone"
+    echo "              for trim."
+    echo ""
+    echo "options: key=value,... -- trim takes pad=N, the most transparency it keeps on a side"
+    echo "         (pixels, 32 by default), and speck=N, the size under which a separate blob is"
+    echo "         left out as a speck of the mask (pixels, 0 by default: off, all of it stays)"
     echo ""
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
     echo "    image-apply-mask putalpha  photo.png,matte.png cutout.png"
     echo "    image-apply-mask composite edited.png,mask.png,original.png output.png"
+    echo "    image-apply-mask trim      cutout.png trimmed.png pad=32,speck=1024"
 
     exit 1
 fi
@@ -128,7 +135,9 @@ python="${SKY_PATH_PYTHON:-$sky/python}"
 
 mode="$1"
 
-if [ $# -ge 4 ]; then server="$4"; fi
+if [ $# -ge 4 ]; then options="$4"; fi
+
+if [ $# -ge 5 ]; then server="$5"; fi
 
 host=$(getOs)
 
@@ -184,7 +193,7 @@ if [ -n "$server" ]; then
                 --data-urlencode "mode=image-apply-mask" \
                 --data-urlencode "images=$images" \
                 --data-urlencode "output=$path" \
-                --data-urlencode "options=mode=$mode" \
+                --data-urlencode "options=mode=$mode,$options" \
                 --data-urlencode "renderer=cpu" \
                 --data-urlencode "offload=none" \
                 "$base/generate" | tee "$stream"
@@ -231,6 +240,6 @@ python -m runner.cli \
        --mode "image-apply-mask" \
        --images "$images" \
        --output "$path" \
-       --options "mode=$mode" \
+       --options "mode=$mode,$options" \
        --renderer "cpu" \
        --offload none

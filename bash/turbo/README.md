@@ -223,22 +223,29 @@ examples:
     image-to-mask mask-birefnet cuda photo.png,plate.png matte.png cutoff=40
 ```
 
-### [image-apply-mask.sh](image-apply-mask.sh) - Apply a mask (composite or putalpha)
+### [image-apply-mask.sh](image-apply-mask.sh) - Apply a mask (composite or putalpha), or trim
 
 ```
-Usage: image-apply-mask <mode> <input images> <output image> [server]
+Usage: image-apply-mask <mode> <input images> <output image> [options] [server]
 
 Apply a precomputed mask (from image-to-mask). Torch-free (PIL, no GPU).
 
 mode: composite  paste the input's masked region onto a reference (needs a reference)
       putalpha   write the mask as the input's alpha channel (an RGBA cutout)
+      trim       crop the input to what shows, with a margin of transparency around it
 
 input images: separated by a comma -- input,mask for putalpha; input,mask,reference for
-              composite (the reference is shown where the mask is black).
+              composite (the reference is shown where the mask is black); input alone
+              for trim.
+
+options: key=value,... -- trim takes pad=N, the most transparency it keeps on a side
+         (pixels, 32 by default), and speck=N, the size under which a separate blob is
+         left out as a speck of the mask (pixels, 0 by default: off, all of it stays)
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
     image-apply-mask putalpha  photo.png,matte.png cutout.png
     image-apply-mask composite edited.png,mask.png,original.png output.png
+    image-apply-mask trim      cutout.png trimmed.png pad=32,speck=1024
 ```

@@ -201,7 +201,10 @@ modes, six engines:
 - **`image-apply-mask`** (engine `mask-apply`, `_apply.apply`) lays a mask onto an image:
   `composite` pastes the masked region onto a reference (restore the scene, or a new backdrop);
   `putalpha` writes the mask as the alpha channel (an RGBA cutout). The mask source is irrelevant,
-  so a diff mask or a model matte feeds either op.
+  so a diff mask or a model matte feeds either op. `trim` (`_apply.trim`) takes no mask: it crops
+  an image to the pixels that show, keeping at most `pad=N` pixels of transparency around them
+  (32 by default). `speck=N` leaves out separate blobs under N pixels, the specks a noisy mask
+  scatters (0 by default: off, since a particle could matter), see `doc/image-trim-plan.md`.
 
 Inputs ride the comma-separated **`images`** param (ordered), the input always first:
 `input,reference` for mask, `input[,plate]` for the matte engines, `input,mask[,reference]` for
@@ -311,7 +314,7 @@ answer is derivable.
 | `comfy-krea2-turbo-realism` | BASE = the above; entire delta = one extra COMFY component (the Krea2-realism-V2 LoKr into ComfyUI's `models/loras/`, explicit `filename` since it sits at a plain repo's root, revision-pinned) + a `load()` that prepends it to `ctx.loras` at 1.5 before delegating to the base assembly |
 | `mask` | **compute engine** (declares `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box mask (options `mode=default\|region`); register-only install; options `cutoff=N` (0-255), `glow=N` (pixels, `default` only: the mask grows by about N, graded, which covers the outline a removal leaves where `region` would have boxed the whole footprint. It does not replace `region`, see `doc/mask-glow-plan.md`) and `fade=<l>:<t>:<r>:<b>` (pixels per border, `region` only: the borders of a crop ramp to 0 over that many pixels, never more than a quarter of a side, since a grown box fills a crop to its edge and the caller pads it back into a seam. 0 keeps a border hard and the caller owns the distance, see `doc/mask-fade-plan.md`). Both are off unless sent |
 | `mask-birefnet` / `mask-lucida` / `mask-inspyrenet` | compute matte engines, mode `image-to-mask`; MODEL `kind` snapshot (birefnet/lucida) or url (inspyrenet); `mask-lucida` BASE = `mask-birefnet`; optional plate keeps the cast shadow; options `cutoff=N` (shadow floor) |
-| `mask-apply` | compute engine, mode `image-apply-mask`; applies a mask via `composite` or `putalpha`; register-only; options `mode=composite\|putalpha` |
+| `mask-apply` | compute engine, mode `image-apply-mask`; applies a mask via `composite` or `putalpha`, or trims an image down to what shows via `trim`; register-only; options `mode=composite\|putalpha\|trim`, `pad=N` and `speck=N` for `trim` |
 
 ## The backend seam (runner side)
 
@@ -456,6 +459,7 @@ into the body (cli.py:82-89, server.py:237-246).
   `doc/mask-tolerance-plan.md` (the `cutoff` knob + the mask/region merge),
   `doc/mask-glow-plan.md` (the `glow` thickening, and why it does not retire `region`),
   `doc/mask-fade-plan.md` (the soft border a cropped `region` mask needs),
+  `doc/image-trim-plan.md` (the `trim` of image-apply-mask, a cutout cut down to what shows),
   `doc/image-area-plan.md` (each input image keeps its ratio, sized per engine),
   `doc/IMPLEMENTATION_PLAN.md` (this document's plan). Script usage blocks live
   in `bash/README.md`, `bash/turbo/README.md`, `bash/python/README.md`.
