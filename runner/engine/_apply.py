@@ -26,6 +26,7 @@
 #   composite  paste the source's masked region onto a reference (the original scene, or a new
 #              backdrop); byte-exact reference where the mask is black
 #   putalpha   write the mask as source's alpha channel -> an RGBA cutout, transparent elsewhere
+#              and blank white there, see _clear
 # and, with no mask, trims an image down to what shows:
 #   trim       crop to the pixels that show, with at most `pad` pixels of transparency around,
 #              and when asked, specks under `speck` pixels left out
@@ -63,7 +64,7 @@ def apply(source, mask, mode, reference=None):
 
     out.putalpha(mask)                                     # promotes RGB -> RGBA
 
-    return out
+    return _clear(out)
 
 
 def trim(image, pad=TRIM_PAD, speck=0):
@@ -78,12 +79,21 @@ def trim(image, pad=TRIM_PAD, speck=0):
     box = _speck_box(shown, speck) if speck > 0 else shown.getbbox()
 
     if box is None:
-        return image
+        return _clear(image)
 
     left, top, right, bottom = box
 
-    return image.crop((max(0, left - pad), max(0, top - pad),
-                       min(image.width, right + pad), min(image.height, bottom + pad)))
+    return _clear(image.crop((max(0, left - pad), max(0, top - pad),
+                              min(image.width, right + pad), min(image.height, bottom + pad))))
+
+
+def _clear(image):
+    """`image` with its fully transparent pixels blank, (255, 255, 255, 0): a cutout keeps no color
+    it does not show, and whatever drops its alpha sees the subject on white rather than the
+    picture it was cut from."""
+    shown = image.getchannel("A").point(lambda a: 255 if a else 0)
+
+    return Image.composite(image, Image.new("RGBA", image.size, (255, 255, 255, 0)), shown)
 
 
 def _speck_box(shown, speck):
