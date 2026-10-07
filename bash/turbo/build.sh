@@ -34,7 +34,7 @@ repository_offloader="https://github.com/omega-gg/turbo-offloader.git"
 
 commit="77265fdf5febbd48fe6f500fb733f5fb901c3a2c" # Also update in check.sh
 
-commit_offloader="6b890f08d2cd8391e199d0e663d0074e09e1760f"
+commit_offloader="12e805940bc7068826571296ead3b8349110b234"
 
 diffusers="60ec6f724290fb7640abaf3ca9a2b89bc15e8a8b"
 
@@ -43,8 +43,8 @@ diffusers="60ec6f724290fb7640abaf3ca9a2b89bc15e8a8b"
 # NOTE: Pinned versions validated against the bundled Python 3.14.2 so a build six months from now
 # resolves the same stack.
 
-torch_version="2.12.1"
-torchvision_version="0.27.1"
+torch_version="2.14.1"
+torchvision_version="0.29.1"
 torchaudio_version="2.11.0"
 torch_cuda="cu130"
 
@@ -66,9 +66,9 @@ hf_transfer_version="0.1.9"
 safetensors_version="0.8.0"
 psutil_version="7.2.2"
 
-comfy_aimdo_version="0.4.10"
+comfy_aimdo_version="0.5.5"
 
-comfy_kitchen_version="0.2.16"
+comfy_kitchen_version="0.2.37"
 
 #--------------------------------------------------------------------------------------------------
 # Functions
