@@ -28,6 +28,7 @@ engine: flux2-4b
         comfy-z-image-turbo
         comfy-krea2-turbo
         comfy-krea2-turbo-realism
+        comfy-qwen-image-2-1
         comfy-qwen-image-edit-2511
         comfy-qwen-image-edit-2511-lightning
         qwen-image-edit-2511
@@ -150,6 +151,7 @@ engine: flux2-4b
         comfy-z-image-turbo
         comfy-krea2-turbo
         comfy-krea2-turbo-realism
+        comfy-qwen-image-2-1
 
 renderer: cpu, cuda, mps
 
@@ -181,6 +183,7 @@ engine: flux2-4b
         comfy-flux2-4b
         comfy-flux2-9b
         comfy-flux2-9b-distilled
+        comfy-qwen-image-2-1
         comfy-qwen-image-edit-2511
         comfy-qwen-image-edit-2511-lightning
         qwen-image-edit-2511

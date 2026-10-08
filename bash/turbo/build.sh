@@ -34,9 +34,9 @@ repository_offloader="https://github.com/omega-gg/turbo-offloader.git"
 
 commit="77265fdf5febbd48fe6f500fb733f5fb901c3a2c" # Also update in check.sh
 
-commit_offloader="12e805940bc7068826571296ead3b8349110b234"
+commit_offloader="43e32acaf285f3b1bee94392242e691f13561fc8"
 
-diffusers="60ec6f724290fb7640abaf3ca9a2b89bc15e8a8b"
+diffusers="da1d3829cf08d4f329b526d89e17cc035c049d8d"
 
 #--------------------------------------------------------------------------------------------------
 
@@ -60,8 +60,8 @@ einops_version="0.8.2"
 kornia_version="0.8.3"
 transparent_background_version="1.3.4"
 
-huggingface_hub_version="1.21.0"
-hf_xet_version="1.5.1"
+huggingface_hub_version="1.33.0"
+hf_xet_version="1.7.0"
 hf_transfer_version="0.1.9"
 safetensors_version="0.8.0"
 psutil_version="7.2.2"

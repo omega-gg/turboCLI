@@ -542,7 +542,7 @@ def generate(params, emit, should_stop=None):
         ctx = Ctx(params["renderer"], "none", None, resolve_model(mod, params), [])
 
         image = mod.run(ctx, params, emit)
-        image.save(params["output"])
+        image.save(params["output"], compress_level=4)
 
         emit("Saved: " + params["output"])
 
@@ -781,7 +781,9 @@ def generate(params, emit, should_stop=None):
 
     image = result.images[0]
 
-    image.save(params["output"])
+    # NOTE: ComfyUI's SaveImage compression level. Still lossless; level 6 (PIL's default) costs
+    #       ~0.4 s more at 1024² for a few percent of file size. Other formats ignore it.
+    image.save(params["output"], compress_level=4)
 
     # NOTE: Send "Saved:" so the client gets the result as early as possible.
     emit("Saved: " + params["output"])

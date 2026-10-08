@@ -160,10 +160,10 @@ inside the base-reinstall branch (`install.py:561-562`).
   dtype instead runs `from_pretrained(repo, revision=pin, torch_dtype=...)` → `save_pretrained`
   (the re-cast copy). Either way `model/<name>` is a self-contained canonical copy. Then fetch the
   engine's declared LoRAs into `model/<name>/lora/` and trim the HF cache for everything pulled —
-  disk holds one copy, not cache+copy (install.py:747-760). Idempotent and selective: `base_ok` skips
-  the base re-download when the registry already records the pinned revision, and only missing
-  LoRAs are fetched (install.py:533-546) — installing `-lightning` over an existing base pulls
-  just the LoRA.
+  disk holds one copy, not cache+copy (install.py:747-760). Idempotent and selective: `base_ok`
+  skips the base re-download when the registry already records the pinned revision, and only
+  missing LoRAs are fetched (install.py:533-546) — installing `-lightning` over an existing base
+  pulls just the LoRA.
 - **Comfy install** (`_install_comfy`, install.py:237-324): reuse each COMFY component already
   under the ComfyUI install's `models/`, `hf_hub_download` only the missing ones *into that
   tree*, fetch the tiny SCAFFOLD (configs/tokenizer/scheduler, no weights) into `engine/<id>`,
@@ -323,6 +323,7 @@ answer is derivable.
 | `comfy-qwen-image-edit-2511-lightning` | BASE = the above; entire delta = one extra COMFY component (the LoRA) + 4 steps |
 | `comfy-krea2-turbo` | both DiT and TE scaled-fp8; hand-written key converter (validated 1:1, 430/430); offloader-only; deliberately standalone — it differs on transformer, TE and pipeline, so BASE would override nearly everything (`doc/comfy-krea2-turbo-plan.md`). `_lora_keys` (copied from ComfyUI's `model_lora_keys_unet` Krea2 branch on `krea2_to_diffusers`) maps every published LoRA naming — ComfyUI-native, diffusers, lycoris — onto the diffusers module tree, so stock Civitai/HF Krea2 LoRAs (lora_A/B, `diff`, LoKr) load unmodified via the offloader's `lora_keys` spec |
 | `comfy-krea2-turbo-realism` | BASE = the above; entire delta = one extra COMFY component (the Krea2-realism-V2 LoKr into ComfyUI's `models/loras/`, explicit `filename` since it sits at a plain repo's root, revision-pinned) + a `load()` that prepends it to `ctx.loras` at 1.5 before delegating to the base assembly |
+| `comfy-qwen-image-2-1` | Qwen-Image 2.1 (7B, generates and edits with the same weights): text-to-image + image-to-image on `QwenImage21Pipeline`, ComfyUI's three templates file for file: int8 ConvRot DiT + int8 ConvRot Qwen3-VL 8B TE (both `quant: True`, comfy-kitchen int8 kernels) + the RGBA VAE, ~17.3 GB, ungated. The transformer runs the way ComfyUI's model does (`_comfy_forward`: fused `gate_up` MLP with the SwiGLU folded into the int8 down projection, `rms_rope`, `adaln`, in-place gated residuals, via the offloader's `kitchen_ops()`), so ComfyUI's file binds as is (649/649) and sampling matches ComfyUI's speed; TE flat to nested with an `Identity` lm_head; the Wan 2.2 layout VAE renamed by a small table (238/238 equal to the official VAE). Scheduler pinned to ComfyUI's shift 0.69 + simple, 25 steps; RGBA output (PNG). Needs diffusers da1d3829+; offloader-only (`doc/comfy-qwen-image-2-1-plan.md`) |
 | `mask` | **compute engine** (declares `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box mask (options `mode=default\|region`); register-only install; options `cutoff=N` (0-255), `glow=N` (pixels, `default` only: the mask grows by about N, graded, which covers the outline a removal leaves where `region` would have boxed the whole footprint. It does not replace `region`, see `doc/mask-glow-plan.md`) and `fade=<l>:<t>:<r>:<b>` (pixels per border, `region` only: the borders of a crop ramp to 0 over that many pixels, never more than a quarter of a side, since a grown box fills a crop to its edge and the caller pads it back into a seam. 0 keeps a border hard and the caller owns the distance, see `doc/mask-fade-plan.md`). Both are off unless sent |
 | `mask-birefnet` / `mask-lucida` / `mask-inspyrenet` | compute matte engines, mode `image-to-mask`; MODEL `kind` snapshot (birefnet/lucida) or url (inspyrenet); `mask-lucida` BASE = `mask-birefnet`; optional plate keeps the cast shadow; options `cutoff=N` (shadow floor) |
 | `mask-apply` | compute engine, mode `image-apply-mask`; applies a mask via `composite` or `putalpha`, or trims an image down to what shows via `trim`; register-only; options `mode=composite\|putalpha\|trim`, `pad=N` and `speck=N` for `trim` |
@@ -336,7 +337,8 @@ answer is derivable.
   turboCLI names a specific backend.
 - **Seam methods**: `pre_torch_init() / available() / supports(engine_type) /
   load_pipe(model, dtype, pipeline_cls, transformer_cls, device, lora_files) /
-  load_pipe_comfy(...)` plus optional per-generation `prepare(pipe)` (core.py:727-733),
+  load_pipe_comfy(...) / kitchen_ops()` plus optional per-generation `prepare(pipe)`
+  (core.py:727-733),
   `reclaim(pipe)` (core.py:744-752) and `release(pipe)` (core.py:311-327). Class objects flow
   runner→backend, resolved lazily from the engine's declared strings, "so the class table lives
   here, not duplicated in the backend" (core.py:281-289). The backend stays model-agnostic;
@@ -389,8 +391,9 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
 7. **Backend hooks**: `prepare(pipe)` before the call (per-generation load boundary),
    `reclaim(pipe)` in `finally` (reclaim errors logged, not raised). The call itself runs under
    `torch.inference_mode()` (core.py:735-736).
-8. Save, then emit `Saved: <output>` immediately "so the client gets the result as early as
-   possible" (core.py:769-770).
+8. Save (PNG at ComfyUI's SaveImage `compress_level=4`, lossless), then emit
+   `Saved: <output>` immediately "so the client gets the result as early as possible"
+   (core.py:769-770).
 
 **The wire contract** (what callers parse, identical on stdout and the HTTP body):
 

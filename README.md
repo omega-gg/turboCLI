@@ -29,6 +29,7 @@ PR(s) are welcomed
 
 - FLUX.2
 - Z-Image-Turbo
+- Qwen-Image-2.1
 - Qwen-Image-Edit-2511
 - Krea2-Turbo
 - Masking / matting: diff & region masks, BiRefNet / Lucida / InSPyReNet mattes

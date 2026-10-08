@@ -129,6 +129,7 @@ if [ $# -lt 5 -o $# -gt 13 ] \
     echo "        comfy-flux2-4b"
     echo "        comfy-flux2-9b"
     echo "        comfy-flux2-9b-distilled"
+    echo "        comfy-qwen-image-2-1"
     echo "        comfy-qwen-image-edit-2511"
     echo "        comfy-qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511"
