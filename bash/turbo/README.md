@@ -17,11 +17,14 @@ example:
 ```
 Usage: install <engine> <renderer> [dtype = default] [inference = -1]
                [offload = offloader] [slicing = none]
-               [ComfyUI folder]
+               [ComfyUI folder] [token]
 
 engine: flux2-4b
+        flux2-9b                 (gated: needs a token)
         z-image-turbo
         comfy-flux2-4b
+        comfy-flux2-9b           (gated: needs a token)
+        comfy-flux2-9b-distilled (gated: needs a token)
         comfy-z-image-turbo
         comfy-krea2-turbo
         comfy-krea2-turbo-realism
@@ -30,15 +33,16 @@ engine: flux2-4b
         qwen-image-edit-2511
         qwen-image-edit-2511-lightning
         qwen-image-edit-2511-lightning-angles
-        mask                 (no download -- registers a compute engine)
-        mask-apply           (no download)
-        mask-birefnet        (BiRefNet matte model)
-        mask-lucida          (Lucida matte model)
-        mask-inspyrenet      (InSPyReNet matte model)
+        mask                     (no download -- registers a compute engine)
+        mask-apply               (no download)
+        mask-birefnet            (BiRefNet matte model)
+        mask-lucida              (Lucida matte model)
+        mask-inspyrenet          (InSPyReNet matte model)
 
 renderer: cpu, cuda, mps
 
 dtype: default, bfloat16, float16, float32
+       (default copies the model as published, no cast)
        (bfloat16 is recommended for CUDA, float16 for Apple MPS)
        (the weights are cast on a fresh install alone, remove first to recast)
 
@@ -48,6 +52,11 @@ slicing: none, slice
 
 ComfyUI folder: reuse an existing ComfyUI install's model files (comfy-* engines).
                 Missing components are fetched into ComfyUI's own models hierarchy.
+                Pass none to skip it and still give a token.
+
+token: optional Hugging Face access token, for a gated model (flux2-9b and the comfy-flux2-9b
+       engines: FLUX Non-Commercial License, accept it on huggingface.co first). Used for this
+       download only, never recorded. An HF_TOKEN environment variable works too.
 
 NOTE: The renderer and the options after it are recorded with the install, so a host
       reads them back with 'check-model SETTINGS:<engine>'. Installing again over an
@@ -57,6 +66,7 @@ examples:
     install flux2-4b cuda
     install comfy-z-image-turbo cuda bfloat16 -1 offloader none
     install comfy-z-image-turbo cuda default -1 offloader none C:/dev/ComfyUI_portable
+    install comfy-flux2-9b-distilled cuda default -1 offloader none none hf_xxxxxxxx
 ```
 
 ### [remove.sh](remove.sh) - Remove an installed engine (reference-counted)
@@ -132,8 +142,11 @@ Usage: text-to-image <engine> <renderer> <prompt> <output image>
                      [server]
 
 engine: flux2-4b
+        flux2-9b
         z-image-turbo
         comfy-flux2-4b
+        comfy-flux2-9b
+        comfy-flux2-9b-distilled
         comfy-z-image-turbo
         comfy-krea2-turbo
         comfy-krea2-turbo-realism
@@ -164,7 +177,10 @@ Usage: image-to-image <engine> <renderer> <prompt> <input images> <output image>
                       [server]
 
 engine: flux2-4b
+        flux2-9b
         comfy-flux2-4b
+        comfy-flux2-9b
+        comfy-flux2-9b-distilled
         comfy-qwen-image-edit-2511
         comfy-qwen-image-edit-2511-lightning
         qwen-image-edit-2511

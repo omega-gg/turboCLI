@@ -8,6 +8,7 @@ OTHER_FILES += README.md  \
                dummy.md \
                update.sh \
                doc/comfy-flux2-4b-plan.md \
+               doc/comfy-flux2-9b-plan.md \
                doc/comfy-krea2-turbo-plan.md \
                doc/comfy-z-image-turbo-plan.md \
                doc/engine-inheritance-plan.md \
@@ -42,12 +43,15 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/mask_lucida.py \
                runner/engine/mask_inspyrenet.py \
                runner/engine/comfy_flux2_4b.py \
+               runner/engine/comfy_flux2_9b.py \
+               runner/engine/comfy_flux2_9b_distilled.py \
                runner/engine/comfy_krea2_turbo.py \
                runner/engine/comfy_krea2_turbo_realism.py \
                runner/engine/comfy_qwen_image_edit_2511.py \
                runner/engine/comfy_qwen_image_edit_2511_lightning.py \
                runner/engine/comfy_z_image_turbo.py \
                runner/engine/flux2_4b.py \
+               runner/engine/flux2_9b.py \
                runner/engine/qwen_image_edit_2511.py \
                runner/engine/qwen_image_edit_2511_lightning.py \
                runner/engine/qwen_image_edit_2511_lightning_angles.py \

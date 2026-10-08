@@ -36,6 +36,8 @@ slicing="none"
 
 comfy=""
 
+token=""
+
 #--------------------------------------------------------------------------------------------------
 # Functions
 #--------------------------------------------------------------------------------------------------
@@ -107,7 +109,7 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 2 -o $# -gt 7 ] \
+if [ $# -lt 2 -o $# -gt 8 ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ] \
    || \
@@ -118,11 +120,14 @@ if [ $# -lt 2 -o $# -gt 7 ] \
 
     echo "Usage: install <engine> <renderer> [dtype = $dtype] [inference = $inference]"
     echo "               [offload = $offload] [slicing = $slicing]"
-    echo "               [ComfyUI folder]"
+    echo "               [ComfyUI folder] [token]"
     echo ""
     echo "engine: flux2-4b"
+    echo "        flux2-9b                 (gated: needs a token)"
     echo "        z-image-turbo"
     echo "        comfy-flux2-4b"
+    echo "        comfy-flux2-9b           (gated: needs a token)"
+    echo "        comfy-flux2-9b-distilled (gated: needs a token)"
     echo "        comfy-z-image-turbo"
     echo "        comfy-krea2-turbo"
     echo "        comfy-krea2-turbo-realism"
@@ -131,15 +136,16 @@ if [ $# -lt 2 -o $# -gt 7 ] \
     echo "        qwen-image-edit-2511"
     echo "        qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511-lightning-angles"
-    echo "        mask                 (no download -- registers a compute engine)"
-    echo "        mask-apply           (no download)"
-    echo "        mask-birefnet        (BiRefNet matte model)"
-    echo "        mask-lucida          (Lucida matte model)"
-    echo "        mask-inspyrenet      (InSPyReNet matte model)"
+    echo "        mask                     (no download -- registers a compute engine)"
+    echo "        mask-apply               (no download)"
+    echo "        mask-birefnet            (BiRefNet matte model)"
+    echo "        mask-lucida              (Lucida matte model)"
+    echo "        mask-inspyrenet          (InSPyReNet matte model)"
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""
     echo "dtype: default, bfloat16, float16, float32"
+    echo "       (default copies the model as published, no cast)"
     echo "       (bfloat16 is recommended for CUDA, float16 for Apple MPS)"
     echo "       (the weights are cast on a fresh install alone, remove first to recast)"
     echo ""
@@ -148,7 +154,12 @@ if [ $# -lt 2 -o $# -gt 7 ] \
     echo "slicing: none, slice"
     echo ""
     echo "ComfyUI folder: optional. Reuse an existing ComfyUI install's model files;"
-    echo "                if omitted, components download into turbo/model/ComfyUI/models/."
+    echo "                if omitted or none, components download into"
+    echo "                turbo/model/ComfyUI/models/."
+    echo ""
+    echo "token: optional Hugging Face access token, for a gated model (FLUX.2 klein 9B). Accept"
+    echo "       the model's license on huggingface.co first. Used for this download only, never"
+    echo "       recorded. An HF_TOKEN environment variable works too."
     echo ""
     echo "NOTE: The renderer and the options after it are recorded with the install, so a host"
     echo "      reads them back with 'check-model SETTINGS:<engine>'. Installing again over an"
@@ -158,6 +169,7 @@ if [ $# -lt 2 -o $# -gt 7 ] \
     echo "    install flux2-4b cuda"
     echo "    install comfy-z-image-turbo cuda bfloat16 -1 offloader none"
     echo "    install comfy-z-image-turbo cuda default -1 offloader none C:/dev/ComfyUI_portable"
+    echo "    install comfy-flux2-9b-distilled cuda default -1 offloader none none hf_xxxxxxxx"
 
     exit 1
 fi
@@ -184,7 +196,9 @@ if [ $# -ge 5 ]; then offload="$5"; fi
 
 if [ $# -ge 6 ]; then slicing="$6"; fi
 
-if [ $# -ge 7 ]; then comfy="$7"; fi
+if [ $# -ge 7 -a "$7" != "none" ]; then comfy="$7"; fi
+
+if [ $# -ge 8 ]; then token="$8"; fi
 
 host=$(getOs)
 
@@ -218,6 +232,13 @@ export HF_HUB_ENABLE_HF_TRANSFER=1
 
 # NOTE: This should improve download speeds.
 export HF_XET_HIGH_PERFORMANCE=1
+
+# NOTE: A gated model (FLUX.2 klein 9B) needs an access token. huggingface_hub reads HF_TOKEN
+#       itself, so the token stays out of the install arguments and the recorded settings.
+if [ -n "$token" ]; then
+
+    export HF_TOKEN="$token"
+fi
 
 cd "$bin"
 

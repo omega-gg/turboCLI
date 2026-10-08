@@ -54,6 +54,7 @@
 # (HF_HOME, hf-transfer). Run from the deployed diffusion dir so `engine` is importable.
 
 import os
+import re
 import sys
 import json
 import glob
@@ -561,7 +562,7 @@ def main():
     parser.add_argument("--engine", required=True)
     # --model: model name, e.g. FLUX.2-klein-4B; optional when the engine declares its own
     parser.add_argument("--model", default=None)
-    # --dtype: "default" keeps the checkpoint's native dtype (no cast on save); a concrete dtype
+    # --dtype: "default" copies the checkpoint as published (no cast on save); a concrete dtype
     # (bfloat16/float16/float32) re-casts the weights on disk. Run-time dtype is independent of
     # this (core._device_dtype picks it from the renderer), so "default" is the right install
     # choice unless you specifically want a smaller/larger on-disk copy.
@@ -686,37 +687,44 @@ def main():
         shutil.rmtree(out, ignore_errors=True)
         os.makedirs(default_folder(), exist_ok=True)
 
-        # Heavy imports happen here (post argv-parse), so --help stays instant and bad args fail
-        # fast.
-        import gc
-        import torch
-
         base_repo = model["repository"] + "/" + name
-
-        PipelineCls = _resolve(mod.PIPELINE)
 
         print("Prefetching model: %s" % name, flush=True)
 
-        # "default" -> None: diffusers loads each weight in its saved dtype (no cast). NOTE:
-        # diffusers coerces a non-torch.dtype value (e.g. the string "auto") to float32, so None --
-        # not "auto" -- is what keeps the stock dtype here.
-        torch_dtype = None if args.dtype == "default" else getattr(torch, args.dtype)
+        if args.dtype == "default":
+            # Copy the repo as is: model_index.json + the component folders, each file in the
+            # dtype it was published in. Root-level single files (e.g. a BFL checkpoint beside
+            # the diffusers layout) and legacy weight formats are skipped. `or None`: a blank
+            # revision means latest, not ref "".
+            from huggingface_hub import snapshot_download
 
-        # `or None` so a blank revision (e.g. an engine that omits the pin) means latest, not ref
-        # "".
-        pipe = PipelineCls.from_pretrained(
-            base_repo,
-            revision=revision or None,
-            torch_dtype=torch_dtype,
-            use_safetensors=True,
-            low_cpu_mem_usage=True,
-        )
+            snapshot_download(repo_id=base_repo, revision=revision or None, local_dir=out,
+                              allow_patterns=["model_index.json", "*/*"],
+                              ignore_patterns=["*.bin", "*.pt", "*.pth", "*.ckpt", "*.msgpack"])
 
-        pipe.save_pretrained(out, safe_serialization=True)
+            # snapshot_download leaves a .cache/ bookkeeping dir in local_dir; drop it.
+            shutil.rmtree(os.path.join(out, ".cache"), ignore_errors=True)
+        else:
+            # A concrete dtype: load the pipeline cast to it and save that copy. Heavy imports
+            # happen here (post argv-parse), so --help stays instant and bad args fail fast.
+            import gc
+            import torch
 
-        # NOTE: drop the pipe before touching the cache (avoids permission-denied on Windows).
-        del pipe
-        gc.collect()
+            PipelineCls = _resolve(mod.PIPELINE)
+
+            pipe = PipelineCls.from_pretrained(
+                base_repo,
+                revision=revision or None,
+                torch_dtype=getattr(torch, args.dtype),
+                use_safetensors=True,
+                low_cpu_mem_usage=True,
+            )
+
+            pipe.save_pretrained(out, safe_serialization=True)
+
+            # NOTE: drop the pipe before touching the cache (avoids permission-denied on Windows).
+            del pipe
+            gc.collect()
 
         repositories.append(base_repo)
 
@@ -756,5 +764,30 @@ def main():
     print("Done.", flush=True)
 
 
+def _gated_repo(exc):
+    """The repo id behind a gated Hugging Face download (401/403), walking the exception chain
+    since diffusers wraps hub errors, or None for any other failure."""
+    from huggingface_hub.errors import GatedRepoError, HfHubHTTPError
+
+    while exc is not None:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if (isinstance(exc, GatedRepoError)
+                or (isinstance(exc, HfHubHTTPError) and status in (401, 403))):
+            url = str(getattr(exc.response, "url", "") or "")
+            m = re.search(r"huggingface\.co/(?:api/models/)?([^/]+/[^/?]+)", url)
+            return m.group(1) if m else "the model repository"
+        exc = exc.__cause__ or exc.__context__
+    return None
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        repo = _gated_repo(e)
+        if repo is None:
+            raise
+        print("ERROR: %s is gated on Hugging Face. Accept its license at "
+              "https://huggingface.co/%s (logged in), then re-run install with an access token "
+              "as the last argument (or an HF_TOKEN environment variable)." % (repo, repo))
+        sys.exit(1)

@@ -117,7 +117,11 @@ def _tie_lm_head(sd):
     """ComfyUI's qwen_3_4b file carries the 398 'model.'-prefixed keys Qwen3ForCausalLM expects,
     but not the 399th: lm_head.weight, which the config ties to the embedding
     (tie_word_embeddings=True). Alias it back -- same tensor, so streaming stays mmap-backed and
-    nothing is left on meta."""
+    nothing is left on meta. A file that carries its own lm_head (Qwen3-8B, untied) is kept as is.
+    """
+    if "lm_head.weight" in sd:
+        return sd
+
     return dict(sd, **{"lm_head.weight": sd["model.embed_tokens.weight"]})
 
 

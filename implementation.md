@@ -70,10 +70,13 @@ gg.omega/
    `model/` and `engine/` are detached to `.turbo-model`/`.turbo-engine` before the wipe and
    reattached after (build.sh:178-211), so a rebuild never re-downloads ~20 GB of weights.
 3. **`bash/turbo/install.sh <engine> <renderer> [dtype] [inference] [offload] [slicing]
-   [ComfyUI dir]`** → `python -m runner.install` — the only ONLINE step (exports `HF_HOME`,
+   [ComfyUI dir] [token]`** → `python -m runner.install` — the only ONLINE step (exports `HF_HOME`,
    `hf-transfer`); generation itself runs with `HF_HUB_OFFLINE=1`. The renderer and the three
    options after the dtype download nothing: they are recorded in the engine's registry entry so
-   a host can offer them back, see `install.py` below.
+   a host can offer them back, see `install.py` below. The token (for a gated repo, e.g. the FLUX.2
+   klein 9B ones) is exported as `HF_TOKEN` for that run only: it never reaches the Python argv
+   or the record. A gated download without it ends in one actionable message (`_gated_repo`),
+   not a traceback.
 
 `bash/turbo/check.sh` (turboCLI installed?) and `check-model.sh` (engine installed? `list`) are
 the machine contracts a host app polls: fixed one-line outputs + exit code 0/1, both torch-free
@@ -151,14 +154,16 @@ inside the base-reinstall branch (`install.py:561-562`).
   written before the block reads as `SETTINGS_DEFAULT` (`settings()`, install.py:71-90). The
   dtype is a *wish* once a base is present: `base_ok` skips the re-download, so nothing is
   recast and install says to `remove` first.
-- **Stock install** (`install.py:508-630`): `from_pretrained(repo, revision=pin)` →
-  `save_pretrained` into `model/<name>` (a self-contained canonical copy), fetch the engine's
-  declared LoRAs into `model/<name>/lora/`, then trim the HF cache for everything pulled — disk
-  holds one copy, not cache+copy (install.py:609-620). Idempotent and selective: `base_ok` skips
+- **Stock install** (`install.py:655-760`): `--dtype default` copies the pinned repo as
+  published into `model/<name>` (`snapshot_download` of `model_index.json` + the component
+  folders, no cast, no load: root-level single files and legacy formats skipped); a concrete
+  dtype instead runs `from_pretrained(repo, revision=pin, torch_dtype=...)` → `save_pretrained`
+  (the re-cast copy). Either way `model/<name>` is a self-contained canonical copy. Then fetch the
+  engine's declared LoRAs into `model/<name>/lora/` and trim the HF cache for everything pulled —
+  disk holds one copy, not cache+copy (install.py:747-760). Idempotent and selective: `base_ok` skips
   the base re-download when the registry already records the pinned revision, and only missing
   LoRAs are fetched (install.py:533-546) — installing `-lightning` over an existing base pulls
-  just the LoRA. `--dtype default` maps to `torch_dtype=None` (diffusers coerces non-torch
-  values like `"auto"` to float32, so None is what keeps the stock dtype, install.py:570-573).
+  just the LoRA.
 - **Comfy install** (`_install_comfy`, install.py:237-324): reuse each COMFY component already
   under the ComfyUI install's `models/`, `hf_hub_download` only the missing ones *into that
   tree*, fetch the tiny SCAFFOLD (configs/tokenizer/scheduler, no weights) into `engine/<id>`,
@@ -305,12 +310,15 @@ answer is derivable.
 | engine | notes |
 |---|---|
 | `flux2-4b` | TYPE `flux2`, Flux2KleinPipeline, t2i+i2i, 4 steps; pure declaration |
+| `flux2-9b` | BASE = flux2-4b; delta: the FLUX.2-klein-9B repo (Qwen3-8B TE, ~35 GB bf16). **Gated** (FLUX Non-Commercial License): install takes an HF token |
 | `z-image-turbo` | TYPE `z-image`, ZImagePipeline, t2i, 8 steps; pure declaration (the README's "sample model": ~9 lines) |
 | `qwen-image-edit-2511` | TYPE `qwen-image-edit`, QwenImageEditPlusPipeline, i2i, `true_cfg_scale 1.0`, 40 steps |
 | `qwen-image-edit-2511-lightning` | BASE = the above; delta: 4 steps + the lightning LoRA (install `LORAS` + runtime `loras()`) |
 | `qwen-image-edit-2511-lightning-angles` | BASE = lightning; adds the angles LoRA for `<sks>` prompts; `extra_key` = the `<sks>` flag so flipping it reloads the pipe |
 | `comfy-z-image-turbo` | same weights as z-image-turbo from ComfyUI's 3 single files; custom `load()`, works on the native path too |
 | `comfy-flux2-4b` | same weights (and pinned revision) as flux2-4b from ComfyUI's single files; only 2 COMFY components — the bf16 DiT (root-level `filename`) and the Qwen3-4B TE, which is the *same file* comfy-z-image-turbo reuses (verified 398/398 keys), so it is often already on disk. Plain bf16, no `quant`, diffusers' own `convert_flux2_transformer_checkpoint_to_diffusers` — works on the native path too. All three big files come from ComfyUI: the VAE has no `from_single_file` mapping in diffusers but needs no converter either — ComfyUI's `flux2-vae.safetensors` is already in diffusers key layout (251/251 keys), so `_build_vae` loads it straight onto a config-built `AutoencoderKLFlux2` (`doc/comfy-flux2-4b-plan.md`) |
+| `comfy-flux2-9b` | BASE = comfy-flux2-4b; delta: the files (and pinned revision) of flux2-9b as ComfyUI single files: bf16 DiT (`flux-2-klein-9b`, root-level `filename`) + bf16 Qwen3-8B TE (`qwen_3_8b`) + the shared `flux2-vae`, ~35 GB. Qwen3-8B is untied and its file carries `lm_head`, which `_tie_lm_head` keeps. **Gated** (DiT + scaffold): install takes an HF token |
+| `comfy-flux2-9b-distilled` | BASE = comfy-flux2-9b (scaffold, pipeline); delta: its files + `load()`. ComfyUI's distilled Klein 9B template, file for file: fp8 DiT (`flux-2-klein-9b-fp8`) + fp8-mixed Qwen3-8B TE, both `quant: True`, + BFL's small decoder VAE (`full_encoder_small_decoder`, decoder widths 96/192/384/384, same encoder and latents; BFL layout, remapped by diffusers' `convert_ldm_vae_checkpoint`), ~18 GB; meta-builders reused from comfy-flux2-4b; the converter carries each layer's fp8 companions through diffusers' key remap (qkv split included); the fp8-mixed TE has no lm_head, so it is an identity as in ComfyUI; offloader-only. **Gated** (DiT + scaffold): install takes an HF token |
 | `comfy-qwen-image-edit-2511` | 39 GB bf16 DiT streamed + scaled-fp8 TE (`quant: True`); components span three Comfy-Org repos; **offloader-only** (`load()` raises without a backend) |
 | `comfy-qwen-image-edit-2511-lightning` | BASE = the above; entire delta = one extra COMFY component (the LoRA) + 4 steps |
 | `comfy-krea2-turbo` | both DiT and TE scaled-fp8; hand-written key converter (validated 1:1, 430/430); offloader-only; deliberately standalone — it differs on transformer, TE and pipeline, so BASE would override nearly everything (`doc/comfy-krea2-turbo-plan.md`). `_lora_keys` (copied from ComfyUI's `model_lora_keys_unet` Krea2 branch on `krea2_to_diffusers`) maps every published LoRA naming — ComfyUI-native, diffusers, lycoris — onto the diffusers module tree, so stock Civitai/HF Krea2 LoRAs (lora_A/B, `diff`, LoKr) load unmodified via the offloader's `lora_keys` spec |
@@ -456,6 +464,8 @@ into the body (cli.py:82-89, server.py:237-246).
   compiled.
 - Doc records: `doc/engine-inheritance-plan.md` (the BASE mechanism),
   `doc/comfy-z-image-turbo-plan.md` (the first ComfyUI-reuse engine),
+  `doc/comfy-flux2-9b-plan.md` (the klein 9B engines: gated install token, fp8 key companions,
+  the small decoder VAE),
   `doc/comfy-krea2-turbo-plan.md` (fp8 engines, the `(1 + weight)` RMSNorm trap, per-step parity
   with ComfyUI), `doc/image-mask-plan.md` + `doc/image-mask-split-plan.md` (the earlier standalone
   mask tool) then `doc/mask-engines-plan.md` (folding mask/matte/apply in as engines) then
