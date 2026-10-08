@@ -33,7 +33,7 @@ engine: flux2-4b
         qwen-image-edit-2511
         qwen-image-edit-2511-lightning
         qwen-image-edit-2511-lightning-angles
-        mask                     (no download -- registers a compute engine)
+        mask                     (no download, registers a compute engine)
         mask-apply               (no download)
         mask-birefnet            (BiRefNet matte model)
         mask-lucida              (Lucida matte model)
