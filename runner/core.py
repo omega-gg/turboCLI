@@ -741,51 +741,52 @@ def generate(params, emit, should_stop=None):
 
     p.progress_bar = hooked_progress_bar
 
+    # Per-generation boundaries of the offload backend (no-ops for a pipe without one).
+    backend = getattr(p, "_offload_backend", None)
+
     try:
-        # Per-generation load boundary for the offload backend (e.g. reload a managed text encoder
-        # to GPU before the pipeline reads its execution device). No-op for a pipe with no backend.
-        backend = getattr(p, "_offload_backend", None)
-
-        if backend is not None:
-            backend.prepare(p)
-
-        with torch.inference_mode():
-            result = p(callback_on_step_end=step_end, **kwargs)
-    finally:
-        # Restore the cached pipeline's original method.
         try:
-            del p.progress_bar
-        except Exception:
-            pass
+            # Load boundary (e.g. reload a managed text encoder to GPU before the pipeline reads
+            # its execution device).
+            if backend is not None:
+                backend.prepare(p)
 
-        # Per-generation offload-backend housekeeping (return torch's retained allocator pool).
-        # No-op for a pipe with no backend.
-        backend = getattr(p, "_offload_backend", None)
+            with torch.inference_mode():
+                result = p(callback_on_step_end=step_end, **kwargs)
+        finally:
+            # Restore the cached pipeline's original method.
+            try:
+                del p.progress_bar
+            except Exception:
+                pass
 
+        # Interrupted mid-run: discard the partial result.
+        reason = stop_reason()
+
+        if getattr(p, "_interrupt", False) or reason:
+            if reason == "cancel":
+                emit("CANCELLED: stopped on request, server is idle")
+            else:
+                emit("SUPERSEDED: a newer request took over, this one was cancelled")
+
+            return False
+
+        image = result.images[0]
+
+        # NOTE: ComfyUI's SaveImage compression level. Still lossless; level 6 (PIL's default)
+        #       costs ~0.4 s more at 1024² for a few percent of file size. Other formats ignore
+        #       it.
+        image.save(params["output"], compress_level=4)
+
+        # NOTE: Send "Saved:" so the client gets the result as early as possible.
+        emit("Saved: " + params["output"])
+
+        return True
+    finally:
+        # Housekeeping (return torch's retained allocator pool), on every path but only once the
+        # result is out: it costs ~0.2 s the client need not wait for.
         if backend is not None:
             try:
                 backend.reclaim(p)
             except Exception:
                 log(traceback.format_exc())
-
-    # Interrupted mid-run: discard the partial result.
-    reason = stop_reason()
-
-    if getattr(p, "_interrupt", False) or reason:
-        if reason == "cancel":
-            emit("CANCELLED: stopped on request, server is idle")
-        else:
-            emit("SUPERSEDED: a newer request took over, this one was cancelled")
-
-        return False
-
-    image = result.images[0]
-
-    # NOTE: ComfyUI's SaveImage compression level. Still lossless; level 6 (PIL's default) costs
-    #       ~0.4 s more at 1024² for a few percent of file size. Other formats ignore it.
-    image.save(params["output"], compress_level=4)
-
-    # NOTE: Send "Saved:" so the client gets the result as early as possible.
-    emit("Saved: " + params["output"])
-
-    return True

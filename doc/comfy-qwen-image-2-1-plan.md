@@ -105,12 +105,14 @@ Without comfy-kitchen's kernels only the MLP stays fused.
 
 Sampling is on par. ComfyUI's warm edit reruns skip the prompt and reference encode (its node
 cache reuses identical inputs), so its edit figure is a floor; the rest of the end-to-end gap
-(~1.5 s at 1024²) is outside sampling, mostly the VAE decode.
+(~1.5 s at 1024²) is outside sampling (see Follow-ups).
 
 ## Follow-ups
 
-- End to end at 1024² the rest was ~1.5 s: the PNG save (~0.4 s, PIL's level 6 against
-  ComfyUI's SaveImage level 4, now level 4 in core) and the VAE decode (0.98 s against
-  ComfyUI's 0.69 s, diffusers' causal-conv padding copies; left as is).
+- End to end at 1024², phase by phase (warm, GPU-synced): the PNG save was ~0.4 s slower (PIL's
+  level 6 against ComfyUI's SaveImage level 4; core now saves at 4), the offloader's per-run
+  `reclaim` cost ~0.2 s before the result went out (core now runs it after `Saved:`), and the
+  VAE decode stays 0.3 s behind (1.0 s against ComfyUI's 0.69 s, diffusers' causal-conv padding
+  copies; left as is, closing it means replacing diffusers' decoder).
 - The 4 GB laptop run (needs the local download).
 - Bisect the comfy-qwen-image-edit-2511 pipeline-level change across the diffusers bump.

@@ -389,7 +389,8 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
    `pipeline._interrupt` (core.py:643-654); a partial result is discarded and reported as
    `CANCELLED:` or `SUPERSEDED:` (core.py:754-763).
 7. **Backend hooks**: `prepare(pipe)` before the call (per-generation load boundary),
-   `reclaim(pipe)` in `finally` (reclaim errors logged, not raised). The call itself runs under
+   `reclaim(pipe)` in an outer `finally`, after the save and `Saved:` (so the client does not wait
+   on it, ~0.2 s) yet on every path (reclaim errors logged, not raised). The call itself runs under
    `torch.inference_mode()` (core.py:735-736).
 8. Save (PNG at ComfyUI's SaveImage `compress_level=4`, lossless), then emit
    `Saved: <output>` immediately "so the client gets the result as early as possible"
