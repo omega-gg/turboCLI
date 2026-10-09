@@ -45,9 +45,9 @@ the templates).
 - Text encoder: Qwen3-VL meta-built from the scaffold with an `Identity` lm_head (the pipeline
   reads pre-norm hidden states only); flat ComfyUI keys move under `model.language_model.`, the
   vision tower stays, the unused head is dropped. Its `embed_tokens` is int8 ConvRot too.
-- VAE: diffusers has no converter for the Wan 2.2 layout, so a small rename table maps it
-  (residual indices, middle/head, down/up blocks and their resamplers) and drops the unit time
-  axis of the 3D kernels; strict load.
+- VAE: ComfyUI's own, the `comfy.ldm.wan.vae2_2.WanVAE` comfy/sd.py builds for this file, with
+  sd.py's settings, opted in through the offloader's `comfy_vae` (see Revision). It loads the file
+  as is, strictly.
 - Scheduler pinned to ComfyUI's ModelSamplingFlux(shift 0.69) + "simple":
   `base_shift = max_shift = 0.69` (a fixed mu, independent of resolution) and no terminal
   stretch, so the pipeline's default `linspace(1, 1/N, N)` lands on ComfyUI's sigmas.
@@ -108,13 +108,40 @@ Sampling is on par. ComfyUI's warm edit reruns skip the prompt and reference enc
 cache reuses identical inputs), so its edit figure is a floor; the rest of the end-to-end gap
 (~1.5 s at 1024²) is outside sampling (see Follow-ups).
 
+## Revision: ComfyUI's VAE
+
+A layer of this engine showed rows of dots and tints in turbopixel. Measured on neutral
+1024×768 text-to-image runs (seed 42, same files as ComfyUI, the 4 GB card): the image was not
+fully opaque, alpha falling to 181-215 along a grid at the tile spacing, which turbopixel blends
+with what lies under the layer. The diffusers VAE needed 5.5 GB there, so the offloader tiled it
+(256 px tiles, 64 overlap) and each tile's border bent the alpha; decoded whole the alpha matched
+ComfyUI's within a level. ComfyUI decodes the same image whole on that card: its Wan 2.2 decoder
+runs a single image in row strips, exact and in a quarter of the memory (1.4 GB).
+
+So the engine now runs ComfyUI's own VAE: comfy/ldm/wan/vae2_2.py, vendored verbatim by the
+offloader, built with sd.py's settings for this file and opted in through the offloader's
+`comfy_vae`, which runs it as sd.py's VAE class does (its estimates, the clamp, its tiled
+fallbacks). The key-rename tables are gone. Results, same runs:
+
+- Alpha against ComfyUI: within 1-6 levels (text-to-image and edit), from 40-74 before; its
+  lowest value 247-254, as ComfyUI's.
+- The faint pixel checker on flat areas is the model's: ComfyUI shows it as strongly.
+- Text-to-image 1024×768 on the 4 GB card: 93-109 s against 128-142 s before (no tiling and no
+  VRAM freeing for the old estimate; one run each, the laptop throttles).
+- The decode alone, warm, against ComfyUI's on the same latent shape. L4 at 1024²: 0.68-0.70 s
+  against 0.71 s, from 1.0 s, so the 0.3 s noted under Speed is gone (the same kernels profile on
+  both). 4 GB card at 1024×768, interleaved, untiled on both: 1.50 s against 1.52 s, and 2.57 s
+  against 2.61 s once throttled.
+- Colors stay where they were against ComfyUI (27-31 dB text-to-image, 21 dB on the edit, where
+  the reference sizing differs as noted above): the sampling drift, not the decode.
+
 ## Follow-ups
 
 - End to end at 1024², phase by phase (warm, GPU-synced): the PNG save was ~0.4 s slower (PIL's
   level 6 against ComfyUI's SaveImage level 4; core now saves at 4), the offloader's per-run
   `reclaim` cost ~0.2 s before the result went out (core now runs it after `Saved:`), and the
-  VAE decode stays 0.3 s behind (1.0 s against ComfyUI's 0.69 s, diffusers' causal-conv padding
-  copies; left as is, closing it means replacing diffusers' decoder).
+  VAE decode was 0.3 s behind (1.0 s against ComfyUI's 0.69 s, diffusers' causal-conv padding
+  copies), since closed by running ComfyUI's own decoder (see Revision).
 - On the 4 GB card (RTX A1000 laptop, interleaved runs, same files and graphs as ComfyUI):
   text-to-image 512² 55-67 s cold against 66-76 s; the 1024² edit 190-209 s cold against
   232-237 s, and 166 s warm (same image, new seed) against 169 s. Three fixes got it there, all
