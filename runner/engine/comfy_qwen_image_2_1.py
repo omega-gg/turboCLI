@@ -116,25 +116,25 @@ _RESIDUAL = (
 )
 
 
-def _transformer_meta(scaffold, dtype, ops):
+def _transformer_meta(scaffold, dtype, comfy):
     """Meta-build (no weight RAM) the transformer from the scaffold config, set up to run as
-    ComfyUI's model does (_comfy_forward, with the offloader's kitchen_ops)."""
+    ComfyUI's model does (_comfy_forward, with the offloader's comfy_api())."""
     from accelerate import init_empty_weights
     from diffusers import QwenImage21Transformer2DModel
 
     cfg = QwenImage21Transformer2DModel.load_config(os.path.join(scaffold, "transformer"))
     with init_empty_weights():
         model = QwenImage21Transformer2DModel.from_config(cfg)
-        _comfy_forward(model, ops)
+        _comfy_forward(model, comfy)
 
     return model.to(dtype)
 
 
-def _comfy_forward(model, ops):
+def _comfy_forward(model, comfy):
     """Run a meta-built QwenImage21Transformer2DModel the way ComfyUI's own model does
     (comfy/ldm/qwen_image21/model.py). diffusers computes the same thing with separate, often fp32
     ops; ComfyUI fuses them, which is its speed at 1024². Same fusions, through the offloader's
-    kitchen_ops() (comfy_kitchen as ComfyUI configures it, ComfyUI's linear_input_act):
+    comfy_api() (comfy_kitchen as ComfyUI configures it, comfy.ops, comfy.model_management):
       * MLP: the fused gate_up, its SiLU gate folded into the int8 down projection's input
         quantizer (so the ComfyUI file binds as is, no split);
       * attention: QK RMSNorm + RoPE in one rms_rope kernel;
@@ -146,7 +146,7 @@ def _comfy_forward(model, ops):
     import torch
     import diffusers.models.transformers.transformer_qwenimage21 as tq
 
-    ck = ops.ck
+    ck, ops, mm = comfy.ck, comfy.ops, comfy.mm
     rope = {"key": None, "pe": None}
     prefix_len = {"key": None, "len": 0}
     prepare_qkv_orig = getattr(tq._qwenimage21_prepare_qkv, "_comfy_orig",
@@ -172,6 +172,27 @@ def _comfy_forward(model, ops):
             rope.update(key=rotary_emb, pe=table[None, :, None])
         return rope["pe"]
 
+    blocks = len(model.transformer_blocks)
+    parked = {"run": None, "pinned": []}
+
+    def park(t, run):
+        # ComfyUI's "auto" prefix cache placement (QwenImage21.select_prefix_cache): the prefix
+        # K/V stay on the device while it has 4x the whole cache free, else they go to host RAM
+        # (an edit's ~2 GB would otherwise starve a small card's weight streaming), pinned within
+        # ComfyUI's budget as PoseBranchCache.put does. A new run frees the last one's pins.
+        # (ComfyUI also prefetches them on its offload stream; on a 4 GB card that stream is busy
+        # streaming the weights, and a plain copy measured faster: 6.10 against 6.49 s/step.)
+        if parked["run"] is not run:
+            for host in parked["pinned"]:
+                mm.unpin_memory(host)
+            parked.update(run=run, pinned=[])
+        if not t.is_cuda or torch.cuda.mem_get_info(t.device)[0] > 4 * 2 * blocks * t.nbytes:
+            return t.clone()
+        host = t.to("cpu", copy=True)
+        if mm.pin_memory(host, evict_active=False):
+            parked["pinned"].append(host)
+        return host
+
     def prepare_qkv(attn, hidden_states, rotary_emb, layer_cache, kv_cache_mode,
                     cache_write_slice):
         # diffusers' _qwenimage21_prepare_qkv with ComfyUI's rms_rope for the QK norm + RoPE.
@@ -188,12 +209,12 @@ def _comfy_forward(model, ops):
 
         if layer_cache is not None:
             if kv_cache_mode == "extract" and cache_write_slice is not None:
-                layer_cache.store(k[:, cache_write_slice].clone(),
-                                  v[:, cache_write_slice].clone())
+                layer_cache.store(park(k[:, cache_write_slice], cache_write_slice),
+                                  park(v[:, cache_write_slice], cache_write_slice))
             elif kv_cache_mode == "cached":
                 cached_k, cached_v = layer_cache.get()
-                k = torch.cat([cached_k, k], dim=1)
-                v = torch.cat([cached_v, v], dim=1)
+                k = torch.cat([cached_k.to(k.device, non_blocking=True), k], dim=1)
+                v = torch.cat([cached_v.to(v.device, non_blocking=True), v], dim=1)
 
         return q, k, v, q.shape[1]
 
@@ -316,6 +337,13 @@ def _build_vae(scaffold, weight_file, dtype):
         AutoencoderKLQwenImage21.load_config(os.path.join(scaffold, "vae")))
     vae.load_state_dict(state, strict=True)
 
+    # Its working memory, as ComfyUI's VAE class carries it (bytes for a diffusers (B, C, T, H, W)
+    # latent or image), so the offloader frees enough VRAM first, or tiles up front when even that
+    # cannot fit. Measured, linear in pixels: 7.05 GB to decode 1024², 2.43 GB to encode it;
+    # ComfyUI's own decoder, with its low-memory strips, needs about a quarter.
+    vae.memory_used_decode = lambda shape, d: 3500 * shape[-2] * shape[-1] * 16 * 16 * d.itemsize
+    vae.memory_used_encode = lambda shape, d: 1200 * shape[-2] * shape[-1] * d.itemsize
+
     return vae.to(dtype).eval()
 
 
@@ -339,11 +367,11 @@ def load(ctx, params):
         scaffold, subfolder="scheduler", base_shift=0.69, max_shift=0.69, shift_terminal=None)
     processor = Qwen3VLProcessor.from_pretrained(os.path.join(scaffold, "processor"))
     vae = _build_vae(scaffold, files["vae"], ctx.dtype)
-    ops = ctx.backend.kitchen_ops()
+    comfy = ctx.backend.comfy_api()
 
     return ctx.backend.load_pipe_comfy(
         QwenImage21Pipeline,
-        {"meta": lambda d: _transformer_meta(scaffold, d, ops), "file": files["transformer"],
+        {"meta": lambda d: _transformer_meta(scaffold, d, comfy), "file": files["transformer"],
          "convert": None, "quant": True},
         {"meta": lambda d: _text_encoder_meta(scaffold, d), "file": files["text_encoder"],
          "convert": _text_encoder_convert, "quant": True},

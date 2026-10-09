@@ -20,7 +20,8 @@ What it needed:
   transformers 5.12.1 already has Qwen3-VL.
 - The offloader's vendored ComfyUI ops already load `int8_tensorwise` with ConvRot and
   comfy-kitchen 0.2.37 runs the int8 kernels on CUDA. One small offloader addition,
-  `kitchen_ops()`, hands an engine ComfyUI's fused building blocks (see Speed).
+  `comfy_api()`, hands an engine ComfyUI itself (comfy_kitchen, comfy.ops, comfy.model_management;
+  see Speed).
 
 ## Model sources (pinned)
 
@@ -92,9 +93,9 @@ diffusers' separate fp32 ops (complex RoPE, per-token `torch.where` modulation c
 
 So the engine runs the diffusers transformer the way ComfyUI's model does: its `_comfy_forward`
 (classes defined inside it, so discovery stays torch-free) swaps in ComfyUI's fused MLP, its
-block forward and the fused QK norm + RoPE, through the offloader's new `kitchen_ops()`
-(comfy_kitchen as ComfyUI configures it, and ComfyUI's `linear_input_act`, which stays in the
-GPL backend).
+block forward and the fused QK norm + RoPE, through the offloader's new `comfy_api()`
+(comfy_kitchen as ComfyUI configures it, and ComfyUI's modules, which stay in the GPL
+backend).
 Without comfy-kitchen's kernels only the MLP stays fused.
 
 | config (L4, warm, 25 steps) | ComfyUI (prompt exec) | turboCLI (generate) | turboCLI sampling |
@@ -114,5 +115,14 @@ cache reuses identical inputs), so its edit figure is a floor; the rest of the e
   `reclaim` cost ~0.2 s before the result went out (core now runs it after `Saved:`), and the
   VAE decode stays 0.3 s behind (1.0 s against ComfyUI's 0.69 s, diffusers' causal-conv padding
   copies; left as is, closing it means replacing diffusers' decoder).
-- The 4 GB laptop run (needs the local download).
+- On the 4 GB card (RTX A1000 laptop, interleaved runs, same files and graphs as ComfyUI):
+  text-to-image 512² 55-67 s cold against 66-76 s; the 1024² edit 190-209 s cold against
+  232-237 s, and 166 s warm (same image, new seed) against 169 s. Three fixes got it there, all
+  ComfyUI's own: the edit's prefix K/V (~2 GB) go to host RAM when VRAM is short, by ComfyUI's
+  "auto" rule and pinned within its budget (28 to 6.1 s/step); the engine gives the offloader its
+  VAE's real working memory (diffusers' decoder needs 7 GB at 1024²), so the decode tiles up
+  front instead of failing first; and the encode cache now keys an edit's images by content and
+  covers the reference VAE encode. Sampling stays ~3% behind there (6.1 against 5.9 s/step):
+  ComfyUI's K/V prefetch on its offload stream measured slower on that card (6.49 s/step, the
+  stream is busy with the weights), so the plain copy stays.
 - Bisect the comfy-qwen-image-edit-2511 pipeline-level change across the diffusers bump.
