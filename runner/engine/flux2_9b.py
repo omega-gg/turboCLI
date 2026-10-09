@@ -30,5 +30,8 @@ from . import flux2_4b as base
 ID   = "flux2-9b"
 BASE = base.ID
 
+# GATED (above): a host asks for the Hugging Face token before it installs this engine.
+GATED = True
+
 MODEL = {"repository": "black-forest-labs", "model": "FLUX.2-klein-9B",
          "revision": "92196c8e11f7b6cf2b7493e037d8c5345c559216"}

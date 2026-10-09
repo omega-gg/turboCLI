@@ -27,7 +27,8 @@
 #   python -m runner.check --engine <name>   # check one engine
 #   python -m runner.check                   # list installed engine ids
 #   python -m runner.check --modes <a,b>     # list installed engine ids supporting any listed mode
-#   python -m runner.check --engines <mode>  # every engine of a mode, installed or absent
+#   python -m runner.check --engines <mode>  # every engine of a mode, installed or absent,
+#                                            # and gated when it needs a token
 #   python -m runner.check --settings <name> # the run settings that install recorded, and the
 #                                            # ComfyUI folder a comfy engine was installed inside
 #
@@ -73,7 +74,8 @@ def main():
         sys.exit(0)
 
     # --engines: every engine a mode has, installed or not, as `<id> installed|absent` - what a
-    # host installs from, where --modes lists what it can already run.
+    # host installs from, where --modes lists what it can already run. An engine whose download
+    # needs a Hugging Face token adds `gated`, so a host asks for one before it installs.
     if args.engines is not None:
         for eid in sorted(engines):
             mod = engines[eid]
@@ -81,7 +83,9 @@ def main():
             if args.engines not in mod.MODES:
                 continue
 
-            print("%s %s" % (eid, "installed" if _engine_installed(mod) else "absent"))
+            state = "installed" if _engine_installed(mod) else "absent"
+
+            print("%s %s%s" % (eid, state, " gated" if getattr(mod, "GATED", False) else ""))
 
         sys.exit(0)
 

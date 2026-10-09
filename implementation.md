@@ -84,7 +84,8 @@ and venv-free so they run under the bundled python. `check-model SETTINGS:<engin
 `ENGINES:<mode>` answer in several lines — `key: value` per recorded setting, plus `comfy:
 <folder>` for a comfy engine installed inside an existing ComfyUI (so a reinstall passes it again
 rather than moving the engine into our own folder), `<id> installed|absent` per engine of the
-mode — which is why they are queries of their own rather than more output on the installed check.
+mode, plus `gated` when its download needs a token (`GATED`) so a host asks before it installs —
+which is why they are queries of their own rather than more output on the installed check.
 
 ## The runner package
 
@@ -271,6 +272,7 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `COMFY` | ComfyUI-reuse spec `{repository?, revision, components: [{role, path, ...}]}`; presence dispatches both install and `resolve_model` (core.py:177) |
 | `SCAFFOLD` | tiny config-only snapshot spec (`allow_patterns`, no weights) |
 | `LORAS` | install-time LoRA list `[{repository, file, revision}]` |
+| `GATED` | `True` when the download needs a Hugging Face token: `check-model ENGINES:` adds `gated`. Declared by each gated engine, not inherited |
 | `loras(params)` | runtime preset hook → `[(filename, weight)]`, may be prompt-dependent |
 | `extra_key(params)` | extra tuple folded into the pipe cache key (core.py:297-301) |
 | `load(ctx, params)` | full custom loader, bypasses `_default_load` |

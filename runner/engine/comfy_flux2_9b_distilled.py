@@ -47,6 +47,9 @@ from . import comfy_flux2_9b as base
 ID   = "comfy-flux2-9b-distilled"
 BASE = base.ID
 
+# GATED (above): a host asks for the Hugging Face token before it installs this engine.
+GATED = True
+
 # The transformer and the VAE sit at the ROOT of their BFL repos, so they name `filename`; the text
 # encoder follows Comfy-Org's split_files/ layout. Revisions pinned.
 COMFY = {

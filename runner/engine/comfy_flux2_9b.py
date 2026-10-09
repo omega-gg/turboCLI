@@ -39,6 +39,9 @@ from . import comfy_flux2_4b as base
 ID   = "comfy-flux2-9b"
 BASE = base.ID
 
+# GATED (above): a host asks for the Hugging Face token before it installs this engine.
+GATED = True
+
 COMFY = {
     "revision": "main",
     "components": [

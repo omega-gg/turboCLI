@@ -102,7 +102,8 @@ engine: an installed id, reports whether it is installed
 MODES: list the installed engine id(s) supporting ANY of the listed modes
        (text-to-image, image-to-image)
 
-ENGINES: every engine supporting the mode, with 'installed' or 'absent'
+ENGINES: every engine supporting the mode, with 'installed' or 'absent', and 'gated'
+         when its download needs a Hugging Face token
          (text-to-image, image-to-image, image-to-mask)
 
 SETTINGS: the run settings an engine was installed with, one 'key: value' per line
