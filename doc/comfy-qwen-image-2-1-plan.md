@@ -173,6 +173,9 @@ at 1024×768 speed is on par (warm 22-31 s on both, the laptop throttles).
   ComfyUI's K/V prefetch on its offload stream measured slower on that card (6.49 s/step, the
   stream is busy with the weights), so the plain copy stays.
 - Bisect the comfy-qwen-image-edit-2511 pipeline-level change across the diffusers bump.
-- RAM on the 4 GB card at 1024×768: peak private 23.9 GB against ComfyUI's 22.5-23.5 GB, and
-  22.6 GB held between images against 20.0-20.3 GB; both start at 2.7-2.8 GB and keep the model
-  files mapped, so the gap is in what each allocates around them.
+- RAM on the 4 GB card at 1024×768: pins now match ComfyUI's (13.05 GB; the offloader loads each
+  model at its own node, see its implementation.md), but the rest of private RAM stays ~0.5 GB
+  above (9.4 against 8.8-9.1 GB between images, peak 24.6 against 23.5 GB). Both start at
+  2.7-2.8 GB and keep the model files mapped, so it is in what turboCLI allocates while running.
+  Speed is on par once the laptop's heat is controlled (GPU cooled to 55 °C before each image):
+  12.7-12.8 s of sampling on both, steady steps 1.75 against 1.77 s.
