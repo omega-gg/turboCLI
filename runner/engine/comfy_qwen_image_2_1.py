@@ -147,11 +147,23 @@ def _comfy_forward(model, comfy):
         return rope["pe"]
 
     blocks = len(model.transformer_blocks)
-    parked = {"run": None, "pinned": []}
+    parked = {"run": None, "pinned": [], "free": 0}
+    # As ComfyUI's BaseModel (model_base.py:177): the offloader's pre_run hands the model its
+    # patcher, whose get_free_memory counts the VRAM dynamic loading can take back.
+    model.current_patcher = None
+
+    def measure_free(module, args):
+        # Before any block runs, as select_prefix_cache asks (model.py:371-374): from inside a
+        # block, aimdo's VBAR analysis meets that block's pinned pages and warns about each one.
+        patcher = model.current_patcher
+        if patcher is not None:
+            parked["free"] = patcher.get_free_memory(patcher.load_device)
+
+    model.register_forward_pre_hook(measure_free)
 
     def park(t, run):
         # ComfyUI's "auto" prefix cache placement (QwenImage21.select_prefix_cache): the prefix
-        # K/V stay on the device while it has 4x the whole cache free, else they go to host RAM
+        # K/V stay on the device while its patcher has 4x the whole cache free, else host RAM
         # (an edit's ~2 GB would otherwise starve a small card's weight streaming), pinned within
         # ComfyUI's budget as PoseBranchCache.put does. A new run frees the last one's pins.
         # (ComfyUI also prefetches them on its offload stream; on a 4 GB card that stream is busy
@@ -160,7 +172,7 @@ def _comfy_forward(model, comfy):
             for host in parked["pinned"]:
                 mm.unpin_memory(host)
             parked.update(run=run, pinned=[])
-        if not t.is_cuda or torch.cuda.mem_get_info(t.device)[0] > 4 * 2 * blocks * t.nbytes:
+        if not t.is_cuda or parked["free"] > 4 * 2 * blocks * t.nbytes:
             return t.clone()
         host = t.to("cpu", copy=True)
         if mm.pin_memory(host, evict_active=False):

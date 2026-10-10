@@ -129,13 +129,11 @@ def _build_vae(scaffold, weight_file, backend):
     """ComfyUI's own VAE, the model comfy/sd.py builds for the file, run as sd.py runs it
     through the offloader's comfy_vae, so it decodes and encodes as ComfyUI does: on a 4 GB card
     it decodes 1024x768 whole, where diffusers' VAE tiled up front."""
-    import safetensors.torch as safetensors_torch
-
     # z_dim and the latent statistics the pipeline reads.
     with open(os.path.join(scaffold, "vae", "config.json")) as f:
         config = json.load(f)
 
-    return backend.comfy_vae(safetensors_torch.load_file(weight_file), config)
+    return backend.comfy_vae(weight_file, config)
 
 
 def _flat_to_nested(sd):

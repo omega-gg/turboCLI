@@ -135,6 +135,26 @@ Results, same runs:
 - Colors stay where they were against ComfyUI (27-31 dB text-to-image, 21 dB on the edit, where
   the reference sizing differs as noted above): the sampling drift, not the decode.
 
+## Revision: Turbo, int8 attention, cache placement
+
+`comfy-qwen-image-2-1-turbo` inherits this engine for Qwen-Image-2.1-Turbo, Qwen's 8-step
+distillation: only the transformer differs (Comfy-Org's `qwen_image_2.1_turbo_int8_convrot`,
+7,257 MB; Turbo's transformer config is identical), at 8 steps on the same schedule, since
+ComfyUI's shift 0.69 belongs to the model (`supported_models.py`), not the template.
+
+- Turbo's file sets `comfy_kitchen_int8` attention on blocks 1-31, which ComfyUI runs through
+  comfy-kitchen's int8 kernel. The offloader now reads that config (`use_comfy_attention_config`):
+  31-39 dB against ComfyUI on text-to-image, from 29-34 dB with bf16 attention.
+- The prefix cache's "auto" rule read raw free VRAM. Under dynamic VRAM that looks nearly full
+  even on an L4, so the K/V went to host RAM and came back every step: the edit ran ~0.35 s per
+  step behind ComfyUI. It now asks the model's patcher (`current_patcher.get_free_memory`, handed
+  over by the offloader's `pre_run`), once per forward before the blocks run, as
+  `select_prefix_cache` does; from inside a block, aimdo warns about the block's pinned pages.
+
+L4 at 1024², 8 steps, warm (cold): text-to-image 7.3 s (20.9 s) against ComfyUI's 7.1-7.2 s
+(33.4 s); edit 9.3-9.4 s (11.9 s) against 8.9-9.2 s (17.5 s), from 12.4-12.7 s. On the 4 GB card
+at 1024×768 speed is on par (warm 22-31 s on both, the laptop throttles).
+
 ## Follow-ups
 
 - End to end at 1024², phase by phase (warm, GPU-synced): the PNG save was ~0.4 s slower (PIL's
@@ -153,3 +173,6 @@ Results, same runs:
   ComfyUI's K/V prefetch on its offload stream measured slower on that card (6.49 s/step, the
   stream is busy with the weights), so the plain copy stays.
 - Bisect the comfy-qwen-image-edit-2511 pipeline-level change across the diffusers bump.
+- RAM on the 4 GB card at 1024×768: peak private 23.9 GB against ComfyUI's 22.5-23.5 GB, and
+  22.6 GB held between images against 20.0-20.3 GB; both start at 2.7-2.8 GB and keep the model
+  files mapped, so the gap is in what each allocates around them.

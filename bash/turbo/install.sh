@@ -132,6 +132,7 @@ if [ $# -lt 2 -o $# -gt 8 ] \
     echo "        comfy-krea2-turbo"
     echo "        comfy-krea2-turbo-realism"
     echo "        comfy-qwen-image-2-1"
+    echo "        comfy-qwen-image-2-1-turbo"
     echo "        comfy-qwen-image-edit-2511"
     echo "        comfy-qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511"

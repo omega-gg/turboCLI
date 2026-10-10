@@ -49,6 +49,7 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/comfy_krea2_turbo.py \
                runner/engine/comfy_krea2_turbo_realism.py \
                runner/engine/comfy_qwen_image_2_1.py \
+               runner/engine/comfy_qwen_image_2_1_turbo.py \
                runner/engine/comfy_qwen_image_edit_2511.py \
                runner/engine/comfy_qwen_image_edit_2511_lightning.py \
                runner/engine/comfy_z_image_turbo.py \
