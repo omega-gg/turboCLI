@@ -153,7 +153,11 @@ ComfyUI's shift 0.69 belongs to the model (`supported_models.py`), not the templ
 
 L4 at 1024², 8 steps, warm (cold): text-to-image 7.3 s (20.9 s) against ComfyUI's 7.1-7.2 s
 (33.4 s); edit 9.3-9.4 s (11.9 s) against 8.9-9.2 s (17.5 s), from 12.4-12.7 s. On the 4 GB card
-at 1024×768 speed is on par (warm 22-31 s on both, the laptop throttles).
+at 1024×768 speed is on par (warm 22-31 s on both, the laptop throttles). Per transformer
+forward (GPU-synced) the two are equal, kernel for kernel: 0.727 against 0.723 s text-to-image,
+0.85-0.87 s on both for an edit step (ComfyUI's progress-bar it/s is a moving average, not the
+mean). Since core collects garbage after the result as ComfyUI does, not before an edit's
+sampling, the result is out at 6.9-7.0 s (text-to-image) and 8.7-8.8 s (edit) on the L4.
 
 ## Follow-ups
 

@@ -382,7 +382,7 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
    a CPU generator regardless of renderer, for device-independent determinism.
 4. **image-to-image** (core.py:616-640): lazy PIL import; per input image, a downscale to the
    engine's `IMAGE_AREA` (the output's area by default), keeping its ratio and never cropping
-   (LANCZOS), then a gc + empty_cache "before the heavy lifting".
+   (LANCZOS).
 5. **Progress** (core.py:661-725): diffusers' tqdm bar is kept fully alive but rendered into a
    sink ("a disabled bar computes no stats"), and `progress_bar` is hooked per generation: a
    heartbeat `  0%|step 0/N (00:00)` at bar creation (real loop start, after text-encoding, so
@@ -394,7 +394,10 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
    `CANCELLED:` or `SUPERSEDED:` (core.py:754-763).
 7. **Backend hooks**: `prepare(pipe)` before the call (per-generation load boundary),
    `reclaim(pipe)` in an outer `finally`, after the save and `Saved:` (so the client does not wait
-   on it, ~0.2 s) yet on every path (reclaim errors logged, not raised). The call itself runs under
+   on it, ~0.2 s) yet on every path (reclaim errors logged, not raised). The same `finally` then
+   collects garbage as ComfyUI does after a prompt (`_collect`: gc + `empty_cache`, at most every
+   10 s); the edit used to collect before sampling, which delayed its result ~0.8 s on an L4 (the
+   emptied cache also made the first step reallocate). The call itself runs under
    `torch.inference_mode()` (core.py:735-736).
 8. Save (PNG at ComfyUI's SaveImage `compress_level=4`, lossless), then emit
    `Saved: <output>` immediately "so the client gets the result as early as possible"

@@ -34,6 +34,7 @@ import os
 import gc
 import glob
 import importlib
+import time
 import traceback
 
 #--------------------------------------------------------------------------------------------------
@@ -105,6 +106,9 @@ def log(message):
 # (name, model, renderer, offload, slicing) + engine.extra_key(params).
 pipe = None
 pipe_key = None
+
+# When _collect last ran.
+last_collect = 0.0
 
 
 def _resolve(spec):
@@ -508,6 +512,24 @@ def get_pipe(mod, params, emit):
     return pipe
 
 
+def _collect(device):
+    """ComfyUI after a prompt (main.py:405-412): once the result is out, at most every 10 s,
+    collect garbage and return the allocator's cached memory."""
+    global last_collect
+
+    if time.perf_counter() - last_collect <= 10.0:
+        return
+
+    gc.collect()
+
+    if device == "cuda":
+        torch.cuda.empty_cache()
+    elif device == "mps":
+        torch.mps.empty_cache()
+
+    last_collect = time.perf_counter()
+
+
 def generate(params, emit, should_stop=None):
     """Run one generation. Returns True if an image was saved, False otherwise (validation error,
     cancelled, or superseded). Unexpected errors propagate to the caller (cli/server wraps them).
@@ -638,14 +660,6 @@ def generate(params, emit, should_stop=None):
             prompt_images.append(img)
 
         kwargs["image"] = prompt_images
-
-        # Clear memory before the heavy lifting.
-        gc.collect()
-
-        if device == "cuda":
-            torch.cuda.empty_cache()
-        elif device == "mps":
-            torch.mps.empty_cache()
 
     # Returns None to keep going, or why we should stop: "cancel" / "supersede".
     def stop_reason():
@@ -790,3 +804,5 @@ def generate(params, emit, should_stop=None):
                 backend.reclaim(p)
             except Exception:
                 log(traceback.format_exc())
+
+        _collect(device)
