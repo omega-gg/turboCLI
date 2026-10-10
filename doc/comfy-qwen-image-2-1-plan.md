@@ -45,9 +45,9 @@ the templates).
 - Text encoder: Qwen3-VL meta-built from the scaffold with an `Identity` lm_head (the pipeline
   reads pre-norm hidden states only); flat ComfyUI keys move under `model.language_model.`, the
   vision tower stays, the unused head is dropped. Its `embed_tokens` is int8 ConvRot too.
-- VAE: ComfyUI's own, the `comfy.ldm.wan.vae2_2.WanVAE` comfy/sd.py builds for this file, with
-  sd.py's settings, opted in through the offloader's `comfy_vae` (see Revision). It loads the file
-  as is, strictly.
+- VAE: ComfyUI's own, through the offloader's `comfy_vae` (see Revision): the engine hands it the
+  file, the offloader builds the `comfy.ldm.wan.vae2_2.WanVAE` comfy/sd.py builds for it and runs
+  it as sd.py does. It loads the file as is, strictly.
 - Scheduler pinned to ComfyUI's ModelSamplingFlux(shift 0.69) + "simple":
   `base_shift = max_shift = 0.69` (a fixed mu, independent of resolution) and no terminal
   stretch, so the pipeline's default `linspace(1, 1/N, N)` lands on ComfyUI's sigmas.
@@ -118,18 +118,18 @@ with what lies under the layer. The diffusers VAE needed 5.5 GB there, so the of
 ComfyUI's within a level. ComfyUI decodes the same image whole on that card: its Wan 2.2 decoder
 runs a single image in row strips, exact and in a quarter of the memory (1.4 GB).
 
-So the engine now runs ComfyUI's own VAE: comfy/ldm/wan/vae2_2.py, vendored verbatim by the
-offloader, built with sd.py's settings for this file and opted in through the offloader's
-`comfy_vae`, which runs it as sd.py's VAE class does (its estimates, the clamp, its tiled
-fallbacks). The key-rename tables are gone. Results, same runs:
+So the engine now runs ComfyUI's own VAE through the offloader's `comfy_vae`: comfy/ldm/wan/
+vae2_2.py, vendored verbatim, built and run as sd.py's VAE class does (its settings, its memory
+steps under dynamic VRAM, the clamp, its tiled fallbacks). The key-rename tables are gone.
+Results, same runs:
 
 - Alpha against ComfyUI: within 1-6 levels (text-to-image and edit), from 40-74 before; its
   lowest value 247-254, as ComfyUI's.
 - The faint pixel checker on flat areas is the model's: ComfyUI shows it as strongly.
 - Text-to-image 1024×768 on the 4 GB card: 93-109 s against 128-142 s before (no tiling and no
   VRAM freeing for the old estimate; one run each, the laptop throttles).
-- The decode alone, warm, against ComfyUI's on the same latent shape. L4 at 1024²: 0.68-0.70 s
-  against 0.71 s, from 1.0 s, so the 0.3 s noted under Speed is gone (the same kernels profile on
+- The decode alone, warm, against ComfyUI's on the same latent shape. L4 at 1024²: 0.73 s
+  against 0.70 s, from 1.0 s, so the 0.3 s noted under Speed is gone (the same kernels profile on
   both). 4 GB card at 1024×768, interleaved, untiled on both: 1.50 s against 1.52 s, and 2.57 s
   against 2.61 s once throttled.
 - Colors stay where they were against ComfyUI (27-31 dB text-to-image, 21 dB on the edit, where

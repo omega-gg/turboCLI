@@ -25,10 +25,9 @@
 # Same model as qwen-image-edit-2511, but built from ComfyUI's split single files: the 39GB bf16
 # transformer (already diffusers-keyed) is streamed via the offloader, and the 8.7GB SCALED-FP8
 # Qwen2.5-VL text encoder is loaded through the vendored comfy quant path -- kept fp8, dequantized
-# per forward as ComfyUI does (emulated on a GPU without fp8 tensor cores). The ComfyUI VAE is
-# reused too: its WAN-style keys convert to AutoencoderKLQwenImage via diffusers'
-# convert_wan_vae_to_diffusers (Qwen-Image's VAE is WAN-derived). Only the tokenizer, processor,
-# scheduler + configs (~10MB, incl. vae/config.json) come from the diffusers repo.
+# per forward as ComfyUI does (emulated on a GPU without fp8 tensor cores). The VAE is ComfyUI's
+# own (through the offloader's comfy_vae, see _build_vae). Only the tokenizer, processor, scheduler
+# + configs (~10MB, incl. vae/config.json) come from the diffusers repo.
 #
 # OFFLOADER-ONLY: the fp8 quant path needs comfy ops, so load() bails out for other offload modes.
 # All model-specific assembly lives here; the offloader (backend/) stays model-agnostic -- load()
@@ -59,8 +58,8 @@ INFERENCE = 40
 IMAGE_AREA = None
 
 # ComfyUI split single files reused by this engine. The three live in DIFFERENT Comfy-Org repos, so
-# each carries its own `repository` (install downloads a missing one from there). The VAE's WAN-
-# style keys convert to the AutoencoderKLQwenImage layout at load (see _build_vae).
+# each carries its own `repository` (install downloads a missing one from there). The VAE file
+# loads as is into ComfyUI's own model (see _build_vae).
 COMFY = {
     "revision": "main",
     "components": [
@@ -126,21 +125,17 @@ def _text_encoder_meta(scaffold, dtype):
         return Qwen2_5_VLForConditionalGeneration(cfg)
 
 
-def _build_vae(scaffold, weight_file, dtype):
-    """Reuse ComfyUI's VAE: build AutoencoderKLQwenImage from the scaffold config and load the
-    comfy single file, converting its WAN-style keys to the diffusers layout with the stock
-    convert_wan_vae_to_diffusers (Qwen-Image's VAE is WAN-derived -- verified 1:1, 194 keys)."""
+def _build_vae(scaffold, weight_file, backend):
+    """ComfyUI's own VAE, the model comfy/sd.py builds for the file, run as sd.py runs it
+    through the offloader's comfy_vae, so it decodes and encodes as ComfyUI does: on a 4 GB card
+    it decodes 1024x768 whole, where diffusers' VAE tiled up front."""
     import safetensors.torch as safetensors_torch
-    from diffusers import AutoencoderKLQwenImage
-    from diffusers.loaders.single_file_utils import convert_wan_vae_to_diffusers
 
-    cfg = AutoencoderKLQwenImage.load_config(os.path.join(scaffold, "vae"))
-    vae = AutoencoderKLQwenImage.from_config(cfg)
+    # z_dim and the latent statistics the pipeline reads.
+    with open(os.path.join(scaffold, "vae", "config.json")) as f:
+        config = json.load(f)
 
-    state = convert_wan_vae_to_diffusers(safetensors_torch.load_file(weight_file))
-    vae.load_state_dict(state, strict=True)
-
-    return vae.to(dtype).eval()
+    return backend.comfy_vae(safetensors_torch.load_file(weight_file), config)
 
 
 def _flat_to_nested(sd):
@@ -179,7 +174,7 @@ def load(ctx, params):
     scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(scaffold, subfolder="scheduler")
     tokenizer = Qwen2Tokenizer.from_pretrained(os.path.join(scaffold, "tokenizer"))
     processor = Qwen2VLProcessor.from_pretrained(os.path.join(scaffold, "processor"))
-    vae = _build_vae(scaffold, files["vae"], ctx.dtype)  # reused from ComfyUI (WAN key convert)
+    vae = _build_vae(scaffold, files["vae"], ctx.backend)  # ComfyUI's own
 
     # An inheriting variant may add a reused "lora" component (see comfy-...-lightning); apply it
     # to the transformer at full strength before user-supplied ctx.loras. Absent -> just ctx.loras.

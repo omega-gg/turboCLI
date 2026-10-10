@@ -26,10 +26,9 @@
 # engine builds it from ComfyUI's split single files, both SCALED-FP8 and streamed through the
 # vendored comfy quant path -- kept fp8, dequantized per forward as ComfyUI does (emulated on a GPU
 # without fp8 tensor cores): the ~13GB Krea2 transformer and the ~9GB Qwen3-VL-4B text encoder. The
-# ComfyUI VAE is reused too: it is the same AutoencoderKLQwenImage (WAN-derived) as comfy-qwen, so
-# its keys convert via diffusers' convert_wan_vae_to_diffusers. Only the tokenizer, scheduler +
-# configs (~10MB, incl. vae/config.json + the 12-layer text-encoder tap) come from the diffusers
-# repo.
+# VAE is ComfyUI's own, the same file as comfy-qwen (the offloader's comfy_vae, see
+# comfy_qwen_image_edit_2511._build_vae). Only the tokenizer, scheduler + configs (~10MB, incl.
+# vae/config.json + the 12-layer text-encoder tap) come from the diffusers repo.
 #
 # Unlike comfy-qwen-image-edit-2511 (bf16 transformer, fp8 TE), BOTH big models here are fp8, so
 # both specs carry "quant": True and go through load_quant_single_file. The transformer's keys are
@@ -50,6 +49,8 @@
 import os
 import re
 import json
+
+from . import comfy_qwen_image_edit_2511 as qe  # cheap: no torch at top level
 
 ID   = "comfy-krea2-turbo"
 TYPE = "krea2"  # offloader seam vocabulary (single-stream Krea2 MMDiT family)
@@ -130,23 +131,6 @@ def _text_encoder_meta(scaffold, dtype):
     cfg = AutoConfig.from_pretrained(os.path.join(scaffold, "text_encoder"))
     with init_empty_weights():
         return Qwen3VLModel(cfg)
-
-
-def _build_vae(scaffold, weight_file, dtype):
-    """Reuse ComfyUI's VAE: build AutoencoderKLQwenImage from the scaffold config and load the
-    comfy single file, converting its WAN-style keys to the diffusers layout with the stock
-    convert_wan_vae_to_diffusers (Krea 2 reuses Qwen-Image's WAN-derived VAE -- same file)."""
-    import safetensors.torch as safetensors_torch
-    from diffusers import AutoencoderKLQwenImage
-    from diffusers.loaders.single_file_utils import convert_wan_vae_to_diffusers
-
-    cfg = AutoencoderKLQwenImage.load_config(os.path.join(scaffold, "vae"))
-    vae = AutoencoderKLQwenImage.from_config(cfg)
-
-    state = convert_wan_vae_to_diffusers(safetensors_torch.load_file(weight_file))
-    vae.load_state_dict(state, strict=True)
-
-    return vae.to(dtype).eval()
 
 
 # ComfyUI's Krea2 transformer keys -> diffusers Krea2Transformer2DModel layout. Per-block renames
@@ -290,7 +274,7 @@ def load(ctx, params):
 
     scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(scaffold, subfolder="scheduler")
     tokenizer = Qwen2Tokenizer.from_pretrained(os.path.join(scaffold, "tokenizer"))
-    vae = _build_vae(scaffold, files["vae"], ctx.dtype)  # reused from ComfyUI (WAN key convert)
+    vae = qe._build_vae(scaffold, files["vae"], ctx.backend)  # ComfyUI's own
 
     # The 12 decoder layers Krea2Pipeline taps from the text encoder + the distilled/patch config
     # -- read straight from the scaffold's model_index.json so the tap stays pinned to the weights.

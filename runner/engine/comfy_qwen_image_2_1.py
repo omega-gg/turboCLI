@@ -30,9 +30,10 @@
 #
 # OFFLOADER-ONLY: int8 needs the comfy quant path, so load() bails out for other offload modes.
 # The transformer runs the way ComfyUI's model does (_comfy_forward), so the ComfyUI file binds
-# as is, with no key conversion. So does the VAE: it is ComfyUI's own (comfy/ldm/wan/vae2_2.py,
-# vendored by the offloader), which decodes in row strips rather than diffusers' tiles, see
-# _build_vae. The sampling schedule is pinned to ComfyUI's (shift 0.69, simple), see load().
+# as is, with no key conversion. So does the VAE: it is ComfyUI's own (the offloader's comfy_vae,
+# see comfy_qwen_image_edit_2511._build_vae), whose decoder runs a single image in row strips,
+# exact and in a quarter of diffusers' memory, where diffusers' tiles bent the alpha along their
+# seams. The sampling schedule is pinned to ComfyUI's (shift 0.69, simple), see load().
 #
 # The output is RGBA (the VAE decodes 4 channels), so save it as PNG.
 #
@@ -290,41 +291,6 @@ def _text_encoder_convert(sd):
     return out
 
 
-def _build_vae(scaffold, weight_file, dtype, backend):
-    """ComfyUI's own VAE, opted in through the offloader's comfy_vae: the WanVAE comfy/sd.py
-    builds for the Qwen Image 2.1 layout, with sd.py's settings for it. It decodes a single image
-    in row strips, exact and in a quarter of diffusers' memory, so a 4 GB card decodes 1024²
-    whole where diffusers' tiles bent the alpha along their seams."""
-    import json
-    from types import SimpleNamespace
-
-    import safetensors.torch as safetensors_torch
-
-    import comfy.ldm.wan.vae2_2 as wan
-    import comfy.model_management as mm
-
-    sd = safetensors_torch.load_file(weight_file)
-    channels = sd["decoder.head.2.weight"].shape[0]
-    # comfy/sd.py's Qwen Image 2.1 branch: the model and, below, its working-memory estimates.
-    model = wan.WanVAE(dim=sd["encoder.conv1.weight"].shape[0],
-                       dec_dim=sd["decoder.head.0.gamma"].shape[0], z_dim=64,
-                       dim_mult=[1, 2, 4, 8, 8], num_res_blocks=2, attn_scales=[],
-                       temperal_downsample=[False, True, True, True], dropout=0.0,
-                       image_channels=channels, patch_size=1, temporal_kernel=1)
-    model.load_state_dict(sd, strict=True)
-
-    # z_dim and the latent statistics the pipeline reads.
-    with open(os.path.join(scaffold, "vae", "config.json")) as f:
-        config = SimpleNamespace(**json.load(f))
-
-    vae = backend.comfy_vae(
-        model, config,
-        lambda shape, dtype: 900 * shape[2] * shape[3] * (16 * 16) * mm.dtype_size(dtype),
-        lambda shape, dtype: 600 * shape[2] * shape[3] * mm.dtype_size(dtype),
-        latent_channels=64, image_channels=channels, ratio=16)
-    return vae.to(dtype).eval()
-
-
 def load(ctx, params):
     """Assemble a QwenImage21Pipeline from ComfyUI's int8 single files via the disk-stream
     offloader. OFFLOADER-ONLY (int8 needs the comfy quant path)."""
@@ -344,8 +310,8 @@ def load(ctx, params):
     scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
         scaffold, subfolder="scheduler", base_shift=0.69, max_shift=0.69, shift_terminal=None)
     processor = Qwen3VLProcessor.from_pretrained(os.path.join(scaffold, "processor"))
-    comfy = ctx.backend.comfy_api()  # brings up the vendored comfy package, see _build_vae
-    vae = _build_vae(scaffold, files["vae"], ctx.dtype, ctx.backend)
+    vae = qe._build_vae(scaffold, files["vae"], ctx.backend)
+    comfy = ctx.backend.comfy_api()
 
     return ctx.backend.load_pipe_comfy(
         QwenImage21Pipeline,

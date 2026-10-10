@@ -64,8 +64,8 @@ Keeping krea2's norms on their own forward costs nothing: that forward calls `F.
 with fp32 weights (see `keep_declared_fp32` below) it hits the same fused kernel.
 
 ### 4. The engine (`runner/engine/comfy_krea2_turbo.py`)
-Standalone (reuses `_by_role` / `_build_vae` by copy; krea2 differs on transformer, TE and
-pipeline, so `BASE` inheritance would override nearly everything).
+Standalone (reuses `_by_role` by copy and comfy-qwen-image-edit-2511's `_build_vae`; krea2
+differs on transformer, TE and pipeline, so `BASE` inheritance would override nearly everything).
 
 - `ID="comfy-krea2-turbo"`, `TYPE="krea2"`, `PIPELINE="diffusers:Krea2Pipeline"`,
   `TRANSFORMER="diffusers:Krea2Transformer2DModel"`, `MODES=("text-to-image",)`,
@@ -132,7 +132,8 @@ Getting there took two fixes, both landed in the offloader as generic mechanisms
 ~~The load gap is inherent to the reuse: we run the key convert (430 tensors)...~~ **Profiled: the
 reuse costs nothing at load.** Phase timers on a real run (49 s total): the 430-key convert is
 0.00 s (dict key renames), fp8 read+quant setup 0.27 s (tf) + 0.30 s (te) — the files mmap lazily,
-same as ComfyUI — VAE read+WAN-convert+load 0.64 s; `load_pipe_comfy` total **1.2 s**, matching
+same as ComfyUI — VAE read+WAN-convert+load 0.64 s (the convert since gone: the VAE is now ComfyUI's own, the
+offloader's `comfy_vae`); `load_pipe_comfy` total **1.2 s**, matching
 ComfyUI's ~2 s lazy load. The earlier "~30 s load" was ~10.4 s of python/torch/diffusers imports
 (process-per-image pays them every image; ComfyUI's server pays its ~15 s startup once) plus the
 encode/decode/save tail misattributed to load. Caching converted weights would save nothing.
