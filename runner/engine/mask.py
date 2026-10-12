@@ -25,8 +25,8 @@
 # options: mode=default (soft pixel-diff, best for adding / recoloring) | region (grown boxes, best
 # for removal / replace); cutoff=N (0-255, higher = fewer pixels, default 24); glow=N (pixels,
 # default 0, mode=default only) reaches that far past the change, faded, which covers the outline a
-# removal leaves behind; fade=<left>:<top>:<right>:<bottom> (pixels, none by default, mode=region
-# only) softens the mask on the borders the caller cut, for a mask made of part of a picture, 0
+# removal leaves behind; fade=<left>:<top>:<right>:<bottom> (pixels, none by default, either
+# mode) softens the mask on the borders the caller cut, for a mask made of part of a picture, 0
 # leaving a border hard. Apply the mask with image-apply-mask.
 
 ID    = "mask"

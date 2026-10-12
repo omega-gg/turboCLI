@@ -132,3 +132,11 @@ crop is for. The engine keeps no default: what it is not told, it does not do.
    the clamp is for.
 4. Nothing else moves: `mode=region` with no `fade`, `mode=default`, and `default` with a `glow`
    are byte for byte what they were, compared against `git show HEAD:` on the same pair.
+
+## Revision: either mode
+
+A `default` mask has the same seam whenever the change runs off the crop: the diff stops where the
+crop does, and padded back it lands on that border as a step. So `fade` now applies to both modes.
+`_region_mask` no longer takes it: `build_mask` fades whichever mask it built, after the diff
+mask's own feather and glow, and a region mask goes through exactly the call it had before, so it
+stays byte for byte what it was.

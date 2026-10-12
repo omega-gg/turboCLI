@@ -232,7 +232,7 @@ options: key=value,... -- cutoff=N (0-255, higher = fewer pixels/shadow); mask a
          mode=default|region (default = diff mask, region = grown boxes), glow=N (pixels,
          mode=default only: the mask reaches that far past the change, faded, which covers the
          outline a removal leaves behind) and fade=<left>:<top>:<right>:<bottom> (pixels,
-         mode=region only: softens the mask on the borders the caller cut, for an input that is a
+         either mode: softens the mask on the borders the caller cut, for an input that is a
          crop of a bigger picture. A side given 0 keeps its hard edge)
 
 server: host:port (or port for 127.0.0.1) of a rendering server

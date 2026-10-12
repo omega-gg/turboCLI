@@ -154,7 +154,7 @@ def _fade_edges(mask, sides):
     return Image.fromarray(out.astype(np.uint8), "L")
 
 
-def _region_mask(generated, ref, thr, grow, feather, min_area, fade):
+def _region_mask(generated, ref, thr, grow, feather, min_area):
     """Solid grown bounding boxes around changed blobs (255 = replace). For removal/replace: the
     box is filled solid so nothing of the old object can ghost inside it. A pixel diff mask can't
     do this -- a dark object over a matching background falls below the threshold and survives as
@@ -180,11 +180,6 @@ def _region_mask(generated, ref, thr, grow, feather, min_area, fade):
     if feather > 0:
         out = out.filter(ImageFilter.GaussianBlur(feather))
 
-    # The border of a crop is ours, not the picture's, and a box that fills the crop lands on it
-    # as a step, so each side the caller asked for falls off instead.
-    if fade:
-        out = _fade_edges(out, fade)
-
     return out
 
 
@@ -193,12 +188,20 @@ def build_mask(reference, edit, mode, thr, glow=0, fade=()):
     `thr` (the cutoff), at the edit's own resolution. The reference is downscaled to the
     edit's canvas first, so a full-res reference + a smaller edit yields a mask at the edit res;
     image-apply-mask composite upscales it back to the reference. Same-size => that resize is an
-    identity. mode `region` = grown boxes, which `fade` (pixels per border, none by default)
-    softens on the sides the caller cut; anything else (`default`) = the soft pixel-diff mask,
-    which `glow` (pixels, 0 = none) makes reach that far past the change."""
+    identity. mode `region` = grown boxes; anything else (`default`) = the soft pixel-diff mask,
+    which `glow` (pixels, 0 = none) makes reach that far past the change. Either way `fade`
+    (pixels per border, none by default) softens the sides the caller cut."""
     ref = reference.resize(edit.size, LR)                  # reference as the edit's own canvas
 
     if mode == "region":
-        return _region_mask(edit, ref, thr, GROW, FEATHER_REGION, MIN_AREA, fade)
+        mask = _region_mask(edit, ref, thr, GROW, FEATHER_REGION, MIN_AREA)
+    else:
+        mask = _diff_mask(edit, ref, thr, DILATE, FEATHER_MASK, glow)
 
-    return _diff_mask(edit, ref, thr, DILATE, FEATHER_MASK, glow)
+    # The border of a crop is ours, not the picture's, and a mask that reaches it (a box filling
+    # the crop, or a change running off its edge) lands on it as a step, so each side the caller
+    # asked for falls off instead.
+    if fade:
+        mask = _fade_edges(mask, fade)
+
+    return mask

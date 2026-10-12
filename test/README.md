@@ -15,8 +15,8 @@ are a comma-separated, ordered list -- the input always first. `SKY_PATH_BIN` mu
 install; run from anywhere:
 
 The `mask` engine takes two more options. `glow=N` carries a `default` mask N pixels further out,
-which covers the outline a removal leaves behind, and `fade=<l>:<t>:<r>:<b>` softens a `region`
-mask by that many pixels on the borders the caller cut, for a mask made of part of a picture. Both
+which covers the outline a removal leaves behind, and `fade=<l>:<t>:<r>:<b>` softens a mask of
+either mode by that many pixels on the borders the caller cut, for a mask made of part of a picture. Both
 are off unless sent, see
 [doc/mask-glow-plan.md](../doc/mask-glow-plan.md) and
 [doc/mask-fade-plan.md](../doc/mask-fade-plan.md).

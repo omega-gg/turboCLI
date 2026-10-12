@@ -121,7 +121,7 @@ if [ $# -lt 4 -o $# -gt 6 ] \
     echo "         mode=default|region (default = diff mask, region = grown boxes) and glow=N"
     echo "         (pixels, mode=default only: the mask reaches that far past the change, faded,"
     echo "         which covers the outline a removal leaves behind) and fade=<sides> (any of"
-    echo "         <left>:<top>:<right>:<bottom> in pixels, mode=region only: softens the mask on"
+    echo "         <left>:<top>:<right>:<bottom> in pixels, either mode: softens the mask on"
     echo "         the borders the caller cut, for an input that is a crop of a bigger picture. A"
     echo "         side given 0 keeps its hard edge)"
     echo ""
