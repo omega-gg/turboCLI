@@ -5,6 +5,7 @@ include(bash/bash.pri)
 OTHER_FILES += README.md  \
                LICENSE.md \
                implementation.md \
+               engine.md \
                dummy.md \
                update.sh \
                doc/comfy-flux2-4b-plan.md \

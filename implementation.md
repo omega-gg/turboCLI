@@ -303,7 +303,8 @@ multi-GB download for a ComfyUI user). Dispatch is purely `hasattr(mod, "COMFY")
   wrappers `text-to-image.sh` / `image-to-image.sh` / `image-to-mask.sh` (each mode-filtered).
 - **`bash/turbo/README.md`**, which mirrors each script's usage block verbatim — update both or
   they drift.
-- **This table**, below.
+- **This table**, below, and **[engine.md](engine.md)**, the user-facing list: the engine's
+  line under each task it does, with its size, steps and requirements.
 
 `check-model.sh` and `remove.sh` deliberately carry *no* list: `runner.check` with no `--engine`
 enumerates the registry, so they point at it instead and cannot go stale. Prefer that whenever the
