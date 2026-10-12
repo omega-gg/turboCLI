@@ -33,8 +33,8 @@ PR(s) are welcomed
 - Qwen-Image-Edit-2511
 - Krea2-Turbo
 - Masking / matting: diff & region masks, BiRefNet / Lucida / InSPyReNet mattes
-<br>
-- [engine.md](engine.md) - list of engines with their requirements
+
+[engine.md](engine.md) lists every engine with their requirements
 
 ## Platforms
 
