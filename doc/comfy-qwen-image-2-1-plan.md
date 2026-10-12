@@ -150,6 +150,11 @@ ComfyUI's shift 0.69 belongs to the model (`supported_models.py`), not the templ
   step behind ComfyUI. It now asks the model's patcher (`current_patcher.get_free_memory`, handed
   over by the offloader's `pre_run`), once per forward before the blocks run, as
   `select_prefix_cache` does; from inside a block, aimdo warns about the block's pinned pages.
+- The prefix cache lives for one sampling run, as ComfyUI's does: setting the model's
+  `current_patcher` (the offloader's `pre_run`, and its `reclaim` clearing it) frees the host
+  pins, after waiting for any copy still in flight. Freed only at the next run, an edit on the
+  4 GB card kept 2.16 GB pinned between images, and a model released in between left them
+  registered: a later copy from reused memory failed ("Copy is larger than memobj size").
 
 L4 at 1024², 8 steps, warm (cold): text-to-image 7.3 s (20.9 s) against ComfyUI's 7.1-7.2 s
 (33.4 s); edit 9.3-9.4 s (11.9 s) against 8.9-9.2 s (17.5 s), from 12.4-12.7 s. On the 4 GB card

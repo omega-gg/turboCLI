@@ -147,10 +147,30 @@ def _comfy_forward(model, comfy):
         return rope["pe"]
 
     blocks = len(model.transformer_blocks)
-    parked = {"run": None, "pinned": [], "free": 0}
-    # As ComfyUI's BaseModel (model_base.py:177): the offloader's pre_run hands the model its
-    # patcher, whose get_free_memory counts the VRAM dynamic loading can take back.
-    model.current_patcher = None
+    parked = {"pinned": [], "free": 0}
+
+    class Model(type(model)):
+        """The diffusers model with ComfyUI's BaseModel.current_patcher (model_base.py:2678-2689):
+        the offloader's pre_run sets it at a run's start, for get_free_memory (which counts the
+        VRAM dynamic loading can take back), and clears it at the run's end. Either way the prefix
+        cache is reset: it lives for one sampling run, so its pins never outlive the run."""
+
+        @property
+        def current_patcher(self):
+            return self.__dict__.get("_current_patcher")
+
+        @current_patcher.setter
+        def current_patcher(self, patcher):
+            self.__dict__["_current_patcher"] = patcher
+            if parked["pinned"]:
+                # As PoseBranchCache._free_slot: an aborted forward can leave a copy in flight,
+                # still reading memory about to be unpinned (ours run on the current stream).
+                torch.cuda.current_stream().synchronize()
+            for host in parked["pinned"]:
+                mm.unpin_memory(host)
+            parked["pinned"] = []
+
+    model.__class__ = Model
 
     def measure_free(module, args):
         # Before any block runs, as select_prefix_cache asks (model.py:371-374): from inside a
@@ -161,17 +181,13 @@ def _comfy_forward(model, comfy):
 
     model.register_forward_pre_hook(measure_free)
 
-    def park(t, run):
+    def park(t):
         # ComfyUI's "auto" prefix cache placement (QwenImage21.select_prefix_cache): the prefix
         # K/V stay on the device while its patcher has 4x the whole cache free, else host RAM
         # (an edit's ~2 GB would otherwise starve a small card's weight streaming), pinned within
-        # ComfyUI's budget as PoseBranchCache.put does. A new run frees the last one's pins.
+        # ComfyUI's budget as PoseBranchCache.put does, until the run ends (Model above).
         # (ComfyUI also prefetches them on its offload stream; on a 4 GB card that stream is busy
         # streaming the weights, and a plain copy measured faster: 6.10 against 6.49 s/step.)
-        if parked["run"] is not run:
-            for host in parked["pinned"]:
-                mm.unpin_memory(host)
-            parked.update(run=run, pinned=[])
         if not t.is_cuda or parked["free"] > 4 * 2 * blocks * t.nbytes:
             return t.clone()
         host = t.to("cpu", copy=True)
@@ -195,8 +211,7 @@ def _comfy_forward(model, comfy):
 
         if layer_cache is not None:
             if kv_cache_mode == "extract" and cache_write_slice is not None:
-                layer_cache.store(park(k[:, cache_write_slice], cache_write_slice),
-                                  park(v[:, cache_write_slice], cache_write_slice))
+                layer_cache.store(park(k[:, cache_write_slice]), park(v[:, cache_write_slice]))
             elif kv_cache_mode == "cached":
                 cached_k, cached_v = layer_cache.get()
                 k = torch.cat([cached_k.to(k.device, non_blocking=True), k], dim=1)
