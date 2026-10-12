@@ -104,7 +104,7 @@ sh install.sh z-image-turbo float16
 sh text-to-image.sh z-image-turbo mps "a beautiful knight" out.png
 ```
 
-## Sample model
+## Sample engine
 
 Here is the z-image recipe:
 

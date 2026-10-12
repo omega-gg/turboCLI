@@ -314,7 +314,7 @@ answer is derivable.
 |---|---|
 | `flux2-4b` | TYPE `flux2`, Flux2KleinPipeline, t2i+i2i, 4 steps; pure declaration |
 | `flux2-9b` | BASE = flux2-4b; delta: the FLUX.2-klein-9B repo (Qwen3-8B TE, ~35 GB bf16). **Gated** (FLUX Non-Commercial License): install takes an HF token |
-| `z-image-turbo` | TYPE `z-image`, ZImagePipeline, t2i, 8 steps; pure declaration (the README's "sample model": ~9 lines) |
+| `z-image-turbo` | TYPE `z-image`, ZImagePipeline, t2i, 8 steps; pure declaration (the README's "sample engine": ~9 lines) |
 | `qwen-image-edit-2511` | TYPE `qwen-image-edit`, QwenImageEditPlusPipeline, i2i, `true_cfg_scale 1.0`, 40 steps |
 | `qwen-image-edit-2511-lightning` | BASE = the above; delta: 4 steps + the lightning LoRA (install `LORAS` + runtime `loras()`) |
 | `qwen-image-edit-2511-lightning-angles` | BASE = lightning; adds the angles LoRA for `<sks>` prompts; `extra_key` = the `<sks>` flag so flipping it reloads the pipe |
