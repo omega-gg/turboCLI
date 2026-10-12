@@ -34,7 +34,7 @@ PR(s) are welcomed
 - Krea2-Turbo
 - Masking / matting: diff & region masks, BiRefNet / Lucida / InSPyReNet mattes
 
-[engine.md](engine.md) lists every engine with their requirements
+See [engine.md](engine.md) for a comprehensive list of engines and their requirements.
 
 ## Platforms
 
