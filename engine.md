@@ -28,7 +28,7 @@ Every engine turboCLI can install, by task, to help you pick one. Install an eng
 | `comfy-krea2-turbo` | Krea 2 Turbo, a 12B distilled generator in fp8 | 19 GB | 8 | offloader |
 | `comfy-krea2-turbo-realism` | Krea 2 Turbo with the Krea2-realism-V2 LoRA | 20 GB | 8 | offloader |
 | `comfy-qwen-image-2-1` | Qwen-Image 2.1, a 7B model in int8 that generates and edits, with RGBA output | 17 GB | 25 | offloader |
-| `comfy-qwen-image-2-1-turbo` | Qwen-Image-2.1-Turbo, its 8-step distillation | 17 GB | 8 | offloader |
+| `comfy-qwen-image-2-1-turbo` | Qwen-Image-2.1-Turbo, its 8-step distillation, with RGBA output | 17 GB | 8 | offloader |
 
 ## Image editing
 
@@ -42,7 +42,7 @@ Image-to-image: the prompt describes the change, applied to one or more referenc
 | `comfy-flux2-9b` | FLUX.2 Klein 9B from ComfyUI's bf16 files | 35 GB | 4 | gated |
 | `comfy-flux2-9b-distilled` | FLUX.2 Klein 9B as ComfyUI's distilled template: fp8 with a small decoder, lighter and faster | 18 GB | 4 | gated, offloader |
 | `comfy-qwen-image-2-1` | Qwen-Image 2.1, edits from up to 10 reference images, with RGBA output | 17 GB | 25 | offloader |
-| `comfy-qwen-image-2-1-turbo` | Qwen-Image-2.1-Turbo, its 8-step distillation | 17 GB | 8 | offloader |
+| `comfy-qwen-image-2-1-turbo` | Qwen-Image-2.1-Turbo, its 8-step distillation, with RGBA output | 17 GB | 8 | offloader |
 | `qwen-image-edit-2511` | Qwen-Image-Edit-2511, a 20B model made for editing (diffusers weights) | 58 GB | 40 | |
 | `qwen-image-edit-2511-lightning` | Qwen-Image-Edit-2511 with the Lightning LoRA | 59 GB | 4 | |
 | `qwen-image-edit-2511-lightning-angles` | Lightning plus fal's Multiple-Angles LoRA, for prompts starting with `<sks>` | 59 GB | 4 | |
