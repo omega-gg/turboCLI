@@ -43,8 +43,8 @@ image-apply-mask composite chest.png,chest_mask.png,courtyard.png chest_kept.png
 ```
 
 The matte engines (mask-birefnet / mask-lucida / mask-inspyrenet) need their model installed
-(`install mask-birefnet`); mask / mask-apply need only the turbo venv (install registers them,
-`install mask`).
+(`install mask-birefnet cuda`); mask / mask-apply need only the turbo venv (install registers
+them, `install mask cpu`).
 
 ## Composing a scene across edits
 

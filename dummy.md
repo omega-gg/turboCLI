@@ -175,6 +175,7 @@ Each of these is one sentence here and a full section in `implementation.md`:
 
 ## Where to go next
 
+- `MANUAL.md`: how to use turboCLI, task by task.
 - `implementation.md` — the full design document: every mechanism and its rationale.
 - `doc/engine-inheritance-plan.md`, `doc/comfy-z-image-turbo-plan.md`,
   `doc/comfy-krea2-turbo-plan.md` — how the engine features were designed and validated.

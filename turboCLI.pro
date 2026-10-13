@@ -6,6 +6,7 @@ OTHER_FILES += README.md  \
                LICENSE.md \
                implementation.md \
                engine.md \
+               MANUAL.md \
                dummy.md \
                update.sh \
                doc/comfy-flux2-4b-plan.md \

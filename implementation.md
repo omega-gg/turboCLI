@@ -10,6 +10,7 @@ one code path for CLI and server, and adding a model in a handful of declaration
 
 **New here?** `dummy.md` is the plain-English introduction — what turboCLI does and why, step by
 step, no diffusion background required. It is kept up to date with each iteration of this doc.
+To use turboCLI rather than read about it, see `MANUAL.md`.
 
 **This document is updated with each turboCLI iteration.** It details the implementation so an
 experienced developer (or an LLM) can dig into specifics quickly. For the offload backend's own
