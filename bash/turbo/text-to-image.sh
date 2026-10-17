@@ -130,6 +130,7 @@ if [ $# -lt 4 -o $# -gt 12 ] \
     echo "        comfy-flux2-4b"
     echo "        comfy-flux2-9b"
     echo "        comfy-flux2-9b-distilled"
+    echo "        comfy-flux3-6b"
     echo "        comfy-z-image-turbo"
     echo "        comfy-krea2-turbo"
     echo "        comfy-krea2-turbo-realism"

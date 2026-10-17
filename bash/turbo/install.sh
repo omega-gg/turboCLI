@@ -128,6 +128,7 @@ if [ $# -lt 2 -o $# -gt 8 ] \
     echo "        comfy-flux2-4b"
     echo "        comfy-flux2-9b           (gated: needs a token)"
     echo "        comfy-flux2-9b-distilled (gated: needs a token)"
+    echo "        comfy-flux3-6b           (gated: needs a token)"
     echo "        comfy-z-image-turbo"
     echo "        comfy-krea2-turbo"
     echo "        comfy-krea2-turbo-realism"
@@ -159,9 +160,9 @@ if [ $# -lt 2 -o $# -gt 8 ] \
     echo "                if omitted or none, components download into"
     echo "                turbo/model/ComfyUI/models/."
     echo ""
-    echo "token: optional Hugging Face access token, for a gated model (FLUX.2 klein 9B). Accept"
-    echo "       the model's license on huggingface.co first. Used for this download only, never"
-    echo "       recorded. An HF_TOKEN environment variable works too."
+    echo "token: optional Hugging Face access token, for a gated model (FLUX.2 klein 9B, FLUX.3"
+    echo "       Image Klein). Accept the model's license on huggingface.co first. Used for this"
+    echo "       download only, never recorded. An HF_TOKEN environment variable works too."
     echo ""
     echo "NOTE: The renderer and the options after it are recorded with the install, so a host"
     echo "      reads them back with 'check-model SETTINGS:<engine>'. Installing again over an"
@@ -235,8 +236,9 @@ export HF_HUB_ENABLE_HF_TRANSFER=1
 # NOTE: This should improve download speeds.
 export HF_XET_HIGH_PERFORMANCE=1
 
-# NOTE: A gated model (FLUX.2 klein 9B) needs an access token. huggingface_hub reads HF_TOKEN
-#       itself, so the token stays out of the install arguments and the recorded settings.
+# NOTE: A gated model (FLUX.2 klein 9B, FLUX.3 Image Klein) needs an access token.
+#       huggingface_hub reads HF_TOKEN itself, so the token stays out of the install arguments
+#       and the recorded settings.
 if [ -n "$token" ]; then
 
     export HF_TOKEN="$token"

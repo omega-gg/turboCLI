@@ -276,9 +276,10 @@ def _model_revision(model):
 
 def _engine_installed(mod):
     """True when this engine has a registry entry (engine/<id>/engine.json) whose referenced files
-    are all present -- the source of truth for check.py. Comfy: the scaffold's model_index.json +
-    every component path exist. Stock: the model dir's model_index.json + every recorded LoRA file
-    exist (the record itself carries the installed revision)."""
+    are all present: the source of truth for check.py. Comfy: the scaffold's model_index.json (a
+    modular pipeline's modular_model_index.json) + every component path exist. Stock: the model
+    dir's model_index.json + every recorded LoRA file exist (the record itself carries the
+    installed revision)."""
     record = _read_engine(mod.ID)
 
     if record is None:
@@ -287,7 +288,10 @@ def _engine_installed(mod):
     comfy = record.get("comfy")
 
     if comfy is not None:
-        if not os.path.isfile(os.path.join(_engine_dir(mod.ID), "model_index.json")):
+        scaffold = _engine_dir(mod.ID)
+
+        if not any(os.path.isfile(os.path.join(scaffold, index))
+                   for index in ("model_index.json", "modular_model_index.json")):
             return False
 
         components = comfy.get("components", [])

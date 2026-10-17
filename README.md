@@ -29,6 +29,7 @@ PR(s) are welcomed
 ## Supported engines
 
 - FLUX.2
+- FLUX.3
 - Z-Image-Turbo
 - Qwen-Image-2.1
 - Qwen-Image-Edit-2511

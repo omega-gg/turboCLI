@@ -36,7 +36,7 @@ commit="b1b078481c7a99bdcde79d1cd830346e391cdf96" # Also update in check.sh
 
 commit_offloader="0f7e4959150beed2163767c17bfc188b937c01c2"
 
-diffusers="da1d3829cf08d4f329b526d89e17cc035c049d8d"
+diffusers="7ecb1e1b4fe500be7fb7381a7bb79a24d7fa3941"
 
 #--------------------------------------------------------------------------------------------------
 
@@ -66,7 +66,7 @@ hf_transfer_version="0.1.9"
 safetensors_version="0.8.0"
 psutil_version="7.2.2"
 
-comfy_aimdo_version="0.5.5"
+comfy_aimdo_version="0.5.6"
 
 comfy_kitchen_version="0.2.37"
 
