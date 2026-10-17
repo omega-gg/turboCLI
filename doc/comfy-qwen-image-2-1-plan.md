@@ -188,3 +188,13 @@ sampling, the result is out at 6.9-7.0 s (text-to-image) and 8.7-8.8 s (edit) on
   2.7-2.8 GB and keep the model files mapped, so it is in what turboCLI allocates while running.
   Speed is on par once the laptop's heat is controlled (GPU cooled to 55 °C before each image):
   12.7-12.8 s of sampling on both, steady steps 1.75 against 1.77 s.
+
+## Revision: Turbo's schedule
+
+The Turbo note above kept the base's schedule, ComfyUI's shift 0.69 with "simple". That is
+ComfyUI's model default, but not how either reference samples Turbo: Qwen's Turbo repo publishes
+`sample_sigmas` (1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568) under an
+unshifted scheduler, and ComfyUI's Turbo templates pass the same list through `ManualSigmas`. Turbo
+was distilled for it; the shifted schedule drops faster and left a gritty texture. The engine now
+samples that list (`SAMPLE_SIGMAS`, `load()`). At 1024², seed 7, against ComfyUI's Turbo template:
+fine-grain energy 8.82 against its 8.79 (11.74 before), 33.4 dB; same 8 steps, same speed.

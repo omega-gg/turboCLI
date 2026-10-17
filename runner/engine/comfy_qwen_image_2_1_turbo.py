@@ -24,15 +24,19 @@
 # distillation of the same model (CFG 1). Only the transformer weights differ: the text encoder,
 # the VAE and the scaffold (the transformer config is identical) are the base's. Inherits the whole
 # engine via BASE; the deltas are Comfy-Org's int8 ConvRot Turbo file in place of the base
-# transformer, and 8 steps. The schedule stays the base's: ComfyUI samples Qwen-Image 2.1 at its
-# model's shift 0.69 with "simple" (supported_models.py), Turbo weights included.
+# transformer, and Turbo's own schedule (load()).
 
 from . import comfy_qwen_image_2_1 as base  # cheap: base imports no torch at top level
 
 ID   = "comfy-qwen-image-2-1-turbo"
 BASE = base.ID
 
-INFERENCE = 8  # Turbo's step count (Comfy-Org's README)
+INFERENCE = 8  # Turbo's step count (Comfy-Org's README), the length of SAMPLE_SIGMAS
+
+# The schedule Turbo was distilled for, sampled as is: Qwen-Image-2.1-Turbo's model_index.json
+# sample_sigmas, under its scheduler config (no dynamic shifting, shift 1.0), the sigmas ComfyUI's
+# Turbo templates pass through ManualSigmas. The base's shifted "simple" schedule leaves grain.
+SAMPLE_SIGMAS = [1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568]
 
 TURBO = "diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors"
 
@@ -43,3 +47,16 @@ COMFY = dict(base.COMFY, components=[
     if c["role"] == "transformer" else c
     for c in base.COMFY["components"]
 ])
+
+
+def load(ctx, params):
+    """The base's assembly on Turbo's schedule: its scheduler unshifted, as Qwen's Turbo config
+    sets it, and SAMPLE_SIGMAS as the pipeline's default sigmas."""
+    from diffusers import FlowMatchEulerDiscreteScheduler
+
+    p = base.load(ctx, params)
+
+    p.scheduler = FlowMatchEulerDiscreteScheduler.from_config(
+        p.scheduler.config, use_dynamic_shifting=False, shift=1.0)
+    p.register_to_config(sample_sigmas=SAMPLE_SIGMAS)
+    return p
