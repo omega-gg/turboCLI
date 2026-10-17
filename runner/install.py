@@ -274,12 +274,18 @@ def _model_revision(model):
     return None
 
 
+def _has_index(folder):
+    """True when `folder` holds a diffusers repo's index: model_index.json, or a modular
+    pipeline's modular_model_index.json."""
+    return any(os.path.isfile(os.path.join(folder, index))
+               for index in ("model_index.json", "modular_model_index.json"))
+
+
 def _engine_installed(mod):
     """True when this engine has a registry entry (engine/<id>/engine.json) whose referenced files
-    are all present: the source of truth for check.py. Comfy: the scaffold's model_index.json (a
-    modular pipeline's modular_model_index.json) + every component path exist. Stock: the model
-    dir's model_index.json + every recorded LoRA file exist (the record itself carries the
-    installed revision)."""
+    are all present: the source of truth for check.py. Comfy: the scaffold's index (_has_index) +
+    every component path exist. Stock: the model dir's index + every recorded LoRA file exist (the
+    record itself carries the installed revision)."""
     record = _read_engine(mod.ID)
 
     if record is None:
@@ -288,10 +294,7 @@ def _engine_installed(mod):
     comfy = record.get("comfy")
 
     if comfy is not None:
-        scaffold = _engine_dir(mod.ID)
-
-        if not any(os.path.isfile(os.path.join(scaffold, index))
-                   for index in ("model_index.json", "modular_model_index.json")):
+        if not _has_index(_engine_dir(mod.ID)):
             return False
 
         components = comfy.get("components", [])
@@ -311,7 +314,7 @@ def _engine_installed(mod):
     elif kind == "url":                                    # raw asset (inspyrenet ckpt)
         marker = os.path.isfile(os.path.join(model_dir, record["file"]))
     else:                                                  # diffusers repo
-        marker = os.path.isfile(os.path.join(model_dir, "model_index.json"))
+        marker = _has_index(model_dir)
 
     if not marker:
         return False
@@ -660,7 +663,7 @@ def main():
     # (any engine record for this model). If so, skip the heavy base re-download and only add
     # missing LoRAs. No per-dir .commit -- the registry carries the revision.
     base_ok = (bool(revision)
-               and os.path.isfile(os.path.join(out, "model_index.json"))
+               and _has_index(out)
                and _model_revision(name) == revision)
 
     loras_present = all(os.path.isfile(os.path.join(out, LORA_DIR, lora["file"]))
@@ -695,15 +698,25 @@ def main():
 
         print("Prefetching model: %s" % name, flush=True)
 
-        if args.dtype == "default":
+        # A concrete dtype re-saves the repo through PIPELINE's from_pretrained, which only a
+        # declaration engine supports: an engine with its own load() takes the files as published.
+        cast = args.dtype != "default"
+
+        if cast and hasattr(mod, "load"):
+            print("%s keeps its weights in the dtype they were published in." % mod.ID,
+                  flush=True)
+            cast = False
+
+        if not cast:
             # Copy the repo as is: model_index.json + the component folders, each file in the
-            # dtype it was published in. Root-level single files (e.g. a BFL checkpoint beside
-            # the diffusers layout) and legacy weight formats are skipped. `or None`: a blank
-            # revision means latest, not ref "".
+            # dtype it was published in, or the engine's own allow_patterns. Root-level single
+            # files (e.g. a BFL checkpoint beside the diffusers layout) and legacy weight formats
+            # are skipped. `or None`: a blank revision means latest, not ref "".
             from huggingface_hub import snapshot_download
 
             snapshot_download(repo_id=base_repo, revision=revision or None, local_dir=out,
-                              allow_patterns=["model_index.json", "*/*"],
+                              allow_patterns=model.get("allow_patterns",
+                                                       ["model_index.json", "*/*"]),
                               ignore_patterns=["*.bin", "*.pt", "*.pth", "*.ckpt", "*.msgpack"])
 
             # snapshot_download leaves a .cache/ bookkeeping dir in local_dir; drop it.

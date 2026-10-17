@@ -12,6 +12,7 @@ OTHER_FILES += README.md  \
                doc/comfy-flux2-4b-plan.md \
                doc/comfy-flux2-9b-plan.md \
                doc/comfy-flux3-6b-plan.md \
+               doc/flux3-6b-plan.md \
                doc/comfy-krea2-turbo-plan.md \
                doc/comfy-qwen-image-2-1-plan.md \
                doc/comfy-z-image-turbo-plan.md \
@@ -59,6 +60,7 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/comfy_z_image_turbo.py \
                runner/engine/flux2_4b.py \
                runner/engine/flux2_9b.py \
+               runner/engine/flux3_6b.py \
                runner/engine/qwen_image_edit_2511.py \
                runner/engine/qwen_image_edit_2511_lightning.py \
                runner/engine/qwen_image_edit_2511_lightning_angles.py \

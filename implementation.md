@@ -158,9 +158,10 @@ inside the base-reinstall branch (`install.py:561-562`).
   recast and install says to `remove` first.
 - **Stock install** (`install.py:655-760`): `--dtype default` copies the pinned repo as
   published into `model/<name>` (`snapshot_download` of `model_index.json` + the component
-  folders, no cast, no load: root-level single files and legacy formats skipped); a concrete
-  dtype instead runs `from_pretrained(repo, revision=pin, torch_dtype=...)` → `save_pretrained`
-  (the re-cast copy). Either way `model/<name>` is a self-contained canonical copy. Then fetch the
+  folders, or the engine's `MODEL["allow_patterns"]`, no cast, no load: root-level single files
+  and legacy formats skipped); a concrete dtype instead runs
+  `from_pretrained(repo, revision=pin, torch_dtype=...)` → `save_pretrained` (the re-cast copy),
+  for a declaration engine only: one with its own `load()` keeps the published files. Either way `model/<name>` is a self-contained canonical copy. Then fetch the
   engine's declared LoRAs into `model/<name>/lora/` and trim the HF cache for everything pulled —
   disk holds one copy, not cache+copy (install.py:747-760). Idempotent and selective: `base_ok`
   skips the base re-download when the registry already records the pinned revision, and only
@@ -269,7 +270,7 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `CFG` | one `(kwarg, value)` pair injected into the pipe call (core.py:599-600) |
 | `INFERENCE` | default step count when the caller passes `-1` (fallback 4, core.py:586-587) |
 | `IMAGE_AREA` | the largest area an image-to-image input keeps before the pipeline, its ratio kept; `None` sends it as it is (Qwen, whose pipeline sizes every image to ~1 MP), the output's area by default. See `doc/image-area-plan.md` |
-| `MODEL` | install spec `{repository, model, revision}` (stock); optional `kind` = `snapshot`\|`url` picks a non-diffusers install (verbatim HF repo / raw asset); it only *renames* the folder — omitted, `resolve_model` falls back to `ID` (core.py:173), which is why COMFY engines declare none |
+| `MODEL` | install spec `{repository, model, revision}` (stock); optional `kind` = `snapshot`\|`url` picks a non-diffusers install (verbatim HF repo / raw asset); optional `allow_patterns` narrows the diffusers snapshot (default `model_index.json` + every folder; `flux3-6b` takes its components and `modular_model_index.json` only); it only *renames* the folder: omitted, `resolve_model` falls back to `ID` (core.py:173), which is why COMFY engines declare none |
 | `COMFY` | ComfyUI-reuse spec `{repository?, revision, components: [{role, path, ...}]}`; presence dispatches both install and `resolve_model` (core.py:177) |
 | `SCAFFOLD` | tiny config-only snapshot spec (`allow_patterns`, no weights) |
 | `LORAS` | install-time LoRA list `[{repository, file, revision}]` |
@@ -315,6 +316,7 @@ answer is derivable.
 |---|---|
 | `flux2-4b` | TYPE `flux2`, Flux2KleinPipeline, t2i+i2i, 4 steps; pure declaration |
 | `flux2-9b` | BASE = flux2-4b; delta: the FLUX.2-klein-9B repo (Qwen3-8B TE, ~35 GB bf16). **Gated** (FLUX Non-Commercial License): install takes an HF token |
+| `flux3-6b` | FLUX.3 Image Klein from BFL's diffusers repo, its weights as published (bf16: transformer and Qwen3-VL-4B TE in shards, the FLUX.2 VAE), ~20 GB, `MODEL.allow_patterns` skipping the repo's root BFL copies and fp8/nvfp4 variants. **Gated**. Not a declaration: diffusers has no classic FLUX.3 pipeline, so `load()` builds comfy-flux3-6b's `Flux3Pipe` through the offloader's `load_pipe_comfy` (a shard list as `file`), with its speed layer on the repo's split q/k/v (`fused_qkv=False`, as ComfyUI's Block takes such a file) and the final modulation swapped back to BFL's (shift, scale) order. LoRAs: comfy-flux3-6b's ComfyUI key map on a table of BFL's names (checked against diffusers' converter, 359/359). Runs the bf16 weights at ComfyUI's speed or better, about 1.5 times comfy-flux3-6b's int8 per step on a 4 GB card. Install keeps the published dtype (a cast needs a classic pipeline); offloader-only (`doc/flux3-6b-plan.md`) |
 | `z-image-turbo` | TYPE `z-image`, ZImagePipeline, t2i, 8 steps; pure declaration (the README's "sample engine": ~9 lines) |
 | `qwen-image-edit-2511` | TYPE `qwen-image-edit`, QwenImageEditPlusPipeline, i2i, `true_cfg_scale 1.0`, 40 steps |
 | `qwen-image-edit-2511-lightning` | BASE = the above; delta: 4 steps + the lightning LoRA (install `LORAS` + runtime `loras()`) |

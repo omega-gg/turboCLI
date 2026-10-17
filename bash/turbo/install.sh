@@ -124,6 +124,7 @@ if [ $# -lt 2 -o $# -gt 8 ] \
     echo ""
     echo "engine: flux2-4b"
     echo "        flux2-9b                 (gated: needs a token)"
+    echo "        flux3-6b                 (gated: needs a token)"
     echo "        z-image-turbo"
     echo "        comfy-flux2-4b"
     echo "        comfy-flux2-9b           (gated: needs a token)"

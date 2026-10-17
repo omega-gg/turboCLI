@@ -126,6 +126,7 @@ if [ $# -lt 5 -o $# -gt 13 ] \
     echo ""
     echo "engine: flux2-4b"
     echo "        flux2-9b"
+    echo "        flux3-6b"
     echo "        comfy-flux2-4b"
     echo "        comfy-flux2-9b"
     echo "        comfy-flux2-9b-distilled"

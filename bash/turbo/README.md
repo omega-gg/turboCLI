@@ -21,6 +21,7 @@ Usage: install <engine> <renderer> [dtype = default] [inference = -1]
 
 engine: flux2-4b
         flux2-9b                 (gated: needs a token)
+        flux3-6b                 (gated: needs a token)
         z-image-turbo
         comfy-flux2-4b
         comfy-flux2-9b           (gated: needs a token)
@@ -58,8 +59,8 @@ ComfyUI folder: reuse an existing ComfyUI install's model files (comfy-* engines
                 Pass none to skip it and still give a token.
 
 token: optional Hugging Face access token, for a gated model (flux2-9b and the comfy-flux2-9b
-       engines: FLUX Non-Commercial License; comfy-flux3-6b: FLUX Kommunity License; accept it
-       on huggingface.co first). Used for this download only, never recorded. An HF_TOKEN
+       engines: FLUX Non-Commercial License; the flux3-6b engines: FLUX Kommunity License;
+       accept it on huggingface.co first). Used for this download only, never recorded. An HF_TOKEN
        environment variable works too.
 
 NOTE: The renderer and the options after it are recorded with the install, so a host
@@ -148,6 +149,7 @@ Usage: text-to-image <engine> <renderer> <prompt> <output image>
 
 engine: flux2-4b
         flux2-9b
+        flux3-6b
         z-image-turbo
         comfy-flux2-4b
         comfy-flux2-9b
@@ -186,6 +188,7 @@ Usage: image-to-image <engine> <renderer> <prompt> <input images> <output image>
 
 engine: flux2-4b
         flux2-9b
+        flux3-6b
         comfy-flux2-4b
         comfy-flux2-9b
         comfy-flux2-9b-distilled

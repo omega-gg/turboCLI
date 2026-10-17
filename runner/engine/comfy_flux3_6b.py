@@ -244,29 +244,30 @@ def _transformer_convert(sd, names):
     return out
 
 
-def _transformer_meta(scaffold, dtype, comfy):
+def _transformer_meta(scaffold, dtype, comfy, fused_qkv=True):
     """Meta-build the FLUX.3 transformer from the scaffold config, set up to run as ComfyUI's
-    model does (_comfy_forward, with the offloader's comfy_api())."""
+    model does (_comfy_forward, with the offloader's comfy_api()). fused_qkv: the file's
+    attention is one qkv (ComfyUI's files) or q/k/v apart (the diffusers repo, flux3-6b)."""
     from accelerate import init_empty_weights
     from diffusers import Flux3Transformer2DModel
 
     cfg = Flux3Transformer2DModel.load_config(os.path.join(scaffold, "transformer"))
     with init_empty_weights():
         model = Flux3Transformer2DModel.from_config(cfg)
-        _comfy_forward(model, comfy)
+        _comfy_forward(model, comfy, fused_qkv)
 
     return model.to(dtype)
 
 
-def _comfy_forward(model, comfy):
+def _comfy_forward(model, comfy, fused_qkv):
     """Run a meta-built Flux3Transformer2DModel the way ComfyUI's own model does
     (comfy/ldm/flux3/model.py, Flux3._forward and Block.forward). diffusers computes the same
     thing with a modulation GEMM per token, split q/k/v and separate fp32 ops; ComfyUI's speed
     comes from, through the offloader's comfy_api() (comfy_kitchen as ComfyUI configures it and
     comfy.ops):
       * the modulation: one vector per mode, not one row per token;
-      * the attention: the file's fused qkv (one GEMM, one activation quantization), QK RMSNorm
-        + RoPE in one rms_rope kernel;
+      * the attention: the file's fused qkv (one GEMM, one activation quantization) or its q/k/v
+        apart, as ComfyUI's Block takes either; QK RMSNorm + RoPE in one rms_rope kernel;
       * the MLP: the SwiGLU folded into the int8 mlp_out's input quantizer, the attention output
         added in its epilogue;
       * the block: adaln for LayerNorm * (1 + scale) + shift, in-place gated residuals per mode.
@@ -288,10 +289,11 @@ def _comfy_forward(model, comfy):
     for mode in model.mode_blocks.values():
         blocks += list(mode)
 
-    for block in blocks:
-        attn = block.attn
-        attn.to_qkv = torch.nn.Linear(attn.query_dim, 3 * attn.inner_dim, bias=False)
-        del attn.to_q, attn.to_k, attn.to_v
+    if fused_qkv:
+        for block in blocks:
+            attn = block.attn
+            attn.to_qkv = torch.nn.Linear(attn.query_dim, 3 * attn.inner_dim, bias=False)
+            del attn.to_q, attn.to_k, attn.to_v
 
     def embedding(t):
         # comfy/ldm/flux/layers.py timestep_embedding(t, 256): [cos, sin] of t * 1000.
@@ -328,7 +330,10 @@ def _comfy_forward(model, comfy):
         for start, end, (shift, scale, _) in spans[1:]:
             x_mod[:, start:end] = ck.adaln(x[:, start:end], scale, shift, self.norm.eps)
 
-        q, k, v = attn.to_qkv(x_mod).chunk(3, dim=-1)
+        if fused_qkv:
+            q, k, v = attn.to_qkv(x_mod).chunk(3, dim=-1)
+        else:
+            q, k, v = attn.to_q(x_mod), attn.to_k(x_mod), attn.to_v(x_mod)
         mlp = self.ff.linear_in(x_mod)
         del x_mod
         q, k = ck.rms_rope(q.view(B, N, attn.heads, -1), k.view(B, N, attn.heads, -1), pe,

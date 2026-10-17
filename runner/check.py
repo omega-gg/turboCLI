@@ -33,11 +33,11 @@
 #                                            # ComfyUI folder a comfy engine was installed inside
 #
 # An engine is "installed" when it has a registry entry AND its referenced files exist: for a stock
-# engine the model dir's model_index.json + every recorded LoRA (the record carries the revision);
-# for a comfy engine the scaffold (model_index.json) + every reused single file (see
-# install._engine_installed). Anything else reports "not installed" and exits 1, so a removed file
-# triggers a rebuild. Light by design: no torch/diffusers import, so it runs under the bundled
-# python without the venv. Run from the deployed dir so `engine` imports.
+# engine the model dir's index (model_index.json or modular_model_index.json) + every recorded
+# LoRA (the record carries the revision); for a comfy engine the scaffold's index + every reused
+# single file (see install._engine_installed). Anything else reports "not installed" and exits
+# 1, so a removed file triggers a rebuild. Light by design: no torch/diffusers import, so it runs
+# under the bundled python without the venv. Run from the deployed dir so `engine` imports.
 
 import sys
 import argparse
@@ -129,7 +129,7 @@ def main():
         sys.exit(1)
 
     # Installed = the engine has a registry entry (engine/<id>/engine.json) and every file it
-    # references is present (stock: model_index.json + LoRAs; comfy: scaffold + components).
+    # references is present (stock: the model's index + LoRAs; comfy: scaffold + components).
     if _engine_installed(mod):
         print("%s is installed" % args.engine)
         sys.exit(0)
