@@ -26,7 +26,7 @@
 # writes the mask as the source's alpha -> an RGBA cutout (images = "input,mask"). trim takes no
 # mask: it crops the input to what shows, options pad=N the most transparency it keeps around
 # (pixels, 32 by default) and speck=N the size under which a separate blob is left out (pixels,
-# 0 by default: off), images = "input".
+# 0 by default: off), images = "input"; it logs "apply[trim]: nothing shows" when nothing does.
 
 ID    = "mask-apply"
 MODES = ("image-apply-mask",)
@@ -35,7 +35,7 @@ MODES = ("image-apply-mask",)
 def run(ctx, params, emit):
     from PIL import Image, ImageStat
 
-    from ._apply import TRIM_PAD, apply, trim
+    from ._apply import TRIM_ALPHA, TRIM_PAD, apply, trim
     from ._options import parse_options
 
     options = parse_options(params.get("options", ""))
@@ -53,7 +53,12 @@ def run(ctx, params, emit):
         out = trim(Image.open(imgs[0]), int(options.get("pad", TRIM_PAD)),
                    int(options.get("speck", 0)))
 
-        emit("apply[trim]: %dx%d" % out.size)
+        # NOTE: An image where nothing shows comes back whole, and saying so lets a caller drop
+        #       it rather than keep an empty picture.
+        if out.getchannel("A").getextrema()[1] <= TRIM_ALPHA:
+            emit("apply[trim]: nothing shows")
+        else:
+            emit("apply[trim]: %dx%d" % out.size)
 
         return out
 

@@ -212,7 +212,9 @@ modes, six engines:
   so a diff mask or a model matte feeds either op. `trim` (`_apply.trim`) takes no mask: it crops
   an image to the pixels that show, keeping at most `pad=N` pixels of transparency around them
   (32 by default). `speck=N` leaves out separate blobs under N pixels, the specks a noisy mask
-  scatters (0 by default: off, since a particle could matter), see `doc/image-trim-plan.md`.
+  scatters (0 by default: off, since a particle could matter), see `doc/image-trim-plan.md`. An
+  image where nothing shows is saved whole and logs `apply[trim]: nothing shows`, so a caller
+  can drop it (turbopixel does for a selection).
   `putalpha` and `trim` leave every fully transparent pixel blank white, `(255, 255, 255, 0)`
   (`_apply._clear`): a cutout no longer carries the picture it was cut from, a reader that drops
   the alpha sees the subject on white, and the PNG is about 7x lighter.
