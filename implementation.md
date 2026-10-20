@@ -148,7 +148,9 @@ inside the base-reinstall branch (`install.py:561-562`).
 - **Registry**: `engine/<id>/engine.json` is the source of truth for "installed" — model name,
   pinned revision, LoRA list; for a comfy engine its component refs + scaffold source
   (`install.py:40-50`). No per-model-dir markers: a shared dir's revision is derived from any
-  engine record referencing it (`_model_revision`, install.py:177).
+  engine record referencing it (`_model_revision`, install.py:177). A comfy record whose
+  components (role and path) no longer match the engine's `COMFY` is not installed, so an update
+  that swaps a file is installed again rather than loading the old one (`_engine_installed`).
 - **Run settings ride the record**: the renderer, dtype, inference, offload and slicing the
   install was given land in `settings`, written by `_write_engine` whatever record shape it is
   handed — so every path records them and a reinstall re-assigns them, download or not. They

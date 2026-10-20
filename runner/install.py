@@ -299,6 +299,16 @@ def _engine_installed(mod):
 
         components = comfy.get("components", [])
 
+        # An engine whose files changed since its install (an update swapping one) is not
+        # installed: its record names the old ones, which load would take. Recorded paths are
+        # the spec's under models/.
+        spec = getattr(mod, "COMFY", {}).get("components", [])
+
+        wanted = sorted((c["role"], c["path"]) for c in spec)
+
+        if sorted((c["role"], c["path"].split("/", 1)[-1]) for c in components) != wanted:
+            return False
+
         return bool(components) and all(os.path.isfile(_comp_path(comfy, c)) for c in components)
 
     model = record.get("model")
