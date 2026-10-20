@@ -115,9 +115,9 @@ output file:
 sh image-to-image.sh flux2-4b cuda "make it night" photo.png night.png 1024 1024
 ```
 
-The output has the width and the height you give. A reference larger than the output is scaled
-down to its area, keeping its shape, unless the engine sizes references its own way (Qwen-Image
-takes them to about one megapixel).
+The output has the width and the height you give. References keep their shape and are sized by
+the engine: Qwen-Image and FLUX.2 take them to about one megapixel, FLUX.3 keeps them at their
+own size up to 4096x4096.
 
 **LoRAs.** A LoRA adds a style or a subject to an engine that supports it. Give its file and a
 strength after an `@`, several separated by a comma; a missing strength is 1.

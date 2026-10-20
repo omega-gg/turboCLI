@@ -640,24 +640,13 @@ def generate(params, emit, should_stop=None):
 
         image_list = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
 
-        # NOTE: The engine caps the pixels an image keeps before its pipeline, None for no cap,
-        #       and the output's area when it says nothing. The ratio always stays.
-        area = getattr(mod, "IMAGE_AREA", width * height)
-
+        # NOTE: The images go as they are, each pipeline sizes them its own way.
         prompt_images = []
 
         for ip in image_list:
             emit("loading input: %s" % ip)
 
-            img = Image.open(ip).convert("RGB")
-
-            if area and img.width * img.height > area:
-                scale = (area / (img.width * img.height)) ** 0.5
-
-                img = img.resize((max(1, round(img.width * scale)),
-                                  max(1, round(img.height * scale))), Image.Resampling.LANCZOS)
-
-            prompt_images.append(img)
+            prompt_images.append(Image.open(ip).convert("RGB"))
 
         kwargs["image"] = prompt_images
 

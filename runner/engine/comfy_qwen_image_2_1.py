@@ -55,9 +55,6 @@ CFG   = ("true_cfg_scale", 1.0)  # no negative prompt: no CFG, as ComfyUI's cfg 
 
 INFERENCE = 25  # ComfyUI's template (the diffusers default is 40)
 
-# The pipeline sizes every reference image to ~1 MP at its own ratio, so they go as they are.
-IMAGE_AREA = None
-
 # The three files sit at plain paths of one Comfy-Org repo (no split_files/), so each names its
 # `filename`. Revision pinned.
 _REPO = {"repository": "Comfy-Org/Qwen-Image-2.1",

@@ -132,3 +132,12 @@ the grids are shown for review.
    small frame is the case for `IMAGE_AREA = None` there, and that run is added to its grid.
 6. `python -m runner.cli` on a text-to-image and a mask run still works (the loop is not on their
    path), and the ≤99 column check passes on every touched file.
+
+## Revision: `IMAGE_AREA` removed
+
+Every pipeline sizes its images already: Qwen and Flux2 to ~1 MP, Flux3 only past 4096². The
+symbol only mattered for Flux3, whose 1 MP cap (ComfyUI's template) shrank a canvas below the
+output's size: a 1536x1152 upscale saw it at ~1168x880 and drifted. The core now hands every
+image to the pipeline as it is, `IMAGE_AREA` left the contract (`_inherit.py`) and the engines.
+Flux3 parts with ComfyUI's template there; a Flux2 reference larger than a small output now
+keeps up to 1 MP (its pipeline's cap) instead of the output's area, sharper and a little slower.

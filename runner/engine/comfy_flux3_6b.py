@@ -56,11 +56,6 @@ CFG   = ("guidance_scale", 0.0)              # distilled / CFG-free (Flux3Pipe i
 # to instead.
 INFERENCE = 16
 
-# References are resized to about one megapixel, as ComfyUI's template feeds them
-# (ReferenceMultiLatent, resize 1.0), then center-cropped to the 16-pixel grid by the pipeline's
-# image processor.
-IMAGE_AREA = 1024 * 1024
-
 # GATED (above): a host asks for the Hugging Face token before it installs this engine.
 GATED = True
 
@@ -183,6 +178,9 @@ class Flux3Pipe:
 
         prompt_embeds = self.encode_prompt(prompt, device=self._execution_device)
 
+        # References go at their own size, unlike ComfyUI's template (ReferenceMultiLatent,
+        # resize 1.0, ~1 MP): the pipeline only shrinks them past 4096 x 4096 and crops them to
+        # the 16-pixel grid, so a reference at the output's size lines up with it.
         try:
             images = self._pipe(prompt_embeds=prompt_embeds, image=image, height=height,
                                 width=width, num_inference_steps=num_inference_steps,

@@ -156,7 +156,9 @@ v0.41.2 running its distilled FLUX.3 templates headless (no upsampler) on the sa
 - No scheduler or tokenizer folders: the modular blocks build their own scheduler and the
   Qwen3-VL processor sits in `text_encoder/`. The scaffold has `modular_model_index.json`,
   which `install.py` now accepts.
-- `IMAGE_AREA` is 1024²: ComfyUI's `ReferenceMultiLatent` resizes each reference to 1 MP.
+- `IMAGE_AREA` was 1024², as ComfyUI's `ReferenceMultiLatent` resizes each reference to 1 MP.
+  Since removed: a reference shrunk below the output's size drifted on upscales, so references
+  now go at their own size (see `doc/image-area-plan.md`, Revision).
 
 ### What the work found
 

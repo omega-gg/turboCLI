@@ -42,10 +42,9 @@ TYPE        = cf.TYPE
 PIPELINE    = cf.PIPELINE
 TRANSFORMER = cf.TRANSFORMER
 
-MODES      = cf.MODES
-CFG        = cf.CFG
-INFERENCE  = cf.INFERENCE
-IMAGE_AREA = cf.IMAGE_AREA
+MODES     = cf.MODES
+CFG       = cf.CFG
+INFERENCE = cf.INFERENCE
 
 # GATED (above): a host asks for the Hugging Face token before it installs this engine.
 GATED = True

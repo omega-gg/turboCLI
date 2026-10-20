@@ -32,7 +32,7 @@
 # _build_vae, ...) -- so those helpers need not be copied. Private names / imported modules are not
 # in this set and are never copied.
 _INHERITED = (
-    "TYPE", "PIPELINE", "TRANSFORMER", "MODES", "CFG", "INFERENCE", "IMAGE_AREA",
+    "TYPE", "PIPELINE", "TRANSFORMER", "MODES", "CFG", "INFERENCE",
     "MODEL", "COMFY", "SCAFFOLD", "LORAS",
     "load", "loras", "extra_key", "run",
 )
