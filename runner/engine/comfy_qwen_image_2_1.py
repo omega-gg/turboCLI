@@ -40,6 +40,7 @@
 # IMPORTANT (see engine/__init__.py): no torch/diffusers import at top level, discovery stays
 # cheap. The heavy imports live inside load() and the helpers.
 
+import math
 import os
 
 from . import comfy_qwen_image_edit_2511 as qe  # cheap: no torch at top level
@@ -337,8 +338,21 @@ def load(ctx, params):
     vae = qe._build_vae(scaffold, files["vae"], ctx.backend)
     comfy = ctx.backend.comfy_api()
 
+    # The pipeline sizes each reference to about output_resolution squared (1024 by default),
+    # and an output of another size shifts the edit (ComfyUI's TextEncodeQwenImage21 says so).
+    # At the output's area, a reference of its size on the 32 grid (the canvas) stays as it is.
+    # Under 288 squared it goes twice the size or more, a whole factor keeping its shape: the
+    # vision processor enlarges an image under 256 squared, which then no longer matches its
+    # latents, and another reference rounds on the 32 grid.
+    class Pipe(QwenImage21Pipeline):
+        def __call__(self, *args, width=None, height=None, **kwargs):
+            side = math.sqrt(width * height)
+
+            return super().__call__(*args, width=width, height=height,
+                                    output_resolution=side * math.ceil(288 / side), **kwargs)
+
     return ctx.backend.load_pipe_comfy(
-        QwenImage21Pipeline,
+        Pipe,
         {"meta": lambda d: _transformer_meta(scaffold, d, comfy), "file": files["transformer"],
          "convert": None, "quant": True},
         {"meta": lambda d: _text_encoder_meta(scaffold, d), "file": files["text_encoder"],
