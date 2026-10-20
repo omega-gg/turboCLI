@@ -27,8 +27,7 @@ Every engine turboCLI can install, by task, to help you pick one. Install an eng
 | `comfy-flux3-6b` | FLUX.3 Image Klein 5.6B, the 16-step distilled model in int8 | 11 GB | 16 | gated, offloader |
 | `z-image-turbo` | Z-Image-Turbo, a fast distilled generator (diffusers weights) | 20 GB | 8 | |
 | `comfy-z-image-turbo` | Z-Image-Turbo from ComfyUI's files | 21 GB | 8 | |
-| `comfy-krea2-turbo` | Krea 2 Turbo, a 12B distilled generator in fp8 | 19 GB | 8 | offloader |
-| `comfy-krea2-turbo-realism` | Krea 2 Turbo with the Krea2-realism-V2 LoRA | 20 GB | 8 | offloader |
+| `comfy-krea2-turbo` | Krea 2 Turbo, a 12B distilled generator in fp8 | 19 GB | 8 | gated, offloader |
 | `comfy-qwen-image-2-1` | Qwen-Image 2.1, a 7B model in int8 that generates and edits, with RGBA output | 17 GB | 25 | offloader |
 | `comfy-qwen-image-2-1-turbo` | Qwen-Image-2.1-Turbo, its 8-step distillation, with RGBA output | 17 GB | 8 | offloader |
 

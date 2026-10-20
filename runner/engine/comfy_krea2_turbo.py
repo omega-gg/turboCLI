@@ -30,6 +30,10 @@
 # comfy_qwen_image_edit_2511._build_vae). Only the tokenizer, scheduler + configs (~10MB, incl.
 # vae/config.json + the 12-layer text-encoder tap) come from the diffusers repo.
 #
+# GATED: that scaffold sits in krea/Krea-2-Turbo, which needs a Hugging Face token from an account
+# that accepted Krea's license (install.sh takes it as its last argument). The repos of the
+# weights (Comfy-Org) are open.
+#
 # Unlike comfy-qwen-image-edit-2511 (bf16 transformer, fp8 TE), BOTH big models here are fp8, so
 # both specs carry "quant": True and go through load_quant_single_file. The transformer's keys are
 # ComfyUI-native (first/blocks.N/txtfusion/tproj/last), not diffusers layout, so
@@ -62,6 +66,9 @@ MODES = ("text-to-image",)
 CFG   = ("guidance_scale", 0.0)  # distilled / CFG-free
 
 INFERENCE = 8
+
+# GATED (above): a host asks for the Hugging Face token before it installs this engine.
+GATED = True
 
 # ComfyUI split single files reused by this engine. The transformer + text encoder live in
 # Comfy-Org/Krea-2 at plain paths (not split_files/), so each sets `filename`; the VAE is the same
