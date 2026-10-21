@@ -132,6 +132,7 @@ if [ $# -lt 2 -o $# -gt 8 ] \
     echo "        comfy-flux3-6b           (gated: needs a token)"
     echo "        comfy-z-image-turbo"
     echo "        comfy-krea2-turbo        (gated: needs a token)"
+    echo "        comfy-krea2-turbo-edit-identity (gated: needs a token)"
     echo "        comfy-qwen-image-2-1"
     echo "        comfy-qwen-image-2-1-turbo"
     echo "        comfy-qwen-image-edit-2511"

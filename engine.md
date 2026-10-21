@@ -44,6 +44,7 @@ Image-to-image: the prompt describes the change, applied to one or more referenc
 | `comfy-flux2-9b-distilled` | FLUX.2 Klein 9B as ComfyUI's distilled template: fp8 with a small decoder, lighter and faster | 18 GB | 4 | gated, offloader |
 | `flux3-6b` | FLUX.3 Image Klein 5.6B, edits from up to 10 reference images (diffusers weights, bf16) | 20 GB | 16 | gated, offloader |
 | `comfy-flux3-6b` | FLUX.3 Image Klein 5.6B, edits from up to 10 reference images, 16-step distilled, in int8 | 11 GB | 16 | gated, offloader |
+| `comfy-krea2-turbo-edit-identity` | Krea 2 Turbo restaging a person from a reference photo, conradlocke's Identity Edit V2 LoRA (personal and non-commercial use) | 21 GB | 8 | gated, offloader |
 | `comfy-qwen-image-2-1` | Qwen-Image 2.1, edits from up to 10 reference images, with RGBA output | 17 GB | 25 | offloader |
 | `comfy-qwen-image-2-1-turbo` | Qwen-Image-2.1-Turbo, its 8-step distillation, with RGBA output | 17 GB | 8 | offloader |
 | `qwen-image-edit-2511` | Qwen-Image-Edit-2511, a 20B model made for editing (diffusers weights) | 58 GB | 40 | |

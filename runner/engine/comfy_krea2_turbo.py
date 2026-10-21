@@ -265,8 +265,9 @@ def _te_convert(sd):
     return {rename(k): v for k, v in sd.items()}
 
 
-def load(ctx, params):
-    """Assemble a Krea2Pipeline from ComfyUI's single files via the disk-stream offloader.
+def load(ctx, params, pipeline_cls=None):
+    """Assemble a Krea2Pipeline (or `pipeline_cls`, a subclass of it: an engine building on this
+    one) from ComfyUI's single files via the disk-stream offloader.
     OFFLOADER-ONLY: both big models are scaled-fp8 and need the comfy quant path, so bail out for
     other offload modes. Build the small resident components (VAE/tokenizer/scheduler) from the
     scaffold here, then hand the backend model-agnostic specs for the two streamed fp8 models."""
@@ -292,7 +293,7 @@ def load(ctx, params):
         index = json.load(f)
 
     return ctx.backend.load_pipe_comfy(
-        Krea2Pipeline,
+        pipeline_cls or Krea2Pipeline,
         {"meta": lambda d: _transformer_meta(scaffold, d), "file": files["transformer"],
          "convert": _transformer_convert, "quant": True,
          "lora_keys": lambda: _lora_keys(scaffold)},

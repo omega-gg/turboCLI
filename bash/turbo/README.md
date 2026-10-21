@@ -29,6 +29,7 @@ engine: flux2-4b
         comfy-flux3-6b           (gated: needs a token)
         comfy-z-image-turbo
         comfy-krea2-turbo        (gated: needs a token)
+        comfy-krea2-turbo-edit-identity (gated: needs a token)
         comfy-qwen-image-2-1
         comfy-qwen-image-2-1-turbo
         comfy-qwen-image-edit-2511
@@ -191,6 +192,7 @@ engine: flux2-4b
         comfy-flux2-9b
         comfy-flux2-9b-distilled
         comfy-flux3-6b
+        comfy-krea2-turbo-edit-identity
         comfy-qwen-image-2-1
         comfy-qwen-image-2-1-turbo
         comfy-qwen-image-edit-2511
