@@ -212,7 +212,10 @@ def _lora_keys(scaffold):
     key_map = {}
     for k in diffusers_keys:
         if k.endswith(".weight"):
-            to = k  # our model key: the diffusers name itself
+            # Our model key: the diffusers name itself. The map also lists `attn.to_out`, an alias
+            # for tools that drop the ".0", whose weight is to_out.0's: aimed at the name, its
+            # patches (and every other naming of wo it overwrites) would be dropped as unknown.
+            to = k.replace(".attn.to_out.weight", ".attn.to_out.0.weight")
             key_lora = k[:-len(".weight")]
             key_map["diffusion_model.{}".format(key_lora)] = to
             key_map["transformer.{}".format(key_lora)] = to
