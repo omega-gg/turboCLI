@@ -95,6 +95,14 @@ def _pipeline_class(ref_boost, ref_position):
 
     class Krea2EditPipe(Krea2Pipeline):
         def __call__(self, prompt=None, image=None, height=None, width=None, **kwargs):
+            # The stock call raises on a size off its grid (vae_scale_factor * patch_size), so
+            # the size is snapped down to it, as the Qwen pipelines do. The references are
+            # fitted to that same size.
+            multiple = self.vae_scale_factor * self.patch_size
+
+            if height and width:
+                height, width = height // multiple * multiple, width // multiple * multiple
+
             images = list(image or [])[:MAX_REFERENCES]
 
             if not images:
