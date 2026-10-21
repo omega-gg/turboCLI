@@ -69,15 +69,16 @@ COMFY = dict(base.COMFY, components=base.COMFY["components"] + [
 ])
 
 
-def load(ctx, params):
-    """The base's assembly on the edit pipeline, the LoRA first at 1.0 (ComfyUI-native keys, which
-    the base's _lora_keys maps), any user --loras after it."""
+def load(ctx, params, ref_boost=REF_BOOST, ref_position=REF_POSITION):
+    """The base's assembly on the edit pipeline, the engine's LoRA first at 1.0 (ComfyUI-native
+    keys, which the base's _lora_keys maps), any user --loras after it. An engine building on this
+    one passes its own boost and placement."""
     ctx.loras = [(base._by_role(ctx.model)["lora"], 1.0)] + list(ctx.loras)
 
-    return base.load(ctx, params, _pipeline_class())
+    return base.load(ctx, params, _pipeline_class(ref_boost, ref_position))
 
 
-def _pipeline_class():
+def _pipeline_class(ref_boost, ref_position):
     """Krea2Pipeline with references. Built here so diffusers stays out of engine discovery."""
     import math
 
@@ -234,7 +235,7 @@ def _pipeline_class():
                 # the subject right of it.
                 gh, gw = h // p, w // p
 
-                if frame == len(images) and REF_POSITION == "beside":
+                if frame == len(images) and ref_position == "beside":
                     left = tw
                 else:
                     left = max(0.0, (tw - gw) / 2)
@@ -251,7 +252,7 @@ def _pipeline_class():
             tokens = torch.cat(tokens, dim=1).to(device, dtype)
             ids = torch.cat(ids).to(device)
 
-            # log(REF_BOOST) where the target looks at the subject, over [text | refs | target]:
+            # log(ref_boost) where the target looks at the subject, over [text | refs | target]:
             # the target's rows, the last reference's columns.
             text = embeds.shape[1]
 
@@ -259,7 +260,7 @@ def _pipeline_class():
 
             bias = torch.zeros(1, 1, size, size, device=device, dtype=dtype)
             bias[..., text + len(ids):, text + len(ids) - sizes[-1]:text + len(ids)] = (
-                math.log(REF_BOOST))
+                math.log(ref_boost))
 
             return tokens, ids, bias
 

@@ -188,3 +188,9 @@ restages them ("the same man sitting at a cafe terrace at night, neon light").
   noise. The LoRA costs both about 20 s, ComfyUI's patches rebuilt as each weight streams.
 - **Left as is.** The vision tower runs bf16 (the offloader's), ComfyUI's fp32: the image
   tokens differ slightly in the deeper taps, without a visible effect.
+- **General edit.** `comfy-krea2-turbo-edit-general` builds on this engine with the General Edit V2
+  LoRA (same repo and revision) at its presets, `ref_boost` 4 and the reference aligned:
+  `load` takes `ref_boost` and `ref_position`, this engine's by default. The model card's
+  showcase edits (a removal, a season change) match on Turbo. An edit regenerates the whole
+  image, so it drifts from its input (about 3 px, 1 to 2 levels darker), as much as in
+  ComfyUI; chained edits add it up.
