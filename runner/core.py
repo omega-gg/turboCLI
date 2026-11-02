@@ -534,9 +534,9 @@ def generate(params, emit, should_stop=None):
     """Run one generation. Returns True if an image was saved, False otherwise (validation error,
     cancelled, or superseded). Unexpected errors propagate to the caller (cli/server wraps them).
 
-    params: the same plain dict the HTTP API builds (engine, mode, prompt, output, images,
-    width, height, seed, inference, renderer, offload, slicing). The model folder is not a param --
-    resolve_model() derives it from the runner's path (default_folder()).
+    params: the same plain dict the HTTP API builds (engine, mode, prompt, output, images, loras,
+    options, width, height, seed, inference, renderer, offload, slicing). The model folder is not a
+    param -- resolve_model() derives it from the runner's path (default_folder()).
     emit: a line sink (print for cli, the socket stream for server).
     should_stop: optional callable -> None | "cancel" | "supersede" (server preemption; None for
     cli).
@@ -569,6 +569,25 @@ def generate(params, emit, should_stop=None):
         emit("Saved: " + params["output"])
 
         return True
+
+    image_list = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
+
+    # NOTE: An image-to-image result can be aligned on one of its inputs, see runner/align.py. The
+    #       option is checked before a model loads for it.
+    align_index = 0
+
+    if mode == "image-to-image":
+        from .engine._options import parse_options
+
+        value = parse_options(params.get("options", "")).get("align")
+
+        if value is not None:
+            if not value.isdigit() or not 1 <= int(value) <= len(image_list):
+                emit("ERROR: align=%s names no input image (1 to %d)" % (value, len(image_list)))
+
+                return False
+
+            align_index = int(value)
 
     offload = params["offload"]
 
@@ -637,8 +656,6 @@ def generate(params, emit, should_stop=None):
 
     if mode == "image-to-image":
         from PIL import Image
-
-        image_list = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
 
         # NOTE: The images go as they are, each pipeline sizes them its own way.
         prompt_images = []
@@ -775,6 +792,18 @@ def generate(params, emit, should_stop=None):
             return False
 
         image = result.images[0]
+
+        # NOTE: The step never costs the render: whatever goes wrong, the image is saved as it
+        #       came.
+        if align_index:
+            try:
+                from . import align
+
+                image = align.run(image, prompt_images[align_index - 1], emit)
+            except Exception:
+                log(traceback.format_exc())
+
+                emit("align: failed, left as is")
 
         # NOTE: ComfyUI's SaveImage compression level. Still lossless; level 6 (PIL's default)
         #       costs ~0.4 s more at 1024² for a few percent of file size. Other formats ignore

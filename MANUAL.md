@@ -120,6 +120,19 @@ the engine: Qwen-Image Edit and FLUX.2 take them to about one megapixel, Qwen-Im
 output's area (an image of the output's size goes as it is, so the edit does not shift), FLUX.3
 keeps them at their own size up to 4096x4096.
 
+**Putting an edit back in place.** An edit of part of a picture has to come back where it was,
+and Qwen-Image 2.1 zooms and shifts its result a little, differently for each seed. `align=1`,
+after the LoRAs, measures that against the first input image and undoes it:
+
+```sh
+sh image-to-image.sh comfy-qwen-image-2-1-turbo cuda "make it night" frame.png night.png \
+                     1024 768 -1 -1 offloader none none align=1
+```
+
+A line `align: ...` says what it did: aligned, or left as is when the result was already in place,
+was redrawn rather than moved, or was zoomed by more than 3%, which a prompt asks for ("zoom out")
+rather than an engine drifts.
+
 **LoRAs.** A LoRA adds a style or a subject to an engine that supports it. Give its file and a
 strength after an `@`, several separated by a comma; a missing strength is 1.
 

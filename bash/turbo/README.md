@@ -184,7 +184,7 @@ Usage: image-to-image <engine> <renderer> <prompt> <input images> <output image>
                       [seed = -1] [inference = -1]
                       [offload = offloader] [slicing = none]
                       [loras = none]
-                      [server]
+                      [options] [server]
 
 engine: flux2-4b
         flux2-9b
@@ -213,11 +213,15 @@ slicing: none, slice
 
 loras: none, comma separated <path>@[weight]
 
+options: key=value,... align=<n> aligns the result on input image n (from 1): the
+         zoom and shift an engine adds to its result are measured and undone.
+
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
     image-to-image flux2-4b cpu  "knight in armor" shield.png,helmet.png output.png
-    image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none 8080
+    image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none "" 8080
+    image-to-image comfy-qwen-image-2-1-turbo cuda "make it night" frame.png output.png 1024 768 -1 -1 offloader none none align=1
 ```
 
 ### [image-to-mask.sh](image-to-mask.sh) - Generate a mask / matte

@@ -60,6 +60,11 @@ einops_version="0.8.2"
 kornia_version="0.8.3"
 transparent_background_version="1.3.4"
 
+# NOTE: The align option of image-to-image imports cv2. transparent-background pulls
+#       opencv-python and albumentations opencv-python-headless, two wheels writing the same cv2/
+#       folder, so both are pinned to one version.
+opencv_version="5.0.0.93"
+
 huggingface_hub_version="1.33.0"
 hf_xet_version="1.7.0"
 hf_transfer_version="0.1.9"
@@ -275,6 +280,8 @@ uv pip install \
     "$(require einops $einops_version)" \
     "$(require kornia $kornia_version)" \
     "$(require transparent-background $transparent_background_version)" \
+    "$(require opencv-python $opencv_version)" \
+    "$(require opencv-python-headless $opencv_version)" \
     "git+https://github.com/huggingface/diffusers@$diffusers_ref"
 
 #--------------------------------------------------------------------------------------------------

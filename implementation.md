@@ -375,13 +375,14 @@ answer is derivable.
 
 The **params dict** is flat and string-valued, and identical for CLI and HTTP (the server's
 urlencoded fields decode to exactly the dict cli builds): `engine, mode, prompt, images, loras,
-output, width, height, seed, inference, renderer, offload, slicing`. The model folder is
+options, output, width, height, seed, inference, renderer, offload, slicing`. The model folder is
 deliberately NOT a param — `resolve_model()` derives it from the runner's own path
 (core.py:515-517); nothing is path-passed, everything is path-deduced. `loras` is
 comma-separated `<path>@<weight>` entries; `parse_loras` accepts any finite float (no `[0,1]`
 clamp — diff-style patches use >1 and negative, matching ComfyUI).
 
-1. Validate engine + mode, then the offload ladder above (core.py:525-567).
+1. Validate engine + mode, then the offload ladder above (core.py:525-567). An image-to-image
+   run's `align=<n>` option must name one of its inputs, checked before any model loads.
 2. `get_pipe` (core.py:447): compare `_engine_key` to the resident key — `(ID, model dir,
    renderer, offload, slicing) + extra_key(params) + (user loras,)` (core.py:297-308); reuse on
    match, else `release_pipe("config changed")` and reload via the engine's `load()` or
@@ -408,7 +409,18 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
    10 s); the edit used to collect before sampling, which delayed its result ~0.8 s on an L4 (the
    emptied cache also made the first step reallocate). The call itself runs under
    `torch.inference_mode()` (core.py:735-736).
-8. Save (PNG at ComfyUI's SaveImage `compress_level=4`, lossless), then emit
+8. **Align** (image-to-image with `align=<n>`, `runner/align.py`, torch free): the zoom and
+   shift an engine adds to its result (Qwen-Image 2.1 does, by a different amount for each
+   seed) are measured against input `n` and undone. Edge maps of both, so a relit frame still
+   measures, matched in 64 px tiles by phase correlation on a copy of at most 1 MP; a zoom and
+   shift per axis through the tile shifts, outliers dropped, fitted 3 times on the result warped
+   back. The warp (Lanczos, the edge repeated) is applied only past 0.75 px at the corners and
+   under a 3% zoom (past it the zoom was asked for, "zoom out" or a camera that moves), and kept
+   only if it takes a fifth off the tile shifts: less, and the engine redrew the frame. One
+   `align:` line says which; any failure is logged and the result saved as it came. 0.1 to 0.4 s
+   on the CPU. OpenCV 5's `phaseCorrelate` windows its inputs in place, so the overlapping tiles
+   go as copies (`doc/image-align-plan.md`).
+9. Save (PNG at ComfyUI's SaveImage `compress_level=4`, lossless), then emit
    `Saved: <output>` immediately "so the client gets the result as early as possible"
    (core.py:769-770).
 
@@ -421,6 +433,7 @@ loading input: <path>                            i2i only
 generating "<prompt≤60>" (<N> steps)...
   0%|step 0/N (00:00)                            heartbeat
  42%|step 5/12 (00:31, 3.50s/it)                 one line per step, tqdm-native figures
+align: zoom <x>% x <y>%, ..., aligned            i2i with align only, informational
 Saved: <path>                                    THE success sentinel (exit 0 / HTTP success)
 ERROR: <message or traceback>                    validation or unexpected failure
 CANCELLED: stopped on request, server is idle
@@ -494,6 +507,7 @@ into the body (cli.py:82-89, server.py:237-246).
   `doc/mask-fade-plan.md` (the soft border a cropped `region` mask needs),
   `doc/image-trim-plan.md` (the `trim` of image-apply-mask, a cutout cut down to what shows),
   `doc/image-area-plan.md` (each input image keeps its ratio; `IMAGE_AREA` since removed),
+  `doc/image-align-plan.md` (the `align` option of image-to-image, an edit put back in place),
   `doc/IMPLEMENTATION_PLAN.md` (this document's plan). Script usage blocks live
   in `bash/README.md`, `bash/turbo/README.md`, `bash/python/README.md`.
 - The offload backend's internals — vendored ComfyUI subsystem, native vs VBAR paths, CPU
