@@ -22,11 +22,10 @@
 
 # comfy-qwen-image-edit-2511-lightning -- comfy-qwen-image-edit-2511 with the "lightning" 4-step
 # LoRA always applied (mirrors the stock qwen-image-edit-2511-lightning, every weight reused from a
-# ComfyUI install). Inherits the whole engine from the comfy base via BASE -- the fp8 quant text
-# encoder, the WAN-VAE reuse, the six meta-builders, and load(). The only delta is one more reused
-# ComfyUI file: the lightning LoRA in models/loras/, added as a 4th COMFY component. The base
-# load() applies any "lora" role component to the transformer at full strength (see
-# comfy_qwen_image_edit_2511.load), so no load() override is needed here.
+# ComfyUI install). Inherits the whole engine from the comfy base via BASE, load() included. The
+# only delta is one more reused ComfyUI file: the lightning LoRA in models/loras/, added as a 4th
+# COMFY component. The base load() applies any "lora" role component to the transformer at full
+# strength (see comfy_qwen_image_edit_2511.load), so no load() override is needed here.
 
 from . import comfy_qwen_image_edit_2511 as base  # cheap: base imports no torch at top level
 

@@ -23,21 +23,18 @@
 # comfy-flux2-9b-distilled engine: text2img + img2img on FLUX.2-klein-9B, REUSING a ComfyUI
 # install, file for file as ComfyUI's distilled Klein 9B template
 # (image_flux2_klein_image_edit_9b_distilled): the fp8 transformer (flux-2-klein-9b-fp8, ~9.4GB)
-# and the fp8-mixed Qwen3-8B text encoder (qwen_3_8b_fp8mixed, ~8.7GB), both streamed through the
-# vendored comfy quant path (kept fp8, dequantized per forward as ComfyUI does), plus BFL's small
-# decoder VAE (full_encoder_small_decoder: same encoder and latents, a narrower ~28M decoder,
-# ~1.4x faster and lighter to decode). Only configs, tokenizer and scheduler come from the
-# diffusers repo (the scaffold). comfy-flux2-9b is the bf16 sibling with flux2-9b's weights.
+# and the fp8-mixed Qwen3-8B text encoder (qwen_3_8b_fp8mixed, ~8.7GB), both kept fp8 and
+# dequantized per forward as ComfyUI does, plus BFL's small decoder VAE
+# (full_encoder_small_decoder: same encoder and latents, a narrower ~28M decoder, ~1.4x faster and
+# lighter to decode). Only configs and scheduler come from the diffusers repo (the scaffold).
+# comfy-flux2-9b is the bf16 sibling with flux2-9b's weights.
 #
 # GATED: the transformer and the scaffold sit in black-forest-labs repos that need a Hugging Face
 # token from an account that accepted the FLUX Non-Commercial License (install.sh takes it as its
 # last argument). The text encoder and VAE repos are open (the VAE is Apache-2.0).
 #
-# OFFLOADER-ONLY: fp8 needs the comfy quant path, so load() bails out for other offload modes.
-# Everything but the files and load() is comfy-flux2-9b's (BASE: same scaffold, same pipeline).
-# The meta-builders are comfy-flux2-4b's (scaffold-driven, size-agnostic). Unlike 4B, ComfyUI's
-# fp8-mixed Qwen3-8B file carries no lm_head at all: the head is an identity, see
-# _text_encoder_meta (no _tie_lm_head either).
+# OFFLOADER-ONLY, as comfy-flux2-4b, whose load() this engine runs with its own VAE. Everything
+# but the files and the VAE is comfy-flux2-9b's (BASE: same scaffold, same pipeline).
 
 import os
 
@@ -73,44 +70,6 @@ COMFY = {
 # VAE config is the standard FLUX.2 one from the scaffold.
 SMALL_DECODER = [96, 192, 384, 384]
 
-# Per-layer fp8 companions (injected or kept by comfy's convert_old_quants) that must follow their
-# weight to its diffusers name.
-_COMPANIONS = (".weight_scale", ".input_scale", ".comfy_quant")
-
-
-def _transformer_convert(sd):
-    """ComfyUI FLUX.2 fp8 transformer -> diffusers layout. diffusers' own converter remaps the
-    base keys (renames + the fused qkv torch.chunk); each layer's fp8 companions follow its weight:
-    a renamed weight is the same tensor and a split one a view into it, so every converted weight
-    is traced back to its source by address. The file's scales are all per-tensor scalars, so the
-    split q/k/v parts share theirs. A companion left without its weight is an error."""
-    from diffusers.loaders.single_file_utils import (
-        convert_flux2_transformer_checkpoint_to_diffusers as convert)
-
-    base = {k: v for k, v in sd.items() if not k.endswith(_COMPANIONS)}
-    spans = [(v.data_ptr(), v.data_ptr() + v.numel() * v.element_size(), k)
-             for k, v in base.items() if v.numel()]
-    out = convert(dict(base))
-
-    carried = set()
-    for nk, v in list(out.items()):
-        if not nk.endswith(".weight") or not v.numel():
-            continue
-        src = next((k for lo, hi, k in spans if lo <= v.data_ptr() < hi), None)
-        if src is None or not src.endswith(".weight"):
-            continue
-        for comp in _COMPANIONS:
-            c = sd.get(src[:-len(".weight")] + comp)
-            if c is not None:
-                out[nk[:-len(".weight")] + comp] = c
-                carried.add(src[:-len(".weight")] + comp)
-
-    lost = [k for k in sd if k.endswith(_COMPANIONS) and k not in carried]
-    if lost:
-        raise RuntimeError("fp8 companions with no converted weight: %s" % lost[:5])
-    return out
-
-
 def _build_vae(scaffold, weight_file, dtype):
     """The FLUX.2 VAE with the small decoder: the scaffold's config with the narrower decoder
     widths. Unlike flux2-vae, ComfyUI's file is in the original BFL layout: diffusers' LDM VAE
@@ -138,40 +97,6 @@ def _build_vae(scaffold, weight_file, dtype):
     return vae.to(dtype).eval()
 
 
-def _text_encoder_meta(scaffold, dtype):
-    """comfy-flux2-4b's Qwen3 meta-build, headless. ComfyUI's fp8-mixed Qwen3-8B file carries no
-    lm_head (its text encoder only returns hidden states), and the klein pipeline reads hidden
-    states too, so the head becomes an identity rather than a layer left without weights."""
-    import torch
-
-    model = k4._text_encoder_meta(scaffold, dtype)
-    model.lm_head = torch.nn.Identity()
-    return model
-
-
 def load(ctx, params):
-    """Assemble a Flux2KleinPipeline from ComfyUI's fp8 single files via the disk-stream
-    offloader. OFFLOADER-ONLY (fp8 needs the comfy quant path). The VAE, tokenizer and scheduler
-    are built from the scaffold."""
-    scaffold = ctx.model  # engine/<id>/ (scaffolding + engine.json)
-    files    = k4._by_role(scaffold)
-
-    if ctx.backend is None:
-        raise RuntimeError("%s requires an offload backend (offload=offloader); both big models "
-                           "are fp8 and need the comfy quant path" % ID)
-
-    from diffusers import Flux2KleinPipeline, FlowMatchEulerDiscreteScheduler
-    from transformers import AutoTokenizer
-
-    scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(scaffold, subfolder="scheduler")
-    tokenizer = AutoTokenizer.from_pretrained(os.path.join(scaffold, "tokenizer"))
-    vae = _build_vae(scaffold, files["vae"], ctx.dtype)
-
-    return ctx.backend.load_pipe_comfy(
-        Flux2KleinPipeline,
-        {"meta": lambda d: k4._transformer_meta(scaffold, d), "file": files["transformer"],
-         "convert": _transformer_convert, "quant": True},
-        {"meta": lambda d: _text_encoder_meta(scaffold, d), "file": files["text_encoder"],
-         "quant": True},
-        {"scheduler": scheduler, "tokenizer": tokenizer, "vae": vae, "is_distilled": True},
-        ctx.dtype, device=ctx.device, lora_files=ctx.loras or None)
+    """comfy-flux2-4b's assembly with the small decoder VAE."""
+    return k4.load(ctx, params, build_vae=_build_vae)

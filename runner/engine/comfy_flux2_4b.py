@@ -20,35 +20,28 @@
 #
 #==================================================================================================
 
-# comfy-flux2-4b engine -- text2img + img2img on FLUX.2-klein-4B, REUSING a ComfyUI install.
+# comfy-flux2-4b engine: text2img + img2img on FLUX.2-klein-4B, REUSING a ComfyUI install.
 #
 # Same weights as the flux2-4b engine (same repo, same pinned revision), but loaded from ComfyUI's
 # split single files instead of the diffusers repo, so a user who already runs ComfyUI does not
-# re-download ~15GB. Two files are reused: the bf16 klein transformer and the Qwen3-4B text
-# encoder -- and that text encoder is the SAME file ComfyUI already holds for Z-Image
-# (text_encoders/qwen_3_4b.safetensors, verified 398/398 keys, 0 shape mismatches against
-# FLUX.2-klein-4B/text_encoder), so on a box that ran either workflow it costs nothing.
+# re-download ~15GB: the bf16 klein transformer and the Qwen3-4B text encoder, the same file
+# ComfyUI holds for Z-Image (text_encoders/qwen_3_4b.safetensors).
 #
-# Unlike comfy-z-image-turbo (bare Qwen3Model -> strip the 'model.' prefix), the klein pipeline
-# wants a Qwen3ForCausalLM, whose keys ARE 'model.'-prefixed -- so the ComfyUI file binds as-is.
-# The only gap is the tied lm_head, which _tie_lm_head aliases back onto the embedding.
-#
-# Unlike comfy-krea2-turbo, the transformer single file is plain bf16 (149 tensors, no quant
-# scales), so there is no "quant" spec and no comfy quant path: BOTH the native and the offloader
-# disk-stream paths work. Its ComfyUI-native keys (double_blocks/single_blocks) are remapped by
-# diffusers' own convert_flux2_transformer_checkpoint_to_diffusers -- no converter to hand-write.
+# OFFLOADER-ONLY: the transformer and the text encoder are ComfyUI's own models, which the
+# offloader runs behind the pipeline's calls (its "flux2" model), the files loaded as they are; the
+# pipeline encodes as ComfyUI's CLIPTextEncode does (_pipeline_class).
 #
 # The VAE is reused too. AutoencoderKLFlux2 has no from_single_file mapping in diffusers, but it
 # needs none: ComfyUI's flux2-vae.safetensors is ALREADY in diffusers key layout (251/251 keys,
-# identical shapes -- verified), so _build_vae just instantiates from the scaffold config and
-# load_state_dict's the file. No converter, and all three big files come from ComfyUI.
+# identical shapes, verified), so _build_vae just instantiates from the scaffold config and
+# load_state_dict's the file.
 #
 # install:  runner.install --comfy <ComfyUI dir> resolves/downloads the components and writes
 #           engine.json + scaffold into engine/<id> (dispatched on this COMFY declaration).
 # check:    runner.check treats a COMFY engine as installed when engine.json + its files + the
 #           scaffold are present (no HF revision marker).
 #
-# IMPORTANT (see engine/__init__.py): no torch/diffusers import at top level -- discovery stays
+# IMPORTANT (see engine/__init__.py): no torch/diffusers import at top level, discovery stays
 # cheap. The heavy imports live inside load().
 
 import os
@@ -58,7 +51,7 @@ ID   = "comfy-flux2-4b"
 TYPE = "flux2"  # speak the offloader seam's vocabulary (same pipeline family as flux2-4b)
 
 PIPELINE    = "diffusers:Flux2KleinPipeline"
-TRANSFORMER = "diffusers:Flux2Transformer2DModel"  # offloader disk-stream meta-load
+TRANSFORMER = "diffusers:Flux2Transformer2DModel"  # ComfyUI's runs in its place
 
 MODES = ("text-to-image", "image-to-image")  # wire values, same as the HTTP API
 CFG   = ("guidance_scale", 0.0)              # distilled / CFG-free
@@ -84,8 +77,7 @@ COMFY = {
 }
 
 # The diffusers scaffolding fetched from the same repo (and revision) flux2-4b pins: configs +
-# tokenizer + scheduler, so the single files can be loaded/meta-loaded offline. Weight-free --
-# vae/config.json only, never the VAE weights (those are reused from ComfyUI).
+# scheduler. Weight-free: vae/config.json only, never the VAE weights (reused from ComfyUI).
 SCAFFOLD = {
     "repository": "black-forest-labs",
     "model": "FLUX.2-klein-4B",
@@ -93,9 +85,7 @@ SCAFFOLD = {
     "allow_patterns": [
         "model_index.json",
         "scheduler/*",
-        "tokenizer/*",
         "transformer/config.json",
-        "text_encoder/config.json",
         "vae/config.json",
     ],
 }
@@ -113,42 +103,10 @@ def _by_role(engine_dir):
             for c in comfy["components"]}
 
 
-def _tie_lm_head(sd):
-    """ComfyUI's qwen_3_4b file carries the 398 'model.'-prefixed keys Qwen3ForCausalLM expects,
-    but not the 399th: lm_head.weight, which the config ties to the embedding
-    (tie_word_embeddings=True). Alias it back -- same tensor, so streaming stays mmap-backed and
-    nothing is left on meta. A file that carries its own lm_head (Qwen3-8B, untied) is kept as is.
-    """
-    if "lm_head.weight" in sd:
-        return sd
-
-    return dict(sd, **{"lm_head.weight": sd["model.embed_tokens.weight"]})
-
-
-def _transformer_meta(scaffold, dtype):
-    """Meta-build (no weight RAM) the Flux2 transformer from the scaffold config, for the offloader
-    to stream the ComfyUI single file into."""
-    from accelerate import init_empty_weights
-    from diffusers import Flux2Transformer2DModel
-
-    cfg = Flux2Transformer2DModel.load_config(os.path.join(scaffold, "transformer"))
-    with init_empty_weights():
-        return Flux2Transformer2DModel.from_config(cfg).to(dtype)
-
-
-def _text_encoder_meta(scaffold, dtype):
-    from accelerate import init_empty_weights
-    from transformers import AutoConfig, Qwen3ForCausalLM
-
-    cfg = AutoConfig.from_pretrained(os.path.join(scaffold, "text_encoder"))
-    with init_empty_weights():
-        return Qwen3ForCausalLM(cfg).to(dtype)
-
-
 def _build_vae(scaffold, weight_file, dtype):
     """Instantiate the Flux2 VAE from the scaffold config and load ComfyUI's single file.
     AutoencoderKLFlux2 has no from_single_file mapping in diffusers, but needs none: the ComfyUI
-    file is already in diffusers key layout (251/251 keys, identical shapes -- verified), so it
+    file is already in diffusers key layout (251/251 keys, identical shapes, verified), so it
     binds as-is. `.to(dtype)` leaves the integer bn.num_batches_tracked buffer alone."""
     import safetensors.torch as safetensors_torch
     from diffusers import AutoencoderKLFlux2
@@ -161,64 +119,46 @@ def _build_vae(scaffold, weight_file, dtype):
     return vae.to(dtype).eval()
 
 
-def _build_text_encoder(scaffold, weight_file, dtype):
-    """Instantiate the Qwen3 text encoder from the scaffold config and load ComfyUI's single-file
-    weights (keys already match; only the tied lm_head is added)."""
-    import safetensors.torch as safetensors_torch
-    from transformers import AutoConfig, Qwen3ForCausalLM
+def _pipeline_class():
+    """Flux2KleinPipeline encoding through ComfyUI's text encoder, as ComfyUI's CLIPTextEncode
+    does. Built here so diffusers stays out of engine discovery."""
+    from diffusers import Flux2KleinPipeline
 
-    cfg = AutoConfig.from_pretrained(os.path.join(scaffold, "text_encoder"))
-    model = Qwen3ForCausalLM(cfg)
+    class Flux2Pipe(Flux2KleinPipeline):
+        def encode_prompt(self, prompt, device=None, num_images_per_prompt=1, prompt_embeds=None,
+                          max_sequence_length=512, text_encoder_out_layers=(9, 18, 27)):
+            if prompt_embeds is None:
+                prompt_embeds = self.text_encoder.encode(prompt)
 
-    model.load_state_dict(_tie_lm_head(safetensors_torch.load_file(weight_file)), strict=True)
+            prompt_embeds = prompt_embeds.to(device or self._execution_device)
 
-    return model.to(dtype).eval()
+            return prompt_embeds, self._prepare_text_ids(prompt_embeds)
+
+    return Flux2Pipe
 
 
-def load(ctx, params):
-    """Build a Flux2KleinPipeline from ComfyUI's single files. The offload backend, when present,
-    meta-loads the two big models straight from those files (disk-stream); otherwise both are built
-    here and placed via the shared ctx helpers. The VAE, tokenizer and scheduler always come from
-    the scaffold."""
-    from diffusers import (Flux2KleinPipeline, Flux2Transformer2DModel,
-                           FlowMatchEulerDiscreteScheduler)
-    from transformers import AutoTokenizer
-
-    scaffold = ctx.model  # engine/comfy-flux2-4b/ (scaffolding + engine.json)
+def load(ctx, params, build_vae=_build_vae):
+    """Build the Flux2KleinPipeline of _pipeline_class from ComfyUI's single files, the
+    transformer and the text encoder as ComfyUI's own models on the offloader. OFFLOADER-ONLY.
+    The VAE (`build_vae`, an engine building on this one passes its own) and the scheduler come
+    from the scaffold."""
+    scaffold = ctx.model  # engine/<id>/ (scaffolding + engine.json)
     files    = _by_role(scaffold)
 
-    # Small resident components: scheduler + tokenizer from the scaffold, the VAE reused from
-    # ComfyUI (built here rather than from_single_file -- see _build_vae).
+    if ctx.backend is None:
+        engine_id = os.path.basename(os.path.normpath(scaffold))  # engine/<id> -> <id>
+        raise RuntimeError("%s requires an offload backend (offload=offloader): ComfyUI's models "
+                           "run on it" % engine_id)
+
+    from diffusers import Flux2Transformer2DModel, FlowMatchEulerDiscreteScheduler
+
     scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(scaffold, subfolder="scheduler")
-    tokenizer = AutoTokenizer.from_pretrained(os.path.join(scaffold, "tokenizer"))
-    vae = _build_vae(scaffold, files["vae"], ctx.dtype)
+    vae = build_vae(scaffold, files["vae"], ctx.dtype)
 
-    # Disk-stream path: hand the backend model-agnostic specs -- the two big models' meta-builders
-    # + single-file paths + key remaps (transformer via the diffusers converter, TE via the tied
-    # lm_head alias) -- plus the pre-built small components. All Flux2 specifics stay in this file.
-    if ctx.backend is not None:
-        from diffusers.loaders.single_file_utils import (
-            convert_flux2_transformer_checkpoint_to_diffusers as convert_transformer)
-
-        return ctx.backend.load_pipe_comfy(
-            Flux2KleinPipeline,
-            {"meta": lambda d: _transformer_meta(scaffold, d), "file": files["transformer"],
-             "convert": convert_transformer},
-            {"meta": lambda d: _text_encoder_meta(scaffold, d), "file": files["text_encoder"],
-             "convert": _tie_lm_head},
-            {"scheduler": scheduler, "tokenizer": tokenizer, "vae": vae, "is_distilled": True},
-            ctx.dtype, device=ctx.device, lora_files=ctx.loras or None)
-
-    # Native path: materialise both big models, then apply LoRAs + placement via the ctx helpers.
-    text_encoder = _build_text_encoder(scaffold, files["text_encoder"], ctx.dtype)
-
-    transformer = Flux2Transformer2DModel.from_single_file(
-        files["transformer"], config=scaffold, subfolder="transformer",
-        torch_dtype=ctx.dtype, local_files_only=True)
-
-    p = Flux2KleinPipeline(scheduler=scheduler, vae=vae, text_encoder=text_encoder,
-                           tokenizer=tokenizer, transformer=transformer, is_distilled=True)
-
-    ctx.apply_loras(p, ctx.loras)
-
-    return ctx.apply_offload(p)
+    return ctx.backend.load_pipe_comfy(
+        _pipeline_class(),
+        {"model": "flux2", "file": files["transformer"],
+         "config": Flux2Transformer2DModel.load_config(os.path.join(scaffold, "transformer"))},
+        {"model": "flux2", "file": files["text_encoder"]},
+        {"scheduler": scheduler, "tokenizer": None, "vae": vae, "is_distilled": True},
+        ctx.dtype, device=ctx.device, lora_files=ctx.loras or None)

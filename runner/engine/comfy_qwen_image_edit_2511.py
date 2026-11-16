@@ -20,25 +20,24 @@
 #
 #==================================================================================================
 
-# comfy-qwen-image-edit-2511 -- image-edit on Qwen-Image-Edit-2511, REUSING a ComfyUI install.
+# comfy-qwen-image-edit-2511: image-edit on Qwen-Image-Edit-2511, REUSING a ComfyUI install.
 #
-# Same model as qwen-image-edit-2511, but built from ComfyUI's split single files: the 39GB bf16
-# transformer (already diffusers-keyed) is streamed via the offloader, and the 8.7GB SCALED-FP8
-# Qwen2.5-VL text encoder is loaded through the vendored comfy quant path -- kept fp8, dequantized
-# per forward as ComfyUI does (emulated on a GPU without fp8 tensor cores). The VAE is ComfyUI's
-# own (through the offloader's comfy_vae, see _build_vae). Only the tokenizer, processor, scheduler
-# + configs (~10MB, incl. vae/config.json) come from the diffusers repo.
+# Same model as qwen-image-edit-2511, built from ComfyUI's split single files: the transformer,
+# the scaled-fp8 Qwen2.5-VL text encoder and the VAE.
 #
-# OFFLOADER-ONLY: the fp8 quant path needs comfy ops, so load() bails out for other offload modes.
-# All model-specific assembly lives here; the offloader (backend/) stays model-agnostic -- load()
-# hands it data specs (meta-builders + single-file paths + key remaps) via load_pipe_comfy.
+# OFFLOADER-ONLY: the transformer and the text encoder are ComfyUI's own models, which the
+# offloader runs behind the pipeline's calls (its "qwen_image" model), the files loaded as they
+# are. The edit is ComfyUI's TextEncodeQwenImageEditPlus: each image seen by the text encoder at
+# about 384x384 with the prompt, and VAE-encoded at about 1024x1024 as a reference for the
+# transformer (its `edit`); the denoise, the schedule and the decode are the stock text-to-image
+# pipeline's (_pipeline_class). The VAE is ComfyUI's own (through the offloader's comfy_vae).
 #
 # install:  runner.install --comfy <ComfyUI dir> reuses the three single files (downloading only
 #           the missing ones, each from its own Comfy-Org repo) + the scaffold into engine/<id>.
 # check:    runner.check treats a COMFY engine installed when engine.json + its files + scaffold.
 #
-# IMPORTANT (see engine/__init__.py): no torch/diffusers import at top level -- discovery stays
-# cheap. The heavy imports live inside load() and the meta-builders.
+# IMPORTANT (see engine/__init__.py): no torch/diffusers import at top level, discovery stays
+# cheap. The heavy imports live inside load().
 
 import os
 import json
@@ -46,8 +45,8 @@ import json
 ID   = "comfy-qwen-image-edit-2511"
 TYPE = "qwen-image-edit"  # offloader seam vocabulary (same family as qwen-image-edit-2511)
 
-PIPELINE    = "diffusers:QwenImageEditPlusPipeline"
-TRANSFORMER = "diffusers:QwenImageTransformer2DModel"  # offloader disk-stream meta-load
+PIPELINE    = "diffusers:QwenImagePipeline"
+TRANSFORMER = "diffusers:QwenImageTransformer2DModel"  # ComfyUI's runs in its place
 
 MODES = ("image-to-image",)
 CFG   = ("true_cfg_scale", 1.0)
@@ -55,8 +54,7 @@ CFG   = ("true_cfg_scale", 1.0)
 INFERENCE = 40
 
 # ComfyUI split single files reused by this engine. The three live in DIFFERENT Comfy-Org repos, so
-# each carries its own `repository` (install downloads a missing one from there). The VAE file
-# loads as is into ComfyUI's own model (see _build_vae).
+# each carries its own `repository` (install downloads a missing one from there).
 COMFY = {
     "revision": "main",
     "components": [
@@ -69,10 +67,8 @@ COMFY = {
     ],
 }
 
-# The diffusers scaffolding fetched from the Qwen repo: everything EXCEPT the big weights -- i.e.
-# the tokenizer, Qwen2VLProcessor, scheduler, and the configs used to meta-build the three reused
-# models (vae/config.json only, not the VAE weights -- those are reused from ComfyUI). ~10MB.
-# Revision pinned to the stock engine's.
+# The diffusers scaffolding fetched from the Qwen repo: the scheduler and the configs the pipeline
+# reads, no weights. Revision pinned to the stock engine's.
 SCAFFOLD = {
     "repository": "Qwen",
     "model": "Qwen-Image-Edit-2511",
@@ -80,11 +76,8 @@ SCAFFOLD = {
     "allow_patterns": [
         "model_index.json",
         "scheduler/*",
-        "tokenizer/*",
-        "processor/*",
         "vae/config.json",
         "transformer/config.json",
-        "text_encoder/config.json",
     ],
 }
 
@@ -100,32 +93,10 @@ def _by_role(engine_dir):
             for c in comfy["components"]}
 
 
-def _transformer_meta(scaffold, dtype):
-    """Meta-build (no weight RAM) the Qwen-Image transformer from the scaffold config, for the
-    offloader to stream the ComfyUI bf16 single file into (keys already diffusers layout)."""
-    from accelerate import init_empty_weights
-    from diffusers import QwenImageTransformer2DModel
-
-    cfg = QwenImageTransformer2DModel.load_config(os.path.join(scaffold, "transformer"))
-    with init_empty_weights():
-        return QwenImageTransformer2DModel.from_config(cfg).to(dtype)
-
-
-def _text_encoder_meta(scaffold, dtype):
-    """Meta-build the multimodal Qwen2.5-VL text encoder (vision tower + language) from scaffold
-    config, for the offloader to load the ComfyUI scaled-fp8 file into (as QuantizedTensors)."""
-    from accelerate import init_empty_weights
-    from transformers import AutoConfig, Qwen2_5_VLForConditionalGeneration
-
-    cfg = AutoConfig.from_pretrained(os.path.join(scaffold, "text_encoder"))
-    with init_empty_weights():
-        return Qwen2_5_VLForConditionalGeneration(cfg)
-
-
 def _build_vae(scaffold, weight_file, backend):
     """ComfyUI's own VAE, the model comfy/sd.py builds for the file, run as sd.py runs it
-    through the offloader's comfy_vae, so it decodes and encodes as ComfyUI does: on a 4 GB card
-    it decodes 1024x768 whole, where diffusers' VAE tiled up front."""
+    through the offloader's comfy_vae, so it decodes and encodes as ComfyUI does. Shared by the
+    engines on a Wan VAE (comfy-qwen-image-2-1, comfy-krea2-turbo)."""
     # z_dim and the latent statistics the pipeline reads.
     with open(os.path.join(scaffold, "vae", "config.json")) as f:
         config = json.load(f)
@@ -133,55 +104,72 @@ def _build_vae(scaffold, weight_file, backend):
     return backend.comfy_vae(weight_file, config)
 
 
-def _flat_to_nested(sd):
-    """ComfyUI's file uses the flat on-disk key form (model.layers.*, visual.*); the transformers
-    module is nested (model.language_model.*, model.visual.*). Rename with the same prefix rules
-    transformers applies at load -- verified 1:1 (729/729 keys)."""
-    nested = ("model.language_model.", "model.visual.")
+def _pipeline_class():
+    """QwenImagePipeline with ComfyUI's TextEncodeQwenImageEditPlus: the prompt encoded with the
+    images, and the images as the transformer's references. Built here so diffusers stays out of
+    engine discovery."""
+    import torch
+    from diffusers import QwenImagePipeline
 
-    def rn(k):
-        if k.startswith("visual."):
-            return "model." + k
-        if k.startswith("model.") and not k.startswith(nested):
-            return "model.language_model." + k[len("model."):]
-        return k
+    class QwenImageEditPipe(QwenImagePipeline):
+        def encode_prompt(self, prompt=None, device=None, num_images_per_prompt=1,
+                          prompt_embeds=None, prompt_embeds_mask=None, max_sequence_length=1024,
+                          image=None):
+            if prompt_embeds is None:
+                prompt_embeds, prompt_embeds_mask = self.text_encoder.encode(prompt, image or ())
 
-    return {rn(k): v for k, v in sd.items()}
+            # The offloader drops a mask with nothing masked; the stock call wants one.
+            if prompt_embeds_mask is None:
+                prompt_embeds_mask = torch.ones(prompt_embeds.shape[:2], dtype=torch.bool)
+
+            device = device or self._execution_device
+
+            return super().encode_prompt(None, device, num_images_per_prompt,
+                                         prompt_embeds.to(device), prompt_embeds_mask.to(device),
+                                         max_sequence_length)
+
+        def __call__(self, prompt=None, image=None, **kwargs):
+            images = list(image or [])
+
+            # Encoded through encode_prompt, so the offloader's cache keys it on the images too.
+            embeds, mask = self.encode_prompt(prompt, image=images)
+            if mask is None:
+                mask = torch.ones(embeds.shape[:2], dtype=torch.bool, device=embeds.device)
+
+            with self.transformer.edit(images, self.vae):
+                return super().__call__(prompt_embeds=embeds, prompt_embeds_mask=mask, **kwargs)
+
+    return QwenImageEditPipe
 
 
 def load(ctx, params):
-    """Assemble a QwenImageEditPlusPipeline from ComfyUI's single files via the disk-stream
-    offloader. OFFLOADER-ONLY: the fp8 text-encoder quant path needs comfy ops, so bail out
-    otherwise. Build the small resident components (VAE/tokenizer/processor/scheduler) from the
-    scaffold here, then hand the backend model-agnostic specs for the two big streamed models."""
+    """Build the pipeline of _pipeline_class from ComfyUI's single files, the transformer and the
+    text encoder as ComfyUI's own models on the offloader. OFFLOADER-ONLY. The VAE is ComfyUI's
+    own; the scheduler comes from the scaffold."""
     scaffold = ctx.model  # engine/<id>/ (scaffolding + engine.json); shared by inheriting variants
     files    = _by_role(scaffold)
 
     if ctx.backend is None:
         engine_id = os.path.basename(os.path.normpath(scaffold))  # engine/<id> -> <id>
-        raise RuntimeError(
-            "%s requires an offload backend (offload=offloader); the fp8 text-encoder quant path "
-            "needs comfy ops" % engine_id)
+        raise RuntimeError("%s requires an offload backend (offload=offloader): ComfyUI's models "
+                           "run on it" % engine_id)
 
-    from diffusers import QwenImageEditPlusPipeline, FlowMatchEulerDiscreteScheduler
-    from transformers import Qwen2Tokenizer, Qwen2VLProcessor
+    from diffusers import FlowMatchEulerDiscreteScheduler, QwenImageTransformer2DModel
 
     scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(scaffold, subfolder="scheduler")
-    tokenizer = Qwen2Tokenizer.from_pretrained(os.path.join(scaffold, "tokenizer"))
-    processor = Qwen2VLProcessor.from_pretrained(os.path.join(scaffold, "processor"))
+
     vae = _build_vae(scaffold, files["vae"], ctx.backend)  # ComfyUI's own
 
     # An inheriting variant may add a reused "lora" component (see comfy-...-lightning); apply it
-    # to the transformer at full strength before user-supplied ctx.loras. Absent -> just ctx.loras.
+    # to the transformer at full strength before user-supplied ctx.loras.
     lora_files = list(ctx.loras)
     if "lora" in files:
         lora_files = [(files["lora"], 1.0)] + lora_files
 
     return ctx.backend.load_pipe_comfy(
-        QwenImageEditPlusPipeline,
-        {"meta": lambda d: _transformer_meta(scaffold, d), "file": files["transformer"],
-         "convert": None},
-        {"meta": lambda d: _text_encoder_meta(scaffold, d), "file": files["text_encoder"],
-         "convert": _flat_to_nested, "quant": True},
-        {"scheduler": scheduler, "tokenizer": tokenizer, "processor": processor, "vae": vae},
+        _pipeline_class(),
+        {"model": "qwen_image", "file": files["transformer"],
+         "config": QwenImageTransformer2DModel.load_config(os.path.join(scaffold, "transformer"))},
+        {"model": "qwen_image", "file": files["text_encoder"]},
+        {"scheduler": scheduler, "tokenizer": None, "vae": vae},
         ctx.dtype, device=ctx.device, lora_files=lora_files or None)

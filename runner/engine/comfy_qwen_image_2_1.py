@@ -24,16 +24,16 @@
 #
 # One 7B model generates and edits with the same weights, so one engine declares both modes. It
 # loads the files ComfyUI's three Qwen-Image 2.1 templates load: the int8 ConvRot transformer and
-# the int8 ConvRot Qwen3-VL 8B text encoder, both streamed through the vendored comfy quant path
-# (kept int8, run by comfy-kitchen's int8 kernels as ComfyUI does), plus the RGBA VAE. Only the
-# configs, processor and scheduler come from the diffusers repo (the scaffold).
+# the int8 ConvRot Qwen3-VL 8B text encoder (kept int8, run by comfy-kitchen's int8 kernels as
+# ComfyUI does), plus the RGBA VAE. Only the configs, processor and scheduler come from the
+# diffusers repo (the scaffold).
 #
 # OFFLOADER-ONLY: int8 needs the comfy quant path, so load() bails out for other offload modes.
-# The transformer runs the way ComfyUI's model does (_comfy_forward), so the ComfyUI file binds
-# as is, with no key conversion. So does the VAE: it is ComfyUI's own (the offloader's comfy_vae,
-# see comfy_qwen_image_edit_2511._build_vae), whose decoder runs a single image in row strips,
-# exact and in a quarter of diffusers' memory, where diffusers' tiles bent the alpha along their
-# seams. The sampling schedule is pinned to ComfyUI's (shift 0.69, simple), see load().
+# The transformer and the text encoder are ComfyUI's own models, which the offloader runs behind
+# the pipeline's calls (its "qwen_image21" model), prefix K/V cache included. So is the VAE (the
+# offloader's comfy_vae, see comfy_qwen_image_edit_2511._build_vae), which decodes a single image
+# in row strips, exact and in a quarter of diffusers' memory, where diffusers' tiles bent the alpha
+# along their seams. The sampling schedule is pinned to ComfyUI's (shift 0.69, simple), see load().
 #
 # The output is RGBA (the VAE decodes 4 channels), so save it as PNG.
 #
@@ -49,7 +49,7 @@ ID   = "comfy-qwen-image-2-1"
 TYPE = "qwen-image-21"
 
 PIPELINE    = "diffusers:QwenImage21Pipeline"
-TRANSFORMER = "diffusers:QwenImage21Transformer2DModel"  # offloader disk-stream meta-load
+TRANSFORMER = "diffusers:QwenImage21Transformer2DModel"  # ComfyUI's runs in its place
 
 MODES = ("text-to-image", "image-to-image")
 CFG   = ("true_cfg_scale", 1.0)  # no negative prompt: no CFG, as ComfyUI's cfg 1
@@ -73,7 +73,8 @@ COMFY = {
     ],
 }
 
-# The diffusers scaffolding: configs + processor (tokenizer and chat template) + scheduler.
+# The diffusers scaffolding: configs + processor (which the pipeline reads at construction) +
+# scheduler.
 SCAFFOLD = {
     "repository": "Qwen",
     "model": "Qwen-Image-2.1",
@@ -83,238 +84,9 @@ SCAFFOLD = {
         "scheduler/*",
         "processor/*",
         "transformer/config.json",
-        "text_encoder/config.json",
         "vae/config.json",
     ],
 }
-
-def _transformer_meta(scaffold, dtype, comfy):
-    """Meta-build (no weight RAM) the transformer from the scaffold config, set up to run as
-    ComfyUI's model does (_comfy_forward, with the offloader's comfy_api())."""
-    from accelerate import init_empty_weights
-    from diffusers import QwenImage21Transformer2DModel
-
-    cfg = QwenImage21Transformer2DModel.load_config(os.path.join(scaffold, "transformer"))
-    with init_empty_weights():
-        model = QwenImage21Transformer2DModel.from_config(cfg)
-        _comfy_forward(model, comfy)
-
-    return model.to(dtype)
-
-
-def _comfy_forward(model, comfy):
-    """Run a meta-built QwenImage21Transformer2DModel the way ComfyUI's own model does
-    (comfy/ldm/qwen_image21/model.py). diffusers computes the same thing with separate, often fp32
-    ops; ComfyUI fuses them, which is its speed at 1024². Same fusions, through the offloader's
-    comfy_api() (comfy_kitchen as ComfyUI configures it, comfy.ops, comfy.model_management):
-      * MLP: the fused gate_up, its SiLU gate folded into the int8 down projection's input
-        quantizer (so the ComfyUI file binds as is, no split);
-      * attention: QK RMSNorm + RoPE in one rms_rope kernel;
-      * block: LayerNorm * (1 + scale) by the adaln kernel and in-place gated residuals, the
-        shared modulation split into the t=0 prefix row and the target rows (no per-token
-        copies).
-    Without comfy_kitchen's kernels only the MLP is fused (linear_input_act runs it eagerly).
-    The classes live in here so that discovery never imports torch."""
-    import torch
-    import diffusers.models.transformers.transformer_qwenimage21 as tq
-
-    ck, ops, mm = comfy.ck, comfy.ops, comfy.mm
-    rope = {"key": None, "pe": None}
-    prefix_len = {"key": None, "len": 0}
-    prepare_qkv_orig = getattr(tq._qwenimage21_prepare_qkv, "_comfy_orig",
-                               tq._qwenimage21_prepare_qkv)
-
-    class FusedSwiGLU(torch.nn.Module):
-        """ComfyUI's SwiGLUFeedForward(fused=True): [gate; up] in one GEMM."""
-
-        def __init__(self, dim, hidden_dim):
-            super().__init__()
-            self.gate_up = torch.nn.Linear(dim, 2 * hidden_dim, bias=False)
-            self.out = torch.nn.Linear(hidden_dim, dim, bias=False)
-
-        def forward(self, x):
-            return ops.linear_input_act(self.out, self.gate_up(x), "swiglu")
-
-    def pe(rotary_emb):
-        # diffusers' complex [S, D/2] table -> comfy_kitchen's [1, S, 1, D/2, 2, 2] rotations,
-        # once per forward (every block gets the same tensor).
-        if rope["key"] is not rotary_emb:
-            c, s = rotary_emb.real.float(), rotary_emb.imag.float()
-            table = torch.stack([c, -s, s, c], dim=-1).reshape(*c.shape, 2, 2)
-            rope.update(key=rotary_emb, pe=table[None, :, None])
-        return rope["pe"]
-
-    blocks = len(model.transformer_blocks)
-    parked = {"pinned": [], "free": 0}
-
-    class Model(type(model)):
-        """The diffusers model with ComfyUI's BaseModel.current_patcher (model_base.py:2678-2689):
-        the offloader's pre_run sets it at a run's start, for get_free_memory (which counts the
-        VRAM dynamic loading can take back), and clears it at the run's end. Either way the prefix
-        cache is reset: it lives for one sampling run, so its pins never outlive the run."""
-
-        @property
-        def current_patcher(self):
-            return self.__dict__.get("_current_patcher")
-
-        @current_patcher.setter
-        def current_patcher(self, patcher):
-            self.__dict__["_current_patcher"] = patcher
-            if parked["pinned"]:
-                # As PoseBranchCache._free_slot: an aborted forward can leave a copy in flight,
-                # still reading memory about to be unpinned (ours run on the current stream).
-                torch.cuda.current_stream().synchronize()
-            for host in parked["pinned"]:
-                mm.unpin_memory(host)
-            parked["pinned"] = []
-
-    model.__class__ = Model
-
-    def measure_free(module, args):
-        # Before any block runs, as select_prefix_cache asks (model.py:371-374): from inside a
-        # block, aimdo's VBAR analysis meets that block's pinned pages and warns about each one.
-        patcher = model.current_patcher
-        if patcher is not None:
-            parked["free"] = patcher.get_free_memory(patcher.load_device)
-
-    model.register_forward_pre_hook(measure_free)
-
-    def park(t):
-        # ComfyUI's "auto" prefix cache placement (QwenImage21.select_prefix_cache): the prefix
-        # K/V stay on the device while its patcher has 4x the whole cache free, else host RAM
-        # (an edit's ~2 GB would otherwise starve a small card's weight streaming), pinned within
-        # ComfyUI's budget as PoseBranchCache.put does, until the run ends (Model above).
-        # (ComfyUI also prefetches them on its offload stream; on a 4 GB card that stream is busy
-        # streaming the weights, and a plain copy measured faster: 6.10 against 6.49 s/step.)
-        if not t.is_cuda or parked["free"] > 4 * 2 * blocks * t.nbytes:
-            return t.clone()
-        host = t.to("cpu", copy=True)
-        if mm.pin_memory(host, evict_active=False):
-            parked["pinned"].append(host)
-        return host
-
-    def prepare_qkv(attn, hidden_states, rotary_emb, layer_cache, kv_cache_mode,
-                    cache_write_slice):
-        # diffusers' _qwenimage21_prepare_qkv with ComfyUI's rms_rope for the QK norm + RoPE.
-        if rotary_emb is None:
-            return prepare_qkv_orig(attn, hidden_states, rotary_emb, layer_cache,
-                                    kv_cache_mode, cache_write_slice)
-
-        q = attn.to_q(hidden_states).unflatten(-1, (attn.heads, -1))
-        k = attn.to_k(hidden_states).unflatten(-1, (attn.heads, -1))
-        v = attn.to_v(hidden_states).unflatten(-1, (attn.heads, -1))
-
-        q, k = ck.rms_rope(q, k, pe(rotary_emb), attn.norm_q.weight.to(q.device, q.dtype),
-                           attn.norm_k.weight.to(q.device, q.dtype), attn.norm_q.eps)
-
-        if layer_cache is not None:
-            if kv_cache_mode == "extract" and cache_write_slice is not None:
-                layer_cache.store(park(k[:, cache_write_slice]), park(v[:, cache_write_slice]))
-            elif kv_cache_mode == "cached":
-                cached_k, cached_v = layer_cache.get()
-                k = torch.cat([cached_k.to(k.device, non_blocking=True), k], dim=1)
-                v = torch.cat([cached_v.to(v.device, non_blocking=True), v], dim=1)
-
-        return q, k, v, q.shape[1]
-
-    prepare_qkv._comfy_orig = prepare_qkv_orig
-
-    def prefix(target_mask):
-        # Text + reference rows ahead of the target, once per forward (counting on the host
-        # syncs the device, as ComfyUI's prefix_len does once).
-        if target_mask is None:
-            return 0
-        if prefix_len["key"] is not target_mask:
-            prefix_len.update(key=target_mask, len=int((~target_mask).sum()))
-        return prefix_len["len"]
-
-    def rows(params, target_mask):
-        # ComfyUI's _split_rows: (t=0 prefix row, target rows); the target rows sit last.
-        if target_mask is None:
-            return None, params.unsqueeze(1)
-        return params[-1:].unsqueeze(1), params[:-1].unsqueeze(1)
-
-    def modulated_norm(norm, x, scale, n, zero):
-        s_prefix, s_target = scale
-        out = ck.adaln(x, s_target, zero, norm.eps)
-        if n:
-            out[:, :n] = ck.adaln(x[:, :n], s_prefix, zero, norm.eps)
-        return out
-
-    def gated_residual(x, y, gate, n):
-        g_prefix, g_target = gate
-        x[:, n:].addcmul_(y[:, n:], g_target)
-        if n:
-            x[:, :n].addcmul_(y[:, :n], g_prefix)
-        return x
-
-    class Block(tq.QwenImage21TransformerBlock):
-        """The diffusers block with ComfyUI's QwenImage21TransformerBlock.forward."""
-
-        def forward(self, hidden_states, modulation, rotary_emb=None, attention_mask=None,
-                    target_token_mask=None, layer_cache=None, kv_cache_mode=None,
-                    cache_write_slice=None, segments=None, key_valid=None):
-            mod1, mod2 = modulation.chunk(2, dim=-1)
-            scale1, gate1 = mod1.chunk(2, dim=-1)
-            scale2, gate2 = mod2.chunk(2, dim=-1)
-            scale1, gate1, scale2, gate2 = (rows(p, target_token_mask)
-                                            for p in (scale1, gate1.tanh(), scale2, gate2.tanh()))
-            n = prefix(target_token_mask)
-            zero = torch.zeros_like(scale1[1])
-
-            y = self.attn(hidden_states=modulated_norm(self.img_norm1, hidden_states, scale1, n,
-                                                       zero),
-                          attention_mask=attention_mask, rotary_emb=rotary_emb,
-                          layer_cache=layer_cache, kv_cache_mode=kv_cache_mode,
-                          cache_write_slice=cache_write_slice, segments=segments,
-                          key_valid=key_valid)
-            hidden_states = gated_residual(hidden_states, y, gate1, n)
-
-            y = self.img_mlp(modulated_norm(self.img_norm2, hidden_states, scale2, n, zero))
-            hidden_states = gated_residual(hidden_states, y, gate2, n)
-
-            if hidden_states.dtype == torch.float16:
-                hidden_states = hidden_states.clip(-65504, 65504)
-            return hidden_states
-
-    for block in model.transformer_blocks:
-        mlp = block.img_mlp
-        block.img_mlp = FusedSwiGLU(mlp.proj.in_features, mlp.proj.out_features)
-        if ck is not None:
-            block.__class__ = Block
-
-    if ck is not None:
-        tq._qwenimage21_prepare_qkv = prepare_qkv
-
-
-def _text_encoder_meta(scaffold, dtype):
-    """Meta-build Qwen3-VL (vision tower + language) from the scaffold config, headless. The
-    pipeline only reads hidden states, and ComfyUI never runs the vocabulary head either, so
-    lm_head is an identity rather than a 151936-wide GEMM per token."""
-    import torch
-    from accelerate import init_empty_weights
-    from transformers import AutoConfig, Qwen3VLForConditionalGeneration
-
-    cfg = AutoConfig.from_pretrained(os.path.join(scaffold, "text_encoder"))
-    with init_empty_weights():
-        model = Qwen3VLForConditionalGeneration(cfg)
-
-    model.lm_head = torch.nn.Identity()
-    return model
-
-
-def _text_encoder_convert(sd):
-    """ComfyUI's flat Qwen3-VL keys -> the nested transformers module: model.visual.* stays,
-    model.* moves under model.language_model.*, the unused lm_head is dropped."""
-    out = {}
-    for k, v in sd.items():
-        if k.startswith("lm_head."):
-            continue
-        if k.startswith("model.") and not k.startswith("model.visual."):
-            k = "model.language_model." + k[len("model."):]
-        out[k] = v
-    return out
-
 
 def load(ctx, params):
     """Assemble a QwenImage21Pipeline from ComfyUI's int8 single files via the disk-stream
@@ -326,7 +98,8 @@ def load(ctx, params):
         raise RuntimeError("%s requires an offload backend (offload=offloader); both big models "
                            "are int8 and need the comfy quant path" % ID)
 
-    from diffusers import QwenImage21Pipeline, FlowMatchEulerDiscreteScheduler
+    from diffusers import (QwenImage21Pipeline, QwenImage21Transformer2DModel,
+                           FlowMatchEulerDiscreteScheduler)
     from transformers import Qwen3VLProcessor
 
     # ComfyUI samples with ModelSamplingFlux(shift 0.69) and the "simple" scheduler: the default
@@ -336,7 +109,6 @@ def load(ctx, params):
         scaffold, subfolder="scheduler", base_shift=0.69, max_shift=0.69, shift_terminal=None)
     processor = Qwen3VLProcessor.from_pretrained(os.path.join(scaffold, "processor"))
     vae = qe._build_vae(scaffold, files["vae"], ctx.backend)
-    comfy = ctx.backend.comfy_api()
 
     # The pipeline sizes each reference to about output_resolution squared (1024 by default),
     # and an output of another size shifts the edit (ComfyUI's TextEncodeQwenImage21 says so).
@@ -344,6 +116,8 @@ def load(ctx, params):
     # Under 288 squared it goes twice the size or more, a whole factor keeping its shape: the
     # vision processor enlarges an image under 256 squared, which then no longer matches its
     # latents, and another reference rounds on the 32 grid.
+    # The prompt and the references are encoded by ComfyUI's text encoder, as its
+    # TextEncodeQwenImage21 does.
     class Pipe(QwenImage21Pipeline):
         def __call__(self, *args, width=None, height=None, **kwargs):
             side = math.sqrt(width * height)
@@ -351,11 +125,24 @@ def load(ctx, params):
             return super().__call__(*args, width=width, height=height,
                                     output_resolution=side * math.ceil(288 / side), **kwargs)
 
+        def encode_prompt(self, prompt, image=None, device=None, num_images_per_prompt=1,
+                          prompt_embeds=None, prompt_embeds_mask=None, image_pad_mask=None):
+            if prompt_embeds is None:
+                prompt_embeds, prompt_embeds_mask, image_pad_mask = self.text_encoder.encode(
+                    prompt, images=image)
+
+            device = device or self._execution_device
+
+            if prompt_embeds_mask is not None:
+                prompt_embeds_mask = prompt_embeds_mask.to(device)
+
+            return prompt_embeds.to(device), prompt_embeds_mask, image_pad_mask.to(device)
+
     return ctx.backend.load_pipe_comfy(
         Pipe,
-        {"meta": lambda d: _transformer_meta(scaffold, d, comfy), "file": files["transformer"],
-         "convert": None, "quant": True},
-        {"meta": lambda d: _text_encoder_meta(scaffold, d), "file": files["text_encoder"],
-         "convert": _text_encoder_convert, "quant": True},
+        {"model": "qwen_image21", "file": files["transformer"],
+         "config": QwenImage21Transformer2DModel.load_config(
+             os.path.join(scaffold, "transformer"))},
+        {"model": "qwen_image21", "file": files["text_encoder"]},
         {"scheduler": scheduler, "processor": processor, "vae": vae},
         ctx.dtype, device=ctx.device, lora_files=ctx.loras or None)

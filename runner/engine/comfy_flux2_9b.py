@@ -31,8 +31,8 @@
 # token from an account that accepted the FLUX Non-Commercial License (install.sh takes it as its
 # last argument). The text encoder and VAE repos are open.
 #
-# Everything but the files is comfy-flux2-4b's (BASE): the 9B transformer is the same plain bf16
-# single file layout, and Qwen3-8B's file carries its own untied lm_head, which _tie_lm_head keeps.
+# Everything but the files is comfy-flux2-4b's (BASE): ComfyUI's models take the 9B transformer and
+# the Qwen3-8B text encoder as they take the 4B ones.
 
 from . import comfy_flux2_4b as base
 
@@ -64,9 +64,7 @@ SCAFFOLD = {
     "allow_patterns": [
         "model_index.json",
         "scheduler/*",
-        "tokenizer/*",
         "transformer/config.json",
-        "text_encoder/config.json",
         "vae/config.json",
     ],
 }

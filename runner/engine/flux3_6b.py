@@ -21,30 +21,30 @@
 #==================================================================================================
 
 # flux3-6b engine: text2img + img2img on FLUX.3 Image Klein (5.6B, the 16-step distilled
-# flow-map checkpoint, no CFG) from BFL's diffusers repo, its weights as published (bf16).
-# comfy-flux3-6b is the same model from BFL's int8 ComfyUI files; this engine shares its pipe,
-# its speed layer (run with the repo's split q/k/v, as ComfyUI runs such a file) and its LoRA
-# key map.
+# flow-map checkpoint, no CFG) from BFL's diffusers repo, its weights as published (bf16), run by
+# diffusers' own models with or without the offloader. comfy-flux3-6b is the same model from BFL's
+# int8 ComfyUI files; it builds on this engine's pipe.
 #
 # GATED: BFL's repo needs a Hugging Face token from an account that accepted the FLUX Kommunity
 # License (install.sh takes it as its last argument).
 #
-# OFFLOADER-ONLY, as comfy-flux3-6b: the speed layer runs on the offloader's comfy_api().
+# diffusers ships FLUX.3 as a modular pipeline only, so Flux3Pipe below gives it the classic face
+# the runner and the offloader speak: from_pretrained, an encode_prompt the offloader wraps (its
+# encode bridge, node boundary and encode cache), a progress_bar the runner hooks, a step callback
+# for cancel, LoRAs, device placement, and a result with .images.
 
-import glob
-import os
+ID   = "flux3-6b"
+TYPE = "flux3"
 
-from . import comfy_flux3_6b as cf  # cheap: no torch at top level
+PIPELINE    = "diffusers:Flux3DistilledModularPipeline"  # behind Flux3Pipe
+TRANSFORMER = "diffusers:Flux3Transformer2DModel"        # offloader disk-stream meta-load
 
-ID = "flux3-6b"
+MODES = ("text-to-image", "image-to-image")  # wire values, same as the HTTP API
+CFG   = ("guidance_scale", 0.0)              # distilled / CFG-free (Flux3Pipe ignores it)
 
-TYPE        = cf.TYPE
-PIPELINE    = cf.PIPELINE
-TRANSFORMER = cf.TRANSFORMER
-
-MODES     = cf.MODES
-CFG       = cf.CFG
-INFERENCE = cf.INFERENCE
+# The flow-map checkpoint takes no guidance: the denoise passes it the timestep each step jumps
+# to instead.
+INFERENCE = 16
 
 # GATED (above): a host asks for the Hugging Face token before it installs this engine.
 GATED = True
@@ -63,85 +63,139 @@ MODEL = {
     ],
 }
 
-# BFL's name for each diffusers key (the repo's root model.safetensors, ComfyUI's naming), the
-# inverse of diffusers' convert_flux3_transformer_checkpoint_to_diffusers: _lora_keys reads
-# ComfyUI's LoRA names off them.
-_BFL_PARTS = (
-    (".attn.to_q.", ".q_proj."),
-    (".attn.to_k.", ".k_proj."),
-    (".attn.to_v.", ".v_proj."),
-    (".attn.to_out.0.", ".attn_out."),
-    (".attn.norm_q.weight", ".norm.query_norm.scale"),
-    (".attn.norm_k.weight", ".norm.key_norm.scale"),
-    (".ff.linear_in.", ".mlp_in."),
-    (".ff.linear_out.", ".mlp_out."),
-    (".linear_1.", ".in_layer."),
-    (".linear_2.", ".out_layer."),
-)
 
-_BFL_PREFIXES = (
-    ("mode_blocks.", "content_mode_blocks."),
-    ("single_transformer_blocks.", "single_blocks."),
-    ("context_embedder.", "txt_in."),
-    ("x_embedders.", "emb_in."),
-    ("target_timestep_embedder.", "ref_time_in."),
-    ("timestep_embedder.", "time_in."),
-    ("norm_out.linear.", "final_layer.image.adaLN_modulation.1."),
-    ("proj_out.", "final_layer.image.linear."),
-)
+def _pipeline_class():
+    """Flux3Pipe: diffusers' modular FLUX.3 distilled pipeline behind the classic pipeline face.
+    The text encoder runs in encode_prompt, the rest of the modular blocks take the embeddings.
+    Built here so diffusers stays out of engine discovery."""
+    from types import SimpleNamespace
 
+    from diffusers import AutoencoderKLFlux2, DiffusionPipeline, Flux3Transformer2DModel
+    from diffusers.loaders import Flux3LoraLoaderMixin
+    from diffusers.modular_pipelines.flux3 import Flux3DistilledAutoBlocks
+    from diffusers.modular_pipelines.flux3.encoders import Flux3TextEncoderStep
+    from transformers import Qwen3VLForConditionalGeneration, Qwen3VLProcessor
 
-def _bfl_key(key):
-    for diffusers, bfl in _BFL_PARTS:
-        key = key.replace(diffusers, bfl)
+    class Stop(Exception):
+        """A cancel or a newer request, raised out of the denoise loop."""
 
-    if "_modulations." in key:
-        key = key.replace(".linear.", ".lin.")
+    class Flux3Pipe(DiffusionPipeline, Flux3LoraLoaderMixin):
+        model_cpu_offload_seq = "text_encoder->transformer->vae"
 
-    for diffusers, bfl in _BFL_PREFIXES:
-        if key.startswith(diffusers):
-            return bfl + key[len(diffusers):]
-    return key
+        def __init__(self, transformer, text_encoder, tokenizer, vae):
+            super().__init__()
 
+            self.register_modules(transformer=transformer, text_encoder=text_encoder,
+                                  tokenizer=tokenizer, vae=vae)
 
-def _transformer_convert(sd, names):
-    """The repo's transformer as the speed layer runs it, filling `names` with
-    {BFL key: diffusers key} for _lora_keys. Only the final modulation changes: the speed layer
-    reads it in BFL's (shift, scale) order, as ComfyUI's LastLayer does, and diffusers' converter
-    swapped it (the swap is its own inverse)."""
-    from diffusers.loaders.single_file_utils import swap_scale_shift
+            self._interrupt = False
 
-    names.update({_bfl_key(k): k for k in sd})
+            self._callback = None
+            self._step = 0
 
-    sd["norm_out.linear.weight"] = swap_scale_shift(sd["norm_out.linear.weight"], dim=0)
-    return sd
+            blocks = Flux3DistilledAutoBlocks()
+            blocks.sub_blocks.pop("text_encoder")
+
+            # NOTE: Each workflow's denoise loop opens its bar on itself: it goes through ours,
+            #       which the runner hooks for its step lines, and each update runs the step
+            #       callback.
+            for workflow in blocks.sub_blocks["denoise"].sub_blocks.values():
+                workflow.sub_blocks["denoise"].progress_bar = lambda **kwargs: self._bar(**kwargs)
+
+            self._pipe = blocks.init_pipeline()
+            self._pipe.update_components(transformer=transformer, vae=vae)
+
+            # NOTE: The modular pipeline reads its device from where its modules sit, which an
+            #       offload decides; it follows ours instead.
+            outer = self
+            cls = type(self._pipe)
+            self._pipe.__class__ = type(cls.__name__, (cls,), {
+                "_execution_device": property(lambda _: outer._execution_device)})
+
+        @classmethod
+        def from_pretrained(cls, model, transformer=None, torch_dtype=None,
+                            local_files_only=True, **kwargs):
+            """The repo's components (a streamed `transformer` may come in place of its own)."""
+            def diffusers_part(part_cls, subfolder):
+                return part_cls.from_pretrained(model, subfolder=subfolder,
+                                                torch_dtype=torch_dtype,
+                                                local_files_only=local_files_only, **kwargs)
+
+            if transformer is None:
+                transformer = diffusers_part(Flux3Transformer2DModel, "transformer")
+
+            text_encoder = Qwen3VLForConditionalGeneration.from_pretrained(
+                model, subfolder="text_encoder", dtype=torch_dtype,
+                local_files_only=local_files_only)
+            tokenizer = Qwen3VLProcessor.from_pretrained(model, subfolder="text_encoder",
+                                                         local_files_only=local_files_only)
+
+            return cls(transformer, text_encoder, tokenizer,
+                       diffusers_part(AutoencoderKLFlux2, "vae"))
+
+        def _bar(self, total=None):
+            bar = self.progress_bar(total=total)
+            update = bar.update
+
+            def stepped(n=1):
+                result = update(n)
+
+                if self._callback is not None:
+                    self._callback(self, self._step, None, {})
+
+                self._step += 1
+
+                if self._interrupt:
+                    raise Stop()
+
+                return result
+
+            bar.update = stepped
+
+            return bar
+
+        def encode_prompt(self, prompt, device=None):
+            return Flux3TextEncoderStep._get_qwen3_vl_prompt_embeds(
+                self.text_encoder, self.tokenizer, prompt,
+                device=device or self._execution_device)
+
+        def __call__(self, prompt, image=None, height=None, width=None,
+                     num_inference_steps=INFERENCE, generator=None, callback_on_step_end=None,
+                     **_):
+            self._callback = callback_on_step_end
+            self._step = 0
+
+            prompt_embeds = self.encode_prompt(prompt, device=self._execution_device)
+
+            # References go at their own size, unlike ComfyUI's template (ReferenceMultiLatent,
+            # resize 1.0, ~1 MP): the pipeline only shrinks them past 4096 x 4096 and crops them
+            # to the 16-pixel grid, so a reference at the output's size lines up with it.
+            try:
+                images = self._pipe(prompt_embeds=prompt_embeds, image=image, height=height,
+                                    width=width, num_inference_steps=num_inference_steps,
+                                    generator=generator, output="images")
+            except Stop:
+                images = []
+
+            return SimpleNamespace(images=images)
+
+    return Flux3Pipe
 
 
 def load(ctx, params):
-    """Assemble comfy-flux3-6b's Flux3Pipe from the repo's sharded diffusers weights via the
-    disk-stream offloader. OFFLOADER-ONLY. The VAE and the processor are the repo's own."""
-    model = ctx.model  # model/flux-3-image-klein
+    """Flux3Pipe from the repo: through the offloader when one is chosen (load_pipe, as the other
+    stock engines), else placed by the native offload modes."""
+    pipeline_cls = _pipeline_class()
 
-    if ctx.backend is None:
-        raise RuntimeError("%s requires an offload backend (offload=offloader); its speed layer "
-                           "runs on the offloader's comfy_api()" % ID)
+    if ctx.backend is not None:
+        from diffusers import Flux3Transformer2DModel
 
-    from diffusers import AutoencoderKLFlux2
-    from transformers import Qwen3VLProcessor
+        return ctx.backend.load_pipe(ctx.model, ctx.dtype, pipeline_cls, Flux3Transformer2DModel,
+                                     device=ctx.device, lora_files=ctx.loras or None)
 
-    def shards(part):
-        return sorted(glob.glob(os.path.join(model, part, "*.safetensors")))
+    p = pipeline_cls.from_pretrained(ctx.model, torch_dtype=ctx.dtype, use_safetensors=True,
+                                     low_cpu_mem_usage=True)
 
-    tokenizer = Qwen3VLProcessor.from_pretrained(os.path.join(model, "text_encoder"))
-    vae = AutoencoderKLFlux2.from_pretrained(model, subfolder="vae").to(ctx.dtype).eval()
-    comfy = ctx.backend.comfy_api()
-    names = {}  # filled by the convert, read by the LoRA key map (the offloader runs it after)
+    ctx.apply_loras(p, ctx.loras)
 
-    return ctx.backend.load_pipe_comfy(
-        cf.Flux3Pipe,
-        {"meta": lambda d: cf._transformer_meta(model, d, comfy, fused_qkv=False),
-         "file": shards("transformer"), "convert": lambda sd: _transformer_convert(sd, names),
-         "lora_keys": lambda: cf._lora_keys(model, names)},
-        {"meta": lambda d: cf._text_encoder_meta(model, d), "file": shards("text_encoder")},
-        {"tokenizer": tokenizer, "vae": vae},
-        ctx.dtype, device=ctx.device, lora_files=ctx.loras or None)
+    return ctx.apply_offload(p)
