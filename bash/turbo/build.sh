@@ -71,9 +71,9 @@ hf_transfer_version="0.1.9"
 safetensors_version="0.8.0"
 psutil_version="7.2.2"
 
-comfy_aimdo_version="0.5.6"
+comfy_aimdo_version="0.6.0"
 
-comfy_kitchen_version="0.2.37"
+comfy_kitchen_version="0.2.41"
 
 #--------------------------------------------------------------------------------------------------
 # Functions
