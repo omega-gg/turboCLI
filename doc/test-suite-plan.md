@@ -32,7 +32,7 @@ checked after it.
 test/run.sh [options] [engine ...]        no engine: every installed one
 
   --renderer cuda|mps|cpu   default: cuda when nvidia-smi answers, mps on macOS, else cpu
-  --size N                  square output size, default 1024 on cuda, 512 on mps and cpu
+  --size N|WxH              output size, square or WxH, default 1024 on cuda, 512 on mps and cpu
   --record                  write this machine's reference instead of checking against it
   --repeat N                run each case N times, keep the fastest (every md5 must agree)
   --cool                    before each run, wait for the GPU to cool to 50 C (nvidia-smi),

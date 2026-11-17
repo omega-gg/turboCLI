@@ -19,7 +19,7 @@ on the knight).
 | option | |
 |---|---|
 | `--renderer <cuda\|mps\|cpu>` | cuda when nvidia-smi answers, mps on macOS, else cpu |
-| `--size <N>` | square output, 1024 on cuda, 512 on mps and cpu |
+| `--size <N\|WxH>` | output size, `N` square or `WxH` (e.g. `1024x768`); 1024 on cuda, 512 on mps and cpu |
 | `--record` | write this machine's reference instead of checking it |
 | `--repeat <N>` | run each case N times and keep the fastest; the image must not change |
 | `--cool` | before each run, wait for the GPU to cool to 50 °C, or pause 60 s on mps and cpu |

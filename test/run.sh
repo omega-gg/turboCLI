@@ -52,7 +52,7 @@ usage()
     echo "the tolerance. No engine: every installed one. One that is not installed is skipped."
     echo ""
     echo "--renderer <cuda|mps|cpu>  default: cuda when nvidia-smi answers, mps on macOS, else cpu"
-    echo "--size <N>                 square output, default 1024 on cuda, 512 on mps and cpu"
+    echo "--size <N|WxH>             output size, default 1024 on cuda, 512 on mps and cpu"
     echo "--record                   write this machine's reference instead of checking it"
     echo "--repeat <N>               run each case N times, keep the fastest (default $repeat)"
     echo "--cool                     before each run, wait for the GPU to cool to 50 C"
@@ -130,6 +130,10 @@ if [ -z "$size" ]; then
 
     if [ "$renderer" = "cuda" ]; then size="1024"; else size="512"; fi
 fi
+
+width="${size%x*}"
+
+height="${size#*x}"
 
 if [ "$renderer" = "cuda" ]; then
 
@@ -252,10 +256,10 @@ run_turbo()
     case "$mode" in
         text-to-image)
             sh "$turbo/text-to-image.sh" "$engine" $renderer "$fox" "$output" \
-               $size $size $seed -1 ${offload:-offloader};;
+               $width $height $seed -1 ${offload:-offloader};;
         image-to-image)
             sh "$turbo/image-to-image.sh" "$engine" $renderer "$edit" "$images/knight.png" \
-               "$output" $size $size $seed -1 ${offload:-offloader};;
+               "$output" $width $height $seed -1 ${offload:-offloader};;
         image-to-mask)
             if [ "$engine" = "mask" ]; then
                 input="$images/chest.png,$images/courtyard.png"
@@ -285,9 +289,10 @@ run_turbo()
 
 run_comfy()
 {
-    local engine="$1" mode="$2" output="$3" log="$4" input="-" flag="" server start end status
+    local engine="$1" mode="$2" output="$3" log="$4" prompt="$fox" input="-" flag="" server start \
+          end status
 
-    if [ "$mode" = "image-to-image" ]; then input="$images/knight.png"; fi
+    if [ "$mode" = "image-to-image" ]; then prompt="$edit" input="$images/knight.png"; fi
 
     if [ "$renderer" = "cpu" ]; then flag="--cpu"; fi
 
@@ -305,7 +310,7 @@ run_comfy()
 
     start="$(now)"
 
-    "$python" -s "$test/comfy.py" run "$engine" "$mode" "$fox" $seed $size "$input" "$output" \
+    "$python" -s "$test/comfy.py" run "$engine" "$mode" "$prompt" $seed $size "$input" "$output" \
         "http://127.0.0.1:$port" >> "$log.run" 2>&1
     status=$?
 
