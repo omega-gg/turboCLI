@@ -9,21 +9,29 @@ OTHER_FILES += README.md  \
                MANUAL.md \
                dummy.md \
                update.sh \
+               doc/DUMMY_PLAN.md \
+               doc/IMPLEMENTATION_PLAN.md \
                doc/comfy-flux2-4b-plan.md \
                doc/comfy-flux2-9b-plan.md \
                doc/comfy-flux3-6b-plan.md \
-               doc/flux3-6b-plan.md \
+               doc/comfy-krea2-turbo-edit-identity-plan.md \
                doc/comfy-krea2-turbo-plan.md \
                doc/comfy-qwen-image-2-1-plan.md \
                doc/comfy-z-image-turbo-plan.md \
                doc/engine-inheritance-plan.md \
-               doc/DUMMY_PLAN.md \
-               doc/IMPLEMENTATION_PLAN.md \
-               doc/install-settings-plan.md \
+               doc/flux3-6b-plan.md \
+               doc/image-align-plan.md \
+               doc/image-area-plan.md \
                doc/image-mask-plan.md \
                doc/image-mask-split-plan.md \
+               doc/image-trim-plan.md \
+               doc/install-settings-plan.md \
+               doc/manual-plan.md \
                doc/mask-engines-plan.md \
+               doc/mask-fade-plan.md \
+               doc/mask-glow-plan.md \
                doc/mask-tolerance-plan.md \
+               doc/moss-image-plan.md \
                doc/reinstall-prune-plan.md \
                doc/test-suite-plan.md \
                test/README.md \
@@ -44,22 +52,19 @@ OTHER_FILES += runner/__init__.py \
                runner/install.py \
                runner/server.py \
                runner/engine/__init__.py \
-               runner/engine/_inherit.py \
-               runner/engine/_options.py \
-               runner/engine/_mask.py \
                runner/engine/_apply.py \
+               runner/engine/_inherit.py \
+               runner/engine/_mask.py \
+               runner/engine/_options.py \
                runner/engine/_segment.py \
-               runner/engine/mask.py \
-               runner/engine/mask_apply.py \
-               runner/engine/mask_birefnet.py \
-               runner/engine/mask_lucida.py \
-               runner/engine/mask_inspyrenet.py \
                runner/engine/comfy_flux2_4b.py \
                runner/engine/comfy_flux2_9b.py \
                runner/engine/comfy_flux2_9b_distilled.py \
                runner/engine/comfy_flux3_6b.py \
                runner/engine/comfy_krea2_turbo.py \
-               runner/engine/comfy_krea2_turbo_realism.py \
+               runner/engine/comfy_krea2_turbo_edit_general.py \
+               runner/engine/comfy_krea2_turbo_edit_identity.py \
+               runner/engine/comfy_moss_image.py \
                runner/engine/comfy_qwen_image_2_1.py \
                runner/engine/comfy_qwen_image_2_1_turbo.py \
                runner/engine/comfy_qwen_image_edit_2511.py \
@@ -68,6 +73,12 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/flux2_4b.py \
                runner/engine/flux2_9b.py \
                runner/engine/flux3_6b.py \
+               runner/engine/mask.py \
+               runner/engine/mask_apply.py \
+               runner/engine/mask_birefnet.py \
+               runner/engine/mask_inspyrenet.py \
+               runner/engine/mask_lucida.py \
+               runner/engine/moss_image.py \
                runner/engine/qwen_image_edit_2511.py \
                runner/engine/qwen_image_edit_2511_lightning.py \
                runner/engine/qwen_image_edit_2511_lightning_angles.py \

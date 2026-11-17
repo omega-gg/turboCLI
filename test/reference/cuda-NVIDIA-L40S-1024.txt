@@ -6,6 +6,8 @@ comfy comfy-flux3-6b text-to-image 9f38bda4c76bf52f79dcda1e2d9985a0 9.64 - - 3.8
 comfy comfy-krea2-turbo text-to-image 1721266e201a40b9af61010d72f39314 14.51 - - 8.54 -
 comfy comfy-krea2-turbo-edit-general image-to-image 09a5527f445606a83f83bc032986a3d7 21.21 - - 14.40 -
 comfy comfy-krea2-turbo-edit-identity image-to-image 3249e25b0e2197bae681b4b9a60571bd 20.73 - - 13.93 -
+comfy comfy-moss-image image-to-image 37c22ac46d35d889fde456cd73688503 21.01 - - 11.13 -
+comfy comfy-moss-image text-to-image eec2fb304ac64b7ba63a306d9675dbaf 15.95 - - 9.28 -
 comfy comfy-qwen-image-2-1-turbo image-to-image d26c9c46e507b534649ecf21baf04df2 11.76 - - 3.93 -
 comfy comfy-qwen-image-2-1-turbo text-to-image 319688f93a69626a6ba6f93728c0cc3e 9.78 - - 3.76 -
 comfy comfy-z-image-turbo text-to-image 0b4f3255fb1a2b8e384399663516ffff 13.23 - - 6.26 -
@@ -20,6 +22,8 @@ turbo comfy-flux3-6b text-to-image 8d16ad241c18d2cd0993205cc1235b09 19.49 10.56 
 turbo comfy-krea2-turbo text-to-image f90c2993ae936f814dbde76ee2e2ce50 21.74 7.24 2.88 8.50 0.89
 turbo comfy-krea2-turbo-edit-general image-to-image f1756bbb3adf188b6aedc1c0024a8f45 31.10 7.07 4.68 15.59 1.31
 turbo comfy-krea2-turbo-edit-identity image-to-image 144f528253ab862edc43cec2c01e7233 30.03 8.84 4.01 13.48 1.24
+turbo comfy-moss-image image-to-image 53722c45aeb31a9e312154eba8f0388c 30.47 9.63 6.75 11.17 0.53
+turbo comfy-moss-image text-to-image bb334047c70fb23d30b230144bb71219 25.27 9.37 3.81 9.17 0.69
 turbo comfy-qwen-image-2-1 image-to-image 1c376044d0a1bbb79bb32787fbb53988 25.34 7.23 5.88 8.92 0.89
 turbo comfy-qwen-image-2-1 text-to-image 962fe1e48423b88fa64c7b2a79dc728a 22.70 7.32 4.03 7.90 1.12
 turbo comfy-qwen-image-2-1-turbo image-to-image e3fb68a660626114075263606b3a7514 21.18 9.24 4.79 3.84 0.80
@@ -34,4 +38,5 @@ turbo flux3-6b text-to-image 93efa42051c598bc65b9eef4cde9bc2e 23.46 7.62 4.92 7.
 turbo mask image-to-mask d10c3a5ca24768ecdda057d718feb65a 2.36 - - - -
 turbo mask-birefnet image-to-mask 73da29b40a97d869c72637833f986598 8.37 - - - -
 turbo mask-lucida image-to-mask c620024a76516b9c9fe02b6041e80b9a 8.53 - - - -
+turbo moss-image text-to-image 6e10774117ed83a6cd9882d9344e2dff 51.62 9.49 5.56 33.36 0.68
 turbo z-image-turbo text-to-image 6fc4aa160a8606a8f784fe58c5f20bdb 38.26 8.51 4.18 20.05 2.20

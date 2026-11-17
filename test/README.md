@@ -77,7 +77,9 @@ test/modal.sh run --renderer cpu --size 256 comfy-flux2-4b # on a CPU container,
 The image holds ComfyUI too, in `/opt/ComfyUI` (`test/comfyui.sh`: the tag turbo-offloader
 vendors, on turboCLI's torch, with the Krea 2 edit node pack), its models the Volume's. A CPU run
 keeps the CPU path honest; it is slow, so a small size and a few engines, now and then.
-`modal.sh exec <command>` runs a command in the same setup on CPU, for a look around.
+`modal.sh exec <command>` runs a command in the same setup on CPU, for a look around, and
+`modal.sh exec --gpu <command>` on an L40S. A run's logs and images come back into
+`results/modal/`.
 
 The working trees of turboCLI and turbo-offloader (`../turbo-offloader`, or `TURBO_OFFLOADER`) go
 up as they are, so it tests what is about to be committed. The image is turboCLI as its

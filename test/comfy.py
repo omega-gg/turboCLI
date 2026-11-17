@@ -64,9 +64,10 @@ def loaders(f, clip_type):
     }
 
 
-def ksampler(seed, steps, model, positive, negative, latent):
-    return ("KSampler", {"seed": seed, "steps": steps, "cfg": 1.0, "sampler_name": "euler",
-                         "scheduler": "simple", "denoise": 1.0, "model": model,
+def ksampler(seed, steps, model, positive, negative, latent, cfg=1.0, sampler="euler",
+             scheduler="simple"):
+    return ("KSampler", {"seed": seed, "steps": steps, "cfg": cfg, "sampler_name": sampler,
+                         "scheduler": scheduler, "denoise": 1.0, "model": model,
                          "positive": positive, "negative": negative, "latent_image": latent})
 
 
@@ -180,6 +181,50 @@ def qwen21(engine, f, prompt, seed, width, height, image):
     })
 
 
+def moss(engine, f, prompt, seed, width, height, image):
+    # image_moss_image_t2i.json and _edit.json, the prompt upsampler off, with the engine's own
+    # settings for each (TEMPLATE). The latent is the output's size, as turbo's (the edit
+    # template's takes the scaled source's).
+    module = declaration(engine)
+    mode = "image-to-image" if image else "text-to-image"
+    template = module.TEMPLATE[mode]
+    start, end = template["skip"]
+
+    graph = loaders(f, "moss_image")
+    model = ["1", 0]
+
+    if image:
+        graph.update({
+            "5": ("LoraLoaderModelOnly", {"lora_name": f["lora"], "strength_model": 1.0,
+                                          "model": model}),
+            "13": ("LoadImage", {"image": image}),
+            "14": ("ImageScaleToTotalPixels", {"image": ["13", 0], "upscale_method": "lanczos",
+                                               "megapixels": 1.0, "resolution_steps": 16}),
+        })
+        model = ["5", 0]
+
+        def encode(text):
+            return ("TextEncodeMOSSImageEdit", {"clip": ["2", 0], "prompt": text,
+                                                "edit_format": "Moss-Image-Edit",
+                                                "vae": ["3", 0], "images.image_0": ["14", 0],
+                                                "image_strength": 1.0})
+    else:
+        def encode(text):
+            return ("CLIPTextEncode", {"text": text, "clip": ["2", 0]})
+
+    return dict(graph, **{
+        "4": ("SkipLayerGuidanceDiTSimple", {"model": model, "double_layers": "",
+                                             "single_layers": "22", "start_percent": start,
+                                             "end_percent": end}),
+        "6": encode(prompt),
+        "7": encode(template["negative"]),
+        "8": ("EmptyFlux2LatentImage", {"width": width, "height": height, "batch_size": 1}),
+        "9": ksampler(seed, module.INFERENCE[mode], ["4", 0], ["6", 0], ["7", 0], ["8", 0],
+                      module.CFG[1][mode], template["sampler"], template["scheduler"]),
+        "12": ("VAEDecode", {"samples": ["9", 0], "vae": ["3", 0]}),
+    })
+
+
 GRAPHS = {
     ("comfy-flux2-4b", "text-to-image"): flux2,
     ("comfy-flux2-9b-distilled", "text-to-image"): flux2,
@@ -190,6 +235,8 @@ GRAPHS = {
     ("comfy-krea2-turbo-edit-general", "image-to-image"): krea2_edit,
     ("comfy-qwen-image-2-1-turbo", "text-to-image"): qwen21,
     ("comfy-qwen-image-2-1-turbo", "image-to-image"): qwen21,
+    ("comfy-moss-image", "text-to-image"): moss,
+    ("comfy-moss-image", "image-to-image"): moss,
 }
 
 

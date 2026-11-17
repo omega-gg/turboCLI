@@ -271,6 +271,11 @@ def engine_type(mod):
     return getattr(mod, "TYPE", mod.ID)
 
 
+def by_mode(value, mode):
+    """An engine's INFERENCE or CFG value: one for every mode, or a dict of one per mode."""
+    return value[mode] if isinstance(value, dict) else value
+
+
 def _default_load(ctx, mod, params):
     """Default load for engines with no load() hook: build + place via the standard diffusers path.
     A module's optional loras(params) -> [(filename, weight), ...] is resolved against the model
@@ -639,7 +644,7 @@ def generate(params, emit, should_stop=None):
 
     # -1 (the run-script default) means "use this engine's own default step count".
     if inference < 0:
-        inference = getattr(mod, "INFERENCE", 4)
+        inference = by_mode(getattr(mod, "INFERENCE", 4), mode)
 
     prompt = params["prompt"]
 
@@ -652,7 +657,7 @@ def generate(params, emit, should_stop=None):
     )
 
     cfg_name, cfg_value = mod.CFG
-    kwargs[cfg_name] = cfg_value
+    kwargs[cfg_name] = by_mode(cfg_value, mode)
 
     if mode == "image-to-image":
         from PIL import Image

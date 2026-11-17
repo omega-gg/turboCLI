@@ -23,6 +23,7 @@ engine: flux2-4b
         flux2-9b                 (gated: needs a token)
         flux3-6b                 (gated: needs a token)
         z-image-turbo
+        moss-image
         comfy-flux2-4b
         comfy-flux2-9b           (gated: needs a token)
         comfy-flux2-9b-distilled (gated: needs a token)
@@ -33,6 +34,7 @@ engine: flux2-4b
         comfy-krea2-turbo-edit-general (gated: needs a token)
         comfy-qwen-image-2-1
         comfy-qwen-image-2-1-turbo
+        comfy-moss-image
         comfy-qwen-image-edit-2511
         comfy-qwen-image-edit-2511-lightning
         qwen-image-edit-2511
@@ -152,6 +154,7 @@ engine: flux2-4b
         flux2-9b
         flux3-6b
         z-image-turbo
+        moss-image
         comfy-flux2-4b
         comfy-flux2-9b
         comfy-flux2-9b-distilled
@@ -160,6 +163,7 @@ engine: flux2-4b
         comfy-krea2-turbo
         comfy-qwen-image-2-1
         comfy-qwen-image-2-1-turbo
+        comfy-moss-image
 
 renderer: cpu, cuda, mps
 
@@ -197,6 +201,7 @@ engine: flux2-4b
         comfy-krea2-turbo-edit-general
         comfy-qwen-image-2-1
         comfy-qwen-image-2-1-turbo
+        comfy-moss-image
         comfy-qwen-image-edit-2511
         comfy-qwen-image-edit-2511-lightning
         qwen-image-edit-2511

@@ -32,7 +32,7 @@ if [ "$1" != "install" -a "$1" != "run" -a "$1" != "exec" ]; then
 
     echo "Usage: modal.sh install [engine ...]"
     echo "       modal.sh run [run.sh options] [engine ...]"
-    echo "       modal.sh exec <command>"
+    echo "       modal.sh exec [--gpu] <command>"
     echo ""
     echo "Runs the test suite on Modal, on L40S GPUs, with turboCLI's own scripts: the working"
     echo "trees of turboCLI and turbo-offloader (../turbo-offloader, or TURBO_OFFLOADER) go up as"
@@ -44,9 +44,10 @@ if [ "$1" != "install" -a "$1" != "run" -a "$1" != "exec" ]; then
     echo "         staying on the Volume"
     echo "run:     test/run.sh with these options, one L40S per engine, all at once (MODAL_JOBS"
     echo "         at a time, 8 by default); no engine: every installed one. The reference, the"
-    echo "         summaries and the logs come back into test/. With --renderer cpu, on CPU"
-    echo "         containers instead (slow: a small --size and a few engines)"
-    echo "exec:    on CPU, a bash command in the same setup, from the sources' folder"
+    echo "         summaries, the logs and images come back into test/. With --renderer cpu, on"
+    echo "         CPU containers instead (slow: a small --size and a few engines)"
+    echo "exec:    on CPU (an L40S with --gpu), a bash command in the same setup, from the"
+    echo "         sources' folder"
     echo ""
     echo "examples:"
     echo "    modal.sh install comfy-flux2-4b z-image-turbo mask"
@@ -157,7 +158,7 @@ remote()
         --out "$(native "$3")"
 }
 
-# The script of one engine's run: run.sh, then its reference, summary and logs into out/.
+# The script of one engine's run: run.sh, then its reference, summary, logs and images into out/.
 suite()
 {
     echo "bash turboCLI/test/run.sh $renderer $arguments $1 || status=\$?"
@@ -168,6 +169,7 @@ mkdir -p out/logs
 cp -r turboCLI/test/reference out/
 cp turboCLI/test/results/*/summary.txt out/ 2> /dev/null || true
 cp turboCLI/test/results/*/*.log* out/logs/ 2> /dev/null || true
+cp turboCLI/test/results/*/*.png out/logs/ 2> /dev/null || true
 
 exit ${status:-0}
 EOF
@@ -207,7 +209,16 @@ fi
 
 if [ "$command" = "exec" ]; then
 
-    remote cpu "$*" "$stage/out"
+    target="cpu"
+
+    if [ "$1" = "--gpu" ]; then
+
+        target="gpu"
+
+        shift
+    fi
+
+    remote $target "$*" "$stage/out"
 
     exit
 fi
@@ -302,7 +313,7 @@ for file in $(for path in "$stage/out/"*/reference/*.txt; do
     { echo "$header"; cat "$stage/merged"; } > "$test/reference/$file"
 done
 
-# The logs into test/results/modal, the summaries here, a failed container named.
+# The logs and images into test/results/modal, the summaries here, a failed container named.
 mkdir -p "$test/results/modal"
 
 status=0
