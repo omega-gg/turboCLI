@@ -38,6 +38,8 @@ test/run.sh --record                # before the update: this machine's images a
 test/run.sh                         # after: SAME and within the tolerance, or it fails
 ```
 
+Each run prints its time from launch to image: ComfyUI's from its server's launch to the image it
+returns, turbo's from its script's launch to its `Saved:` line, where a client takes the image.
 Each case prints its sampling time, then the load, encode and decode around it, and its result:
 `SAME` or `DIFFERS` for the image, the time against the reference (`+3%`), and `SLOWER` past the
 tolerance. The mask engines have no steps and their time is mostly start-up: it is shown, not
@@ -47,7 +49,8 @@ fails, and leaves its images, logs and summary under `results/` (not committed).
 A laptop throttles as it heats up, which reads as a slowdown that is not one. `--cool` starts
 every run cool, `--repeat 2` or more keeps each case's least throttled run, and prints `UNSTABLE`
 if a case's image changes between its runs. Record with them too: a reference recorded hot makes
-every later run look faster, and hides a real slowdown.
+every later run look faster, and hides a real slowdown. Each repeat swaps which side goes first,
+so neither always reads the files cold.
 
 ## Against ComfyUI
 

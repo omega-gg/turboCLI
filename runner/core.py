@@ -34,8 +34,15 @@ import os
 import gc
 import glob
 import importlib
+import importlib.metadata
+import functools
 import time
 import traceback
+
+# NOTE: diffusers and transformers each scan every installed package's metadata as they import
+#       (packages_distributions, ~1.7 s on Windows); one scan serves both.
+importlib.metadata.packages_distributions = functools.cache(
+    importlib.metadata.packages_distributions)
 
 #--------------------------------------------------------------------------------------------------
 # Offload backend discovery -- MUST run before `import torch`

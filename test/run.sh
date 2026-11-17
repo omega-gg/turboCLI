@@ -249,7 +249,8 @@ comfy_has()
 }
 
 # One run: <engine> <mode> <image> <log>. Prints "wall load encode sampling decode" in seconds,
-# "-" for what the run does not show.
+# "-" for what the run does not show. The wall time ends at "Saved:", where the client takes the
+# image, not at the process's exit, as ComfyUI's ends when it returns the image.
 run_turbo()
 {
     local engine="$1" mode="$2" output="$3" log="$4" input start end
@@ -285,7 +286,7 @@ run_turbo()
         $2 == "Saved:" { saved = $1 }
         function span(a, b) { return (a && b) ? sprintf("%.2f", b - a) : "-" }
         END {
-            print span(start, end), span(start, ready), span(generating, first),
+            print span(start, saved ? saved : end), span(start, ready), span(generating, first),
                   span(first, last), span(last, saved)
         }' "$log"
 }
@@ -299,7 +300,9 @@ run_comfy()
 
     if [ "$renderer" = "cpu" ]; then flag="--cpu"; fi
 
-    # A fresh server per run, as a turbo run starts fresh.
+    # A fresh server per run, as a turbo run starts fresh, timed from its launch as turbo's is.
+    start="$(now)"
+
     (cd "$comfy" && exec "$python" -s main.py --port $port --disable-auto-launch $flag) \
         > >(stamp > "$log") 2>&1 &
     server=$!
@@ -308,10 +311,8 @@ run_comfy()
 
         if ! kill -0 $server 2> /dev/null; then return 1; fi
 
-        sleep 1
+        sleep 0.1
     done
-
-    start="$(now)"
 
     "$python" -s "$test/comfy.py" run "$engine" "$mode" "$prompt" $seed $size "$input" "$output" \
         "http://127.0.0.1:$port" >> "$log.run" 2>&1
@@ -537,26 +538,33 @@ while read engine mode pairs; do
 
     # Each run's line: side, the time that decides (sampling, or wall time for a run without
     # steps), md5, wall, load, encode, sampling, decode, image. Sides alternate, so heat lands on
-    # both alike.
+    # both alike, and each repeat swaps which goes first, so neither always reads the files cold.
+    order="$pairs"
+
     for r in $(seq $repeat); do
 
-        for side in $pairs; do
+        for side in $order; do
 
             wait_cool
 
             output="$results/$side-$engine-$mode-$r.png"
             log="$results/$side-$engine-$mode-$r.log"
 
-            echo "running $side $engine $mode ($r/$repeat)..."
+            printf "running %s %s %s (%s/%s)..." $side $engine $mode $r $repeat
 
             if times=($(run_$side $engine $mode "$output" "$log" < /dev/null)); then
+
+                echo " ${times[0]}s from launch to image"
 
                 echo "$side ${times[3]/-/${times[0]}} $(md5 "$output") ${times[*]} $output" \
                     >> "$runs"
             else
+                echo ""
                 fail "$side $engine $mode: FAILED, see $log"
             fi
         done
+
+        order="$(echo $order | awk '{ for (i = NF; i > 0; i--) printf "%s ", $i }')"
     done
 
     for side in $pairs; do

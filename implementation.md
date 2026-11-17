@@ -364,8 +364,11 @@ answer is derivable.
 
 ## The backend seam (runner side)
 
+- **One package scan** — diffusers and transformers each run `importlib.metadata`'s
+  `packages_distributions` as they import (~1.7 s on Windows); the top of core.py caches it, so
+  one scan serves both (core.py:42-45).
 - **Discovery precedes `import torch`** — module-level code at the top of core.py
-  (core.py:39-73): every `backend/<mode>/__init__.py` under cwd is a candidate; the dir name IS
+  (core.py:46-80): every `backend/<mode>/__init__.py` under cwd is a candidate; the dir name IS
   the offload-mode string; `pre_torch_init()` must run before torch initialises (the offloader's
   CUDA allocator hooks can't install afterwards); a failed init is skipped silently. Nothing in
   turboCLI names a specific backend.
@@ -501,12 +504,15 @@ and compares the image md5 and the sampling time with this machine's reference
 only identical within one machine and stack, hence a reference per machine. Timings come from the
 runner's own lines (`model ready`, `generating`, `step 0/N`, `step N/N`, `Saved:`), each stamped
 on arrival to the millisecond by perl: load, encode, sampling and decode, sampling deciding (a
-mask engine has no steps; its time, mostly start-up, is shown, not judged).
+mask engine has no steps; its time, mostly start-up, is shown, not judged). Each run also prints
+its time from launch to `Saved:`, where a client takes the image, not to the process's exit.
 `--cool` and `--repeat` keep a throttling laptop from failing a run that is not slower.
 
 `--comfy <dir>` also runs each comfy engine through a ComfyUI install (`test/comfy.py`: the
-template graph, its files from the engine's `COMFY` declaration), alternating with turbo, and
-compares the two; `--comfy-only <dir>` runs ComfyUI alone, for a re-sync of the vendored ComfyUI.
+template graph, its files from the engine's `COMFY` declaration), alternating with turbo, each
+repeat swapping which goes first, so neither always reads the files cold. ComfyUI's time runs
+from its server's launch to the image it returns. It compares the two; `--comfy-only <dir>` runs
+ComfyUI alone, for a re-sync of the vendored ComfyUI.
 ComfyUI's progress bar shifts its start after the second step (`model_trange`), so its sampling
 is timed by the same stamps, from the bar's `0/N` to its `N/N`. `test/README.md` has the usage
 and `doc/test-suite-plan.md` the design.
