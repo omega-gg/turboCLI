@@ -99,6 +99,25 @@ those.
 - With both sides: turbo's sampling against ComfyUI's (fails past the tolerance), and the PSNR
   between their images (reported, not a pass condition: the samplers differ by design).
 
+## On Modal (added after)
+
+The same suite runs on cloud GPUs, for a second machine's reference and a heat-free comparison
+with ComfyUI. `test/modal.sh` is bash and drives the Modal CLI; `test/modal_app.py` is the small
+Modal app it starts (`modal shell` would have needed no Python, but has no Windows support).
+
+- The image is turboCLI as its own `build.sh` builds it, and ComfyUI as `test/comfyui.sh`
+  installs it (the tag turbo-offloader vendors, on turboCLI's torch pins, with the Krea 2 edit
+  node pack); Modal caches it and rebuilds it when those scripts change.
+- The models and engine records live on a Volume, filled by `modal.sh install` on CPU; a Volume
+  cannot hold the build (uv's cache needs file operations it refuses).
+- The working trees of turboCLI and turbo-offloader go up as they are, over the image's build.
+- `modal.sh run` starts one L40S per engine at once (MODAL_JOBS, under the account's GPU limit),
+  each running `test/run.sh`; no engine named means every installed one (`run.sh --list`). Each
+  container brings back its engine's reference lines, summary and logs, merged into `test/`.
+  `--renderer cpu` runs on CPU containers instead.
+- Absolute times varied 2x between L40S hosts while the ratio to ComfyUI held: on Modal, speed is
+  read against ComfyUI in the same container.
+
 ## Verification
 
 1. `test/run.sh --record mask comfy-flux2-4b` writes the laptop's reference; `test/run.sh mask

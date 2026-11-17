@@ -29,6 +29,9 @@ OTHER_FILES += README.md  \
                test/README.md \
                test/run.sh \
                test/comfy.py \
+               test/modal.sh \
+               test/modal_app.py \
+               test/comfyui.sh \
                test/old/README.md \
                test/old/knight.png \
                test/old/courtyard.png \

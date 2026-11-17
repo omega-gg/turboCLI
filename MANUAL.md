@@ -256,7 +256,7 @@ instead, where ComfyUI uses them too. Images are written where you tell each scr
 `test/run.sh` checks that an update leaves every installed engine's image byte-identical and its
 speed intact: `test/run.sh --record` before the update, `test/run.sh` after, for all engines or the
 ones you name. It can compare the comfy engines with ComfyUI too. [test/README.md](test/README.md)
-has the details.
+has the details, and how to run it on cloud GPUs (Modal), every engine at once.
 
 ## Using it from Python
 

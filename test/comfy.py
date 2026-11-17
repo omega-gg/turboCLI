@@ -154,20 +154,17 @@ def krea2_edit(engine, f, prompt, seed, width, height, image):
 
 def qwen21(engine, f, prompt, seed, width, height, image):
     # image_qwen_image_2_1_turbo_t2i.json and _image_edit.json, their subgraphs, the prompt
-    # enhancer off: the turbo's own sigmas. A reference goes to the encode, which then hands the
-    # latent to sample on.
+    # enhancer off: the turbo's own sigmas. A reference goes to the encode; the latent is the
+    # output's size, as turbo's (the template's takes the reference's from the encode).
     encode = {"clip": ["2", 0], "prompt": prompt, "negative_prompt": "",
               "resolution": max(width, height)}
-    latent = ["10", 0]
     graph = loaders(f, "qwen_image")
     if image:
         encode.update({"vae": ["3", 0], "images.image_1": ["13", 0]})
-        latent = ["4", 2]
         graph["13"] = ("LoadImage", {"image": image})
-    else:
-        graph["10"] = ("EmptyLatentImage", {"width": width, "height": height, "batch_size": 1})
 
     return dict(graph, **{
+        "10": ("EmptyLatentImage", {"width": width, "height": height, "batch_size": 1}),
         "4": ("TextEncodeQwenImage21", encode),
         "5": ("QwenImage21Cache", {"model": ["1", 0], "device": "auto", "dtype": "default"}),
         "6": ("CFGGuider", {"cfg": 1.0, "model": ["5", 0], "positive": ["4", 0],
@@ -178,7 +175,7 @@ def qwen21(engine, f, prompt, seed, width, height, image):
         "9": ("RandomNoise", {"noise_seed": seed}),
         "11": ("SamplerCustomAdvanced", {"noise": ["9", 0], "guider": ["6", 0],
                                          "sampler": ["7", 0], "sigmas": ["8", 0],
-                                         "latent_image": latent}),
+                                         "latent_image": ["10", 0]}),
         "12": ("VAEDecode", {"samples": ["11", 0], "vae": ["3", 0]}),
     })
 

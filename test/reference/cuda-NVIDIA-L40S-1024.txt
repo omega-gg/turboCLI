@@ -1,0 +1,37 @@
+# cuda-NVIDIA-L40S-1024, recorded 2026-11-17: turboCLI 231c9785fb7b2992d679bcfa406a73382d0846c7
+# side engine mode md5 wall load encode sampling decode (seconds)
+comfy comfy-flux2-4b text-to-image def3e5489962a099e0340efffc29bd79 14.22 - - 5.64 -
+comfy comfy-flux2-9b-distilled text-to-image 3dea337490ea3715af74997da4f30bc9 9.30 - - 3.31 -
+comfy comfy-flux3-6b text-to-image 9f38bda4c76bf52f79dcda1e2d9985a0 9.64 - - 3.80 -
+comfy comfy-krea2-turbo text-to-image 1721266e201a40b9af61010d72f39314 14.51 - - 8.54 -
+comfy comfy-krea2-turbo-edit-general image-to-image 09a5527f445606a83f83bc032986a3d7 21.21 - - 14.40 -
+comfy comfy-krea2-turbo-edit-identity image-to-image 3249e25b0e2197bae681b4b9a60571bd 20.73 - - 13.93 -
+comfy comfy-qwen-image-2-1-turbo image-to-image d26c9c46e507b534649ecf21baf04df2 11.76 - - 3.93 -
+comfy comfy-qwen-image-2-1-turbo text-to-image 319688f93a69626a6ba6f93728c0cc3e 9.78 - - 3.76 -
+comfy comfy-z-image-turbo text-to-image 0b4f3255fb1a2b8e384399663516ffff 13.23 - - 6.26 -
+turbo comfy-flux2-4b image-to-image a0b596a9653428c6e56f252f5f73be55 21.04 8.01 4.31 5.73 0.73
+turbo comfy-flux2-4b text-to-image 3d24db09699cc179020127d6dfc51e8f 21.46 7.58 5.91 4.69 0.90
+turbo comfy-flux2-9b image-to-image b08777653bc40f5c87418ad8bf2f9f35 23.59 7.46 5.87 6.53 1.14
+turbo comfy-flux2-9b text-to-image fd9ad3a9bc34753c675a0c35e8cdc94d 23.20 7.87 5.63 5.99 1.16
+turbo comfy-flux2-9b-distilled image-to-image d477b788aa0fdeec7308f27e4b5f68d4 19.78 9.31 3.88 3.57 0.85
+turbo comfy-flux2-9b-distilled text-to-image 027e408d38b41ef33dd7a2f41328a58a 18.82 9.30 3.50 3.04 0.84
+turbo comfy-flux3-6b image-to-image 2d5c8a884b10bf296013c355dfe519c1 21.03 10.34 2.85 5.18 0.56
+turbo comfy-flux3-6b text-to-image 8d16ad241c18d2cd0993205cc1235b09 19.49 10.56 2.50 3.75 0.56
+turbo comfy-krea2-turbo text-to-image f90c2993ae936f814dbde76ee2e2ce50 21.74 7.24 2.88 8.50 0.89
+turbo comfy-krea2-turbo-edit-general image-to-image f1756bbb3adf188b6aedc1c0024a8f45 31.10 7.07 4.68 15.59 1.31
+turbo comfy-krea2-turbo-edit-identity image-to-image 144f528253ab862edc43cec2c01e7233 30.03 8.84 4.01 13.48 1.24
+turbo comfy-qwen-image-2-1 image-to-image 1c376044d0a1bbb79bb32787fbb53988 25.34 7.23 5.88 8.92 0.89
+turbo comfy-qwen-image-2-1 text-to-image 962fe1e48423b88fa64c7b2a79dc728a 22.70 7.32 4.03 7.90 1.12
+turbo comfy-qwen-image-2-1-turbo image-to-image e3fb68a660626114075263606b3a7514 21.18 9.24 4.79 3.84 0.80
+turbo comfy-qwen-image-2-1-turbo text-to-image 1ed0f55b846cecf5ac68be3f6ce47c59 19.80 9.39 3.43 3.72 0.96
+turbo comfy-z-image-turbo text-to-image a75e7418396114c4f1f58b831f9363f2 20.04 7.13 3.85 5.92 0.79
+turbo flux2-4b image-to-image aae4e340989c47f5597bfdfb94caa617 22.46 7.60 6.51 4.57 0.97
+turbo flux2-4b text-to-image 50a33a1fef7f29bab8c21f1b62278242 22.89 9.09 5.74 4.52 0.78
+turbo flux2-9b image-to-image 4e2189ccbd18056d16d63eb36a856c88 24.18 9.18 5.50 5.60 1.12
+turbo flux2-9b text-to-image f2ea6337616bcf36b0425d756aa4fc47 23.58 9.70 5.30 4.90 0.88
+turbo flux3-6b image-to-image 1530bd0b82da8450b5e4a68c496ccb5d 27.15 7.49 4.51 11.94 0.84
+turbo flux3-6b text-to-image 93efa42051c598bc65b9eef4cde9bc2e 23.46 7.62 4.92 7.76 0.71
+turbo mask image-to-mask d10c3a5ca24768ecdda057d718feb65a 2.36 - - - -
+turbo mask-birefnet image-to-mask 73da29b40a97d869c72637833f986598 8.37 - - - -
+turbo mask-lucida image-to-mask c620024a76516b9c9fe02b6041e80b9a 8.53 - - - -
+turbo z-image-turbo text-to-image 6fc4aa160a8606a8f784fe58c5f20bdb 38.26 8.51 4.18 20.05 2.20

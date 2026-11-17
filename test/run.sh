@@ -60,6 +60,7 @@ usage()
     echo "--tolerance <P>            percent slower still passing (default $tolerance)"
     echo "--comfy <dir>              also run the comfy engines through the ComfyUI in <dir>"
     echo "--comfy-only <dir>         run the comfy engines through the ComfyUI in <dir> alone"
+    echo "--list                     print the engines a run would test, and run nothing"
     echo ""
     echo "examples:"
     echo "    run.sh --record"
@@ -72,6 +73,7 @@ usage()
 renderer=""
 size=""
 record=false
+listing=false
 cool=false
 comfy=""
 sides="turbo"
@@ -88,6 +90,7 @@ while [ $# -gt 0 ]; do
         --tolerance)  tolerance="$2"; shift;;
         --comfy)      comfy="$2"; sides="turbo comfy"; shift;;
         --comfy-only) comfy="$2"; sides="comfy"; shift;;
+        --list)       listing=true;;
         -*)           usage;;
         *)            engines="$engines $1";;
     esac
@@ -225,7 +228,7 @@ turbo_cases()
 {
     for mode in text-to-image image-to-image image-to-mask; do
 
-        sh "$turbo/check-model.sh" ENGINES:$mode | tr -d '\r' \
+        bash "$turbo/check-model.sh" ENGINES:$mode | tr -d '\r' \
             | awk -v m=$mode '$2 == "installed" { print $1, m }'
     done
 }
@@ -255,18 +258,18 @@ run_turbo()
 
     case "$mode" in
         text-to-image)
-            sh "$turbo/text-to-image.sh" "$engine" $renderer "$fox" "$output" \
-               $width $height $seed -1 ${offload:-offloader};;
+            bash "$turbo/text-to-image.sh" "$engine" $renderer "$fox" "$output" \
+                 $width $height $seed -1 ${offload:-offloader};;
         image-to-image)
-            sh "$turbo/image-to-image.sh" "$engine" $renderer "$edit" "$images/knight.png" \
-               "$output" $width $height $seed -1 ${offload:-offloader};;
+            bash "$turbo/image-to-image.sh" "$engine" $renderer "$edit" "$images/knight.png" \
+                 "$output" $width $height $seed -1 ${offload:-offloader};;
         image-to-mask)
             if [ "$engine" = "mask" ]; then
                 input="$images/chest.png,$images/courtyard.png"
             else
                 input="$images/knight.png"
             fi
-            sh "$turbo/image-to-mask.sh" "$engine" $renderer "$input" "$output";;
+            bash "$turbo/image-to-mask.sh" "$engine" $renderer "$input" "$output";;
     esac 2>&1 | stamp > "$log" || return 1
 
     end="$(now)"
@@ -504,9 +507,18 @@ if [ -n "$engines" ]; then
     mv "$list.asked" "$list"
 fi
 
+# --list: the engines a run would test, and no run.
+if [ $listing = true ]; then
+
+    cut -d ' ' -f 1 "$list" | sort -u
+
+    exit 0
+fi
+
 while read engine mode pairs; do
 
-    if [ -n "$comfy" ] && ! comfy_has $engine; then
+    # A case with a ComfyUI side runs it only when that ComfyUI has the engine's files.
+    if [[ " $pairs " == *" comfy "* ]] && ! comfy_has $engine; then
 
         pairs="${pairs% comfy}"
 
@@ -518,7 +530,7 @@ while read engine mode pairs; do
     fi
 
     # The offload the engine was installed with, for its turbo runs.
-    offload="$(sh "$turbo/check-model.sh" SETTINGS:$engine 2> /dev/null | tr -d '\r' \
+    offload="$(bash "$turbo/check-model.sh" SETTINGS:$engine 2> /dev/null | tr -d '\r' \
                | awk '$1 == "offload:" { print $2 }')"
 
     : > "$runs"
@@ -553,15 +565,15 @@ while read engine mode pairs; do
     done
 
     # Turbo against ComfyUI: the speed, and how close the images are.
-    turbo=($(grep "^turbo " "$runs" | sort -n -k 2 | head -n 1))
-    other=($(grep "^comfy " "$runs" | sort -n -k 2 | head -n 1))
+    ours=($(grep "^turbo " "$runs" | sort -n -k 2 | head -n 1))
+    theirs=($(grep "^comfy " "$runs" | sort -n -k 2 | head -n 1))
 
-    if [ ${#turbo[@]} != 0 ] && [ ${#other[@]} != 0 ]; then
+    if [ ${#ours[@]} != 0 ] && [ ${#theirs[@]} != 0 ]; then
 
-        result="$(delta ${turbo[1]} ${other[1]}) against ComfyUI,"
-        result="$result $("$python" -s "$test/comfy.py" psnr ${turbo[8]} ${other[8]})"
+        result="$(delta ${ours[1]} ${theirs[1]}) against ComfyUI,"
+        result="$result $("$python" -s "$test/comfy.py" psnr ${ours[8]} ${theirs[8]})"
 
-        if slower ${turbo[1]} ${other[1]}; then
+        if slower ${ours[1]} ${theirs[1]}; then
 
             fail "      $engine $mode: $result SLOWER"
         else

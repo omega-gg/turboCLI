@@ -61,3 +61,33 @@ vendored code to a new tag). ComfyUI runs with its portable `python_embeded`, it
 
 The model files come from each engine's `COMFY` declaration, so the graphs follow the engines;
 an engine whose files are not in that ComfyUI is skipped.
+
+## On Modal
+
+`modal.sh` runs the same suite on an L40S GPU on Modal, for a second machine's reference, with
+turboCLI's own scripts in the container:
+
+```
+test/modal.sh install comfy-flux2-4b z-image-turbo mask    # on CPU: install.sh per engine
+test/modal.sh run --record comfy-flux2-4b                  # on the L40S: test/run.sh, options
+test/modal.sh run --comfy /opt/ComfyUI                     # every engine, against ComfyUI
+test/modal.sh run --renderer cpu --size 256 comfy-flux2-4b # on a CPU container, no GPU billed
+```
+
+The image holds ComfyUI too, in `/opt/ComfyUI` (`test/comfyui.sh`: the tag turbo-offloader
+vendors, on turboCLI's torch, with the Krea 2 edit node pack), its models the Volume's. A CPU run
+keeps the CPU path honest; it is slow, so a small size and a few engines, now and then.
+`modal.sh exec <command>` runs a command in the same setup on CPU, for a look around.
+
+The working trees of turboCLI and turbo-offloader (`../turbo-offloader`, or `TURBO_OFFLOADER`) go
+up as they are, so it tests what is about to be committed. The image is turboCLI as its
+`build.sh` builds it, made again when the build scripts change; the models and engine records stay
+on the `turbo-models` Volume, so a run downloads nothing. A run brings the L40S's reference and its
+summary back into `test/`. It needs the Modal CLI logged in (`pip install modal`, `modal setup`),
+and a Modal Secret `hf-token` holding `HF_TOKEN` for the gated engines.
+[modal_app.py](modal_app.py) only carries the script into a container (`modal shell` would need no
+Python, but has no Windows support). Each call is an ephemeral `modal run`: nothing stays deployed
+or running. A run is parallel: one L40S per engine (`MODAL_JOBS` at a time, 8 by default, under the
+account's GPU limit), and `test/modal.sh run --list` prints the engines it would test without
+starting any. Ctrl-C stops the containers a run started; a run killed otherwise can leave its apps
+behind on Windows: `modal app list`, then `modal app stop -y <id>` for each.

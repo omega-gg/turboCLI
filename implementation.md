@@ -39,6 +39,9 @@ turboCLI/
   test/
     run.sh           the suite: same images, no slower, per engine or all (test/README.md)
     comfy.py         its ComfyUI side: a template graph per comfy engine, PSNR
+    modal.sh         the suite on Modal GPUs, one container per engine at once
+    modal_app.py     the Modal app modal.sh starts: the image, the CPU and GPU containers
+    comfyui.sh       ComfyUI as the image holds it, on turboCLI's torch
     reference/       each machine's md5s and timings, committed
     results/         a run's images, logs and summary (not committed)
     old/             the suite's input images, and a README for the mask checks by hand
@@ -504,6 +507,10 @@ compares the two; `--comfy-only <dir>` runs ComfyUI alone, for a re-sync of the 
 ComfyUI's progress bar shifts its start after the second step (`model_trange`), so its sampling
 is timed by the same stamps, from the bar's `0/N` to its `N/N`. `test/README.md` has the usage
 and `doc/test-suite-plan.md` the design.
+
+`test/modal.sh` runs it on Modal L40S GPUs, one container per engine at once. Its results,
+turbo against ComfyUI engine by engine, are in turbo-offloader's `implementation.md`
+(Benchmarks, the L40S machine), with what to read them with.
 
 ## Platform notes
 
