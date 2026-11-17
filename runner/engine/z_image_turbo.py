@@ -37,4 +37,4 @@ INFERENCE = 8
 # Install (python -m runner.install): base model HF repo = "<repository>/<model>". No LoRAs.
 # "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.
 MODEL = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo",
-         "revision": "04cc4abb7c5069926f75c9bfde9ef43d49423021"}
+         "revision": "f332072aa78be7aecdf3ee76d5c247082da564a6"}

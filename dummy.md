@@ -113,7 +113,7 @@ MODES       = ("text-to-image",)
 CFG         = ("guidance_scale", 0.0)
 INFERENCE   = 8
 MODEL       = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo",
-               "revision": "04cc4abb7c5069926f75c9bfde9ef43d49423021"}
+               "revision": "f332072aa78be7aecdf3ee76d5c247082da564a6"}
 ```
 
 Classes are named by *string* and imported only when the engine actually loads, so discovering
