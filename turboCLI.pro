@@ -25,6 +25,10 @@ OTHER_FILES += README.md  \
                doc/mask-engines-plan.md \
                doc/mask-tolerance-plan.md \
                doc/reinstall-prune-plan.md \
+               doc/test-suite-plan.md \
+               test/README.md \
+               test/run.sh \
+               test/comfy.py \
                test/old/README.md \
                test/old/knight.png \
                test/old/courtyard.png \

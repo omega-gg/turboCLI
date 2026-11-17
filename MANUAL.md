@@ -251,6 +251,13 @@ Everything goes under `$SKY_PATH_BIN/gg.omega/`: python in `python/`, turboCLI i
 `comfy-` engine installed with a ComfyUI folder keeps its files in that ComfyUI's `models` folder
 instead, where ComfyUI uses them too. Images are written where you tell each script to write them.
 
+## Testing an update
+
+`test/run.sh` checks that an update leaves every installed engine's image byte-identical and its
+speed intact: `test/run.sh --record` before the update, `test/run.sh` after, for all engines or the
+ones you name. It can compare the comfy engines with ComfyUI too. [test/README.md](test/README.md)
+has the details.
+
 ## Using it from Python
 
 turboCLI can run inside a python application rather than through the scripts:

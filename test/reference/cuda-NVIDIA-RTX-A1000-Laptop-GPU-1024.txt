@@ -1,0 +1,8 @@
+# cuda-NVIDIA-RTX-A1000-Laptop-GPU-1024, recorded 2026-11-17: turboCLI 231c9785fb7b2992d679bcfa406a73382d0846c7
+# side engine mode md5 wall load encode sampling decode (seconds)
+comfy comfy-flux2-4b text-to-image c92fe6b81b017554dd9feabe52b5d84c 54.11 - - 27.82 -
+turbo comfy-flux2-4b image-to-image cbc779b2d97737f8d934e3e21120c357 97.37 36.40 23.30 25.45 6.47
+turbo comfy-flux2-4b text-to-image 02a1a4be30278aada47a15f35503d540 79.59 27.80 20.17 23.89 5.18
+turbo flux2-4b image-to-image 48364ef62f21cce159107908dd49a6f1 126.65 65.02 22.93 22.72 10.66
+turbo flux2-4b text-to-image 5897ebdd20a8e0ec1a64e89e4e097274 105.73 51.80 19.80 24.26 7.31
+turbo mask image-to-mask 4f3d7a97d93cc4deea3ae4720c928ee0 6.66 - - - -

@@ -1,0 +1,569 @@
+#!/bin/bash
+#==================================================================================================
+#
+#   Copyright (C) 2026-2026 turboCLI authors. <https://omega.gg/turboCLI>
+#
+#   Author: Benjamin Arnaud. <https://bunjee.me> <bunjee@omega.gg>
+#
+#   This file is part of turboCLI.
+#
+#   - GNU Lesser General Public License Usage:
+#   This file may be used under the terms of the GNU Lesser General Public License version 3 as
+#   published by the Free Software Foundation and appearing in the LICENSE.md file included in the
+#   packaging of this file. Please review the following information to ensure the GNU Lesser
+#   General Public License requirements will be met: https://www.gnu.org/licenses/lgpl.html.
+#
+#   - Private License Usage:
+#   turboCLI licensees holding valid private licenses may use this file in accordance with the
+#   private license agreement provided with the Software or, alternatively, in accordance with the
+#   terms contained in written agreement between you and turboCLI authors. For further information
+#   contact us at contact@omega.gg.
+#
+#==================================================================================================
+
+set -o pipefail
+
+#--------------------------------------------------------------------------------------------------
+# Settings
+#--------------------------------------------------------------------------------------------------
+
+seed="42"
+
+fox="a red fox sitting in a snowy forest, golden hour"
+
+edit="turn the scene into a snowy winter night lit by torches"
+
+tolerance="10"
+
+repeat="1"
+
+port="8199"
+
+#--------------------------------------------------------------------------------------------------
+# Syntax
+#--------------------------------------------------------------------------------------------------
+
+usage()
+{
+    echo "Usage: run.sh [options] [engine ...]"
+    echo ""
+    echo "Runs each engine, stock and comfy, at a fixed seed: its image must stay byte-identical"
+    echo "to this machine's reference (test/reference/), its sampling no slower than it beyond"
+    echo "the tolerance. No engine: every installed one. One that is not installed is skipped."
+    echo ""
+    echo "--renderer <cuda|mps|cpu>  default: cuda when nvidia-smi answers, mps on macOS, else cpu"
+    echo "--size <N>                 square output, default 1024 on cuda, 512 on mps and cpu"
+    echo "--record                   write this machine's reference instead of checking it"
+    echo "--repeat <N>               run each case N times, keep the fastest (default $repeat)"
+    echo "--cool                     before each run, wait for the GPU to cool to 50 C"
+    echo "                           (nvidia-smi), or pause 60 s on mps and cpu"
+    echo "--tolerance <P>            percent slower still passing (default $tolerance)"
+    echo "--comfy <dir>              also run the comfy engines through the ComfyUI in <dir>"
+    echo "--comfy-only <dir>         run the comfy engines through the ComfyUI in <dir> alone"
+    echo ""
+    echo "examples:"
+    echo "    run.sh --record"
+    echo "    run.sh flux2-4b comfy-flux2-4b"
+    echo "    run.sh --repeat 2 --cool --comfy ~/ComfyUI comfy-z-image-turbo"
+
+    exit 1
+}
+
+renderer=""
+size=""
+record=false
+cool=false
+comfy=""
+sides="turbo"
+engines=""
+
+while [ $# -gt 0 ]; do
+
+    case "$1" in
+        --renderer)   renderer="$2"; shift;;
+        --size)       size="$2"; shift;;
+        --record)     record=true;;
+        --repeat)     repeat="$2"; shift;;
+        --cool)       cool=true;;
+        --tolerance)  tolerance="$2"; shift;;
+        --comfy)      comfy="$2"; sides="turbo comfy"; shift;;
+        --comfy-only) comfy="$2"; sides="comfy"; shift;;
+        -*)           usage;;
+        *)            engines="$engines $1";;
+    esac
+
+    shift
+done
+
+#--------------------------------------------------------------------------------------------------
+# Configuration
+#--------------------------------------------------------------------------------------------------
+
+test="$(cd "$(dirname "$0")" && pwd)"
+
+turbo="$test/../bash/turbo"
+
+images="$test/old"
+
+if [ "$sides" != "comfy" ] && [ -z "$SKY_PATH_BIN" ]; then
+
+    echo "SKY_PATH_BIN is not set" >&2
+
+    exit 1
+fi
+
+if [ -z "$renderer" ]; then
+
+    if nvidia-smi > /dev/null 2>&1; then
+
+        renderer="cuda"
+
+    elif [ "$(uname)" = "Darwin" ]; then
+
+        renderer="mps"
+    else
+        renderer="cpu"
+    fi
+fi
+
+if [ -z "$size" ]; then
+
+    if [ "$renderer" = "cuda" ]; then size="1024"; else size="512"; fi
+fi
+
+if [ "$renderer" = "cuda" ]; then
+
+    device="$(nvidia-smi --query-gpu=name --format=csv,noheader | head -n 1 | tr -d '\r')"
+
+elif [ "$(uname)" = "Darwin" ]; then
+
+    device="$(sysctl -n machdep.cpu.brand_string)"
+else
+    device="$(grep -m 1 "model name" /proc/cpuinfo | cut -d: -f2)"
+fi
+
+# The machine's name: its renderer, device and size, which an image is only identical within.
+machine="$renderer-$(echo $device | sed 's/[^A-Za-z0-9.]\{1,\}/-/g')-$size"
+
+reference="$test/reference/$machine.txt"
+
+results="$test/results/$machine"
+
+mkdir -p "$results" "$test/reference"
+
+if [ -n "$comfy" ]; then
+
+    comfy="$(cd "$comfy" && pwd)"
+
+    if [ -n "$COMFY_PYTHON" ]; then
+
+        python="$COMFY_PYTHON"
+
+    elif [ -f "$comfy/../python_embeded/python.exe" ]; then
+
+        python="$comfy/../python_embeded/python.exe"
+
+    elif [ -f "$comfy/venv/bin/python" ]; then
+
+        python="$comfy/venv/bin/python"
+    else
+        python="python3"
+    fi
+fi
+
+#--------------------------------------------------------------------------------------------------
+# Functions
+#--------------------------------------------------------------------------------------------------
+
+# Each line of the input stamped with the time it arrives, to the millisecond (a progress bar's
+# updates, split on their carriage returns, too).
+stamp()
+{
+    perl -MTime::HiRes=time -e '$| = 1; while (sysread(STDIN, my $b, 65536)) {
+        printf "%.3f %s\n", time, $_ for grep /\S/, split /[\r\n]+/, $b }'
+}
+
+now()
+{
+    perl -MTime::HiRes=time -e 'printf "%.3f", time'
+}
+
+md5()
+{
+    if command -v md5sum > /dev/null; then
+
+        md5sum "$1" | cut -c 1-32
+    else
+        md5 -q "$1"
+    fi
+}
+
+wait_cool()
+{
+    if [ $cool = false ]; then return; fi
+
+    if [ "$renderer" = "cuda" ]; then
+
+        for i in $(seq 120); do
+
+            if [ "$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader \
+                    | head -n 1 | tr -d '\r')" -le 50 ]; then return; fi
+
+            sleep 5
+        done
+    else
+        sleep 60
+    fi
+}
+
+# Every installed engine, stock and comfy, in each of its modes, "engine mode" per line.
+turbo_cases()
+{
+    for mode in text-to-image image-to-image image-to-mask; do
+
+        sh "$turbo/check-model.sh" ENGINES:$mode | tr -d '\r' \
+            | awk -v m=$mode '$2 == "installed" { print $1, m }'
+    done
+}
+
+# The (engine, mode) pairs comfy.py has a ComfyUI graph for.
+comfy_cases()
+{
+    "$python" -s "$test/comfy.py" cases | tr -d '\r'
+}
+
+# Whether the ComfyUI in $comfy has every file of an engine.
+comfy_has()
+{
+    for path in $("$python" -s "$test/comfy.py" files "$1" | tr -d '\r'); do
+
+        if [ ! -f "$comfy/models/$path" ]; then return 1; fi
+    done
+}
+
+# One run: <engine> <mode> <image> <log>. Prints "wall load encode sampling decode" in seconds,
+# "-" for what the run does not show.
+run_turbo()
+{
+    local engine="$1" mode="$2" output="$3" log="$4" input start end
+
+    start="$(now)"
+
+    case "$mode" in
+        text-to-image)
+            sh "$turbo/text-to-image.sh" "$engine" $renderer "$fox" "$output" \
+               $size $size $seed -1 ${offload:-offloader};;
+        image-to-image)
+            sh "$turbo/image-to-image.sh" "$engine" $renderer "$edit" "$images/knight.png" \
+               "$output" $size $size $seed -1 ${offload:-offloader};;
+        image-to-mask)
+            if [ "$engine" = "mask" ]; then
+                input="$images/chest.png,$images/courtyard.png"
+            else
+                input="$images/knight.png"
+            fi
+            sh "$turbo/image-to-mask.sh" "$engine" $renderer "$input" "$output";;
+    esac 2>&1 | stamp > "$log" || return 1
+
+    end="$(now)"
+
+    awk -v start=$start -v end=$end '
+        $2 == "model" && $3 == "ready" { ready = $1 }
+        $2 == "generating"             { generating = $1 }
+        $2 ~ /\|step$/ {
+            split($3, step, "/")
+            if (step[1] == 0) first = $1
+            if (step[1] == step[2]) last = $1
+        }
+        $2 == "Saved:" { saved = $1 }
+        function span(a, b) { return (a && b) ? sprintf("%.2f", b - a) : "-" }
+        END {
+            print span(start, end), span(start, ready), span(generating, first),
+                  span(first, last), span(last, saved)
+        }' "$log"
+}
+
+run_comfy()
+{
+    local engine="$1" mode="$2" output="$3" log="$4" input="-" flag="" server start end status
+
+    if [ "$mode" = "image-to-image" ]; then input="$images/knight.png"; fi
+
+    if [ "$renderer" = "cpu" ]; then flag="--cpu"; fi
+
+    # A fresh server per run, as a turbo run starts fresh.
+    (cd "$comfy" && exec "$python" -s main.py --port $port --disable-auto-launch $flag) \
+        > >(stamp > "$log") 2>&1 &
+    server=$!
+
+    until curl -s -o /dev/null "http://127.0.0.1:$port/system_stats"; do
+
+        if ! kill -0 $server 2> /dev/null; then return 1; fi
+
+        sleep 1
+    done
+
+    start="$(now)"
+
+    "$python" -s "$test/comfy.py" run "$engine" "$mode" "$fox" $seed $size "$input" "$output" \
+        "http://127.0.0.1:$port" >> "$log.run" 2>&1
+    status=$?
+
+    end="$(now)"
+
+    kill $server 2> /dev/null
+    wait $server 2> /dev/null
+
+    while curl -s -o /dev/null "http://127.0.0.1:$port/system_stats"; do sleep 1; done
+
+    if [ $status != 0 ]; then return 1; fi
+
+    # Its sampler's progress bar, from 0/N to N/N.
+    awk -v start=$start -v end=$end '
+        {
+            for (i = 2; i < NF; i++) {
+                if ($i ~ /^[0-9]+\/[0-9]+$/ && $(i + 1) ~ /^\[/) {
+                    split($i, step, "/")
+                    if (step[1] == 0 && !first) { first = $1; steps = step[2] }
+                    if (first && !last && step[1] == steps) last = $1
+                }
+            }
+        }
+        function span(a, b) { return (a && b) ? sprintf("%.2f", b - a) : "-" }
+        END { print span(start, end), "-", "-", span(first, last), "-" }' "$log"
+}
+
+# The reference's "md5 wall load encode sampling decode" for <side> <engine> <mode>.
+referenced()
+{
+    if [ -f "$reference" ]; then
+
+        awk -v s=$1 -v e=$2 -v m=$3 '
+            $1 == s && $2 == e && $3 == m { print $4, $5, $6, $7, $8, $9 }' "$reference"
+    fi
+}
+
+# <side> <engine> <mode> <md5> <times...> into the reference, in place of its former line.
+remember()
+{
+    local lines
+
+    if [ -f "$reference" ]; then
+
+        lines="$(awk -v s=$1 -v e=$2 -v m=$3 '!/^#/ && !($1 == s && $2 == e && $3 == m)' \
+                 "$reference")"
+    fi
+
+    {
+        echo "# $machine, recorded $(date +%F): turboCLI $(cat "$commit" 2> /dev/null || echo -)"
+        echo "# side engine mode md5 wall load encode sampling decode (seconds)"
+        { if [ -n "$lines" ]; then echo "$lines"; fi; echo "$*"; } | sort
+    } > "$reference"
+}
+
+# "+4%" for <time> against <reference time>.
+delta()
+{
+    awk -v a=$1 -v b=$2 'BEGIN { printf "%+d%%", (a - b) * 100 / b }'
+}
+
+slower()
+{
+    awk -v a=$1 -v b=$2 -v t=$tolerance 'BEGIN { exit !(a > b * (1 + t / 100)) }'
+}
+
+report()
+{
+    echo "$*" | tee -a "$summary"
+}
+
+fail()
+{
+    report "$*"
+
+    failed=true
+}
+
+# The cases, "engine mode side..." per line: turbo's, or ComfyUI's with --comfy-only. With
+# --comfy, a turbo case also runs on ComfyUI when it has a graph there.
+cases()
+{
+    if [ "$sides" = "comfy" ]; then
+
+        comfy_cases | sed 's/$/ comfy/'
+        return
+    fi
+
+    local graphs="$(if [ "$sides" = "turbo comfy" ]; then comfy_cases; fi)"
+
+    turbo_cases | while read engine mode; do
+
+        if echo "$graphs" | grep -qx "$engine $mode"; then
+
+            echo "$engine $mode turbo comfy"
+        else
+            echo "$engine $mode turbo"
+        fi
+    done
+}
+
+# The engine's runs of one side, the fastest first: its image must not change between them, the
+# fastest is its result, checked against the reference or recorded.
+judge()
+{
+    local side=$1 engine=$2 mode=$3 best md5 ref result
+
+    best=($(grep "^$side " "$runs" | sort -n -k 2 | head -n 1))
+
+    if [ ${#best[@]} = 0 ]; then return; fi
+
+    if [ $(grep "^$side " "$runs" | cut -d ' ' -f 3 | sort -u | wc -l) != 1 ]; then
+
+        fail "$side $engine $mode: UNSTABLE, its image changes between runs"
+    fi
+
+    # best: side, time, md5, wall, load, encode, sampling, decode, image
+    md5=${best[2]}
+
+    if [ $record = true ]; then
+
+        remember $side $engine $mode $md5 ${best[@]:3:5}
+        result="RECORDED"
+    else
+        # ref: md5, wall, load, encode, sampling, decode
+        ref=($(referenced $side $engine $mode))
+
+        if [ ${#ref[@]} = 0 ]; then
+
+            result="NEW"
+        else
+            if [ "${ref[0]}" = "$md5" ]; then
+
+                result="SAME"
+            else
+                result="DIFFERS"
+                failed=true
+            fi
+
+            # Sampling decides. A run without steps (masks) is mostly start-up: its wall time is
+            # shown, not judged.
+            if [ "${ref[4]}" = "-" ]; then
+
+                result="$result $(delta ${best[1]} ${ref[1]})"
+
+            elif slower ${best[1]} ${ref[4]}; then
+
+                result="$result $(delta ${best[1]} ${ref[4]}) SLOWER"
+                failed=true
+            else
+                result="$result $(delta ${best[1]} ${ref[4]})"
+            fi
+        fi
+    fi
+
+    report "$(printf "%-5s %-38s %-14s %8ss  load %6s encode %6s decode %6s  %s" $side $engine \
+              $mode ${best[1]} ${best[4]} ${best[5]} ${best[7]} "$result")"
+}
+
+#--------------------------------------------------------------------------------------------------
+# Run
+#--------------------------------------------------------------------------------------------------
+
+commit="${SKY_PATH_TURBOCLI:-$SKY_PATH_BIN/gg.omega/turbo}/.commit"
+
+summary="$results/summary.txt"
+
+runs="$results/runs"
+
+list="$results/cases"
+
+failed=false
+
+: > "$summary"
+
+cases > "$list"
+
+# Only the engines asked for, when some are.
+if [ -n "$engines" ]; then
+
+    for engine in $engines; do
+
+        if ! grep -q "^$engine " "$list"; then
+
+            echo "$engine: skipped (not installed, or no ComfyUI graph)"
+        fi
+    done
+
+    grep -E "^($(echo $engines | tr ' ' '|')) " "$list" > "$list.asked"
+
+    mv "$list.asked" "$list"
+fi
+
+while read engine mode pairs; do
+
+    if [ -n "$comfy" ] && ! comfy_has $engine; then
+
+        pairs="${pairs% comfy}"
+
+        if [ "$pairs" = "comfy" ]; then
+
+            report "$engine $mode: skipped (its files are not in that ComfyUI)"
+            continue
+        fi
+    fi
+
+    # The offload the engine was installed with, for its turbo runs.
+    offload="$(sh "$turbo/check-model.sh" SETTINGS:$engine 2> /dev/null | tr -d '\r' \
+               | awk '$1 == "offload:" { print $2 }')"
+
+    : > "$runs"
+
+    # Each run's line: side, the time that decides (sampling, or wall time for a run without
+    # steps), md5, wall, load, encode, sampling, decode, image. Sides alternate, so heat lands on
+    # both alike.
+    for r in $(seq $repeat); do
+
+        for side in $pairs; do
+
+            wait_cool
+
+            output="$results/$side-$engine-$mode-$r.png"
+            log="$results/$side-$engine-$mode-$r.log"
+
+            echo "running $side $engine $mode ($r/$repeat)..."
+
+            if times=($(run_$side $engine $mode "$output" "$log" < /dev/null)); then
+
+                echo "$side ${times[3]/-/${times[0]}} $(md5 "$output") ${times[*]} $output" \
+                    >> "$runs"
+            else
+                fail "$side $engine $mode: FAILED, see $log"
+            fi
+        done
+    done
+
+    for side in $pairs; do
+
+        judge $side $engine $mode
+    done
+
+    # Turbo against ComfyUI: the speed, and how close the images are.
+    turbo=($(grep "^turbo " "$runs" | sort -n -k 2 | head -n 1))
+    other=($(grep "^comfy " "$runs" | sort -n -k 2 | head -n 1))
+
+    if [ ${#turbo[@]} != 0 ] && [ ${#other[@]} != 0 ]; then
+
+        result="$(delta ${turbo[1]} ${other[1]}) against ComfyUI,"
+        result="$result $("$python" -s "$test/comfy.py" psnr ${turbo[8]} ${other[8]})"
+
+        if slower ${turbo[1]} ${other[1]}; then
+
+            fail "      $engine $mode: $result SLOWER"
+        else
+            report "      $engine $mode: $result"
+        fi
+    fi
+
+done < "$list"
+
+if [ $failed = true ]; then exit 1; fi

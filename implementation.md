@@ -37,8 +37,11 @@ turboCLI/
   backend/           EMPTY in-repo (a .gitignore placeholder); build.sh grafts the offloader here
   doc/               plan docs, kept as records after implementation
   test/
-    old/             reference images + README for re-running the mask-engine checks, kept as
-                     records
+    run.sh           the suite: same images, no slower, per engine or all (test/README.md)
+    comfy.py         its ComfyUI side: a template graph per comfy engine, PSNR
+    reference/       each machine's md5s and timings, committed
+    results/         a run's images, logs and summary (not committed)
+    old/             the suite's input images, and a README for the mask checks by hand
 ```
 
 Deployed layout (created by `bash/turbo/build.sh` under `$SKY_PATH_BIN/gg.omega`):
@@ -482,6 +485,25 @@ into the body (cli.py:82-89, server.py:237-246).
   (mutable HF repos → reproducible installs, validated by check), every wheel + the diffusers
   git commit + both repo commits in build.sh, the `.commit` marker in the deployed tree
   (`check.sh` compares it to its own pin — "Also update in check.sh", build.sh:35).
+
+## Tests
+
+`test/run.sh` turns that determinism into a check for every update of turboCLI or
+turbo-offloader. It runs each installed engine, stock and comfy, in each of its modes at seed 42,
+and compares the image md5 and the sampling time with this machine's reference
+(`test/reference/<renderer>-<device>-<size>.txt`, committed, `--record` to write it). Images are
+only identical within one machine and stack, hence a reference per machine. Timings come from the
+runner's own lines (`model ready`, `generating`, `step 0/N`, `step N/N`, `Saved:`), each stamped
+on arrival to the millisecond by perl: load, encode, sampling and decode, sampling deciding (a
+mask engine has no steps; its time, mostly start-up, is shown, not judged).
+`--cool` and `--repeat` keep a throttling laptop from failing a run that is not slower.
+
+`--comfy <dir>` also runs each comfy engine through a ComfyUI install (`test/comfy.py`: the
+template graph, its files from the engine's `COMFY` declaration), alternating with turbo, and
+compares the two; `--comfy-only <dir>` runs ComfyUI alone, for a re-sync of the vendored ComfyUI.
+ComfyUI's progress bar shifts its start after the second step (`model_trange`), so its sampling
+is timed by the same stamps, from the bar's `0/N` to its `N/N`. `test/README.md` has the usage
+and `doc/test-suite-plan.md` the design.
 
 ## Platform notes
 
