@@ -366,7 +366,7 @@ answer is derivable.
   `reclaim(pipe)` (core.py:744-752) and `release(pipe)` (core.py:311-327). Class objects flow
   runner→backend, resolved lazily from the engine's declared strings, "so the class table lives
   here, not duplicated in the backend" (core.py:281-289). The backend stays model-agnostic;
-  comfy engines name ComfyUI's models as data (model names + file paths + key-remap callables).
+  comfy engines name ComfyUI's models as data (model names + file paths + LoRA name maps).
 - **Native modes** `none | model_cpu | sequential_cpu` are built in (`Ctx.apply_offload`,
   core.py:239-259: `.to(device)` / `enable_model_cpu_offload` / `enable_sequential_cpu_offload`,
   cuda and mps variants). `Ctx` (core.py:189) is "the firewall handed to an engine's load():

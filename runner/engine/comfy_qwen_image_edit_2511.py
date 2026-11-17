@@ -118,20 +118,21 @@ def _pipeline_class():
             if prompt_embeds is None:
                 prompt_embeds, prompt_embeds_mask = self.text_encoder.encode(prompt, image or ())
 
-            # The offloader drops a mask with nothing masked; the stock call wants one.
-            if prompt_embeds_mask is None:
-                prompt_embeds_mask = torch.ones(prompt_embeds.shape[:2], dtype=torch.bool)
-
             device = device or self._execution_device
 
+            if prompt_embeds_mask is not None:
+                prompt_embeds_mask = prompt_embeds_mask.to(device)
+
+            # The stock encode drops a mask with nothing masked, as ComfyUI does.
             return super().encode_prompt(None, device, num_images_per_prompt,
-                                         prompt_embeds.to(device), prompt_embeds_mask.to(device),
+                                         prompt_embeds.to(device), prompt_embeds_mask,
                                          max_sequence_length)
 
         def __call__(self, prompt=None, image=None, **kwargs):
             images = list(image or [])
 
             # Encoded through encode_prompt, so the offloader's cache keys it on the images too.
+            # The stock call wants a mask beside the embeds, even one with nothing masked.
             embeds, mask = self.encode_prompt(prompt, image=images)
             if mask is None:
                 mask = torch.ones(embeds.shape[:2], dtype=torch.bool, device=embeds.device)
