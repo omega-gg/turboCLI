@@ -1,4 +1,4 @@
-# [turboCLI](../README.md) test fixtures
+# [turboCLI](../../README.md) test fixtures
 
 Reference images (736x1024, flux2-4b generations) for re-running the mask-engine verifications.
 
@@ -18,8 +18,8 @@ The `mask` engine takes two more options. `glow=N` carries a `default` mask N pi
 which covers the outline a removal leaves behind, and `fade=<l>:<t>:<r>:<b>` softens a mask of
 either mode by that many pixels on the borders the caller cut, for a mask made of part of a picture. Both
 are off unless sent, see
-[doc/mask-glow-plan.md](../doc/mask-glow-plan.md) and
-[doc/mask-fade-plan.md](../doc/mask-fade-plan.md).
+[doc/mask-glow-plan.md](../../doc/mask-glow-plan.md) and
+[doc/mask-fade-plan.md](../../doc/mask-fade-plan.md).
 
 ```sh
 # background matte, then cut the subject onto transparency (birefnet)

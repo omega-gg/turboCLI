@@ -36,7 +36,9 @@ turboCLI/
                      image-to-mask/image-apply-mask
   backend/           EMPTY in-repo (a .gitignore placeholder); build.sh grafts the offloader here
   doc/               plan docs, kept as records after implementation
-  test/              reference images + README for re-running the mask-engine checks
+  test/
+    old/             reference images + README for re-running the mask-engine checks, kept as
+                     records
 ```
 
 Deployed layout (created by `bash/turbo/build.sh` under `$SKY_PATH_BIN/gg.omega`):

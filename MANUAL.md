@@ -184,7 +184,7 @@ sh image-apply-mask.sh composite edited.png,mask.png,original.png result.png
 
 The `mask` engine and `image-apply-mask.sh` need no download and run on the CPU; install them once
 with `sh install.sh mask cpu` and `sh install.sh mask-apply cpu`. The matte engines download their
-model. [test/README.md](test/README.md) has longer recipes, with the images to try them on.
+model. [test/old/README.md](test/old/README.md) has longer recipes, with the images to try them on.
 
 ## Running a server
 

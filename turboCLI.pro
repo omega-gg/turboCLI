@@ -25,10 +25,10 @@ OTHER_FILES += README.md  \
                doc/mask-engines-plan.md \
                doc/mask-tolerance-plan.md \
                doc/reinstall-prune-plan.md \
-               test/README.md \
-               test/knight.png \
-               test/courtyard.png \
-               test/chest.png \
+               test/old/README.md \
+               test/old/knight.png \
+               test/old/courtyard.png \
+               test/old/chest.png \
 
 OTHER_FILES += runner/__init__.py \
                runner/check.py \
