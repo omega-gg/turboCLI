@@ -253,6 +253,9 @@ images identical at every size:
 | 4096² | text to image | 19.30 s (19.32 s) | 42.1 s (43.5 s) |
 | 4096² | image to image | 25.94 s (26.53 s) | 52.1 s (54.6 s) |
 
+Cold against cold, each side alone in a fresh container reading the files off the Volume, turbo
+reaches the first step in 31.5 s against 33.9 s and the image in 45.8 s against 48.4 s (1024²).
+
 minimax-h3-image samples in 28.1 s at 1024² (on its 4 MP canvas), 23.3 s at 2048² and 86.4 s at
 4096² (a single cold run); edits 34.3, 33.6 and 119.7 s. At 2048² both sides' text to image move
 by one level on a few pixels between a cold and a warm run (ComfyUI's VAE sizes its tiles to the

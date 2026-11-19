@@ -57,7 +57,7 @@ Image-to-image: the prompt describes the change, applied to one or more referenc
 | `comfy-qwen-image-2-1-turbo` | Qwen-Image-2.1-Turbo, its 8-step distillation, with RGBA output | 17 GB | 8 | offloader |
 | `comfy-moss-image` | MOSS-Image SFT in int8 editing from an instruction, Comfy-Org's edit LoRA (from chinoll/Moss-Image-Edit) | 13 GB | 30 | offloader |
 | `minimax-h3-image` | MiniMax-H3-Image, edits from reference images, `<Picture 1>` in the prompt (MiniMax's weights, bf16) | 135 GB | 6 | MiniMax license |
-| `comfy-minimax-h3-image` | MiniMax-H3-Image in int8, edits from reference images, as ComfyUI's template runs it | 49 GB | 6 | offloader, MiniMax license |
+| `comfy-minimax-h3-image` | MiniMax-H3-Image in int8, edits from reference images, as ComfyUI's template runs it; also a strong upscaler, a small image cleaned up to 16 MP (it invents the fine detail the source lacks) | 49 GB | 6 | offloader, MiniMax license |
 | `qwen-image-edit-2511` | Qwen-Image-Edit-2511, a 20B model made for editing (diffusers weights) | 58 GB | 40 | |
 | `qwen-image-edit-2511-lightning` | Qwen-Image-Edit-2511 with the Lightning LoRA | 59 GB | 4 | |
 | `qwen-image-edit-2511-lightning-angles` | Lightning plus fal's Multiple-Angles LoRA, for prompts starting with `<sks>` | 59 GB | 4 | |

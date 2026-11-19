@@ -89,7 +89,7 @@ vendors, on turboCLI's torch, with the Krea 2 edit node pack), its models the Vo
 keeps the CPU path honest; it is slow, so a small size and a few engines, now and then.
 `modal.sh exec <command>` runs a command in the same setup on CPU, for a look around, and
 `modal.sh exec --gpu <command>` on an L40S. A run's logs and images come back into
-`results/modal/`.
+`results/modal/`, and what an `exec` writes to `out/` into `results/modal/exec/`.
 
 The L40S containers have 64 GiB of RAM. A model past that, MiniMax-H3-Image (ComfyUI's 49.5 GB
 and a process, the stock 135 GB), would stream off the Volume every step, so its runs take

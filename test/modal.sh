@@ -49,7 +49,8 @@ if [ "$1" != "install" -a "$1" != "run" -a "$1" != "exec" ]; then
     echo "         on L40S containers with 224 GiB of RAM instead of 64, for the models past"
     echo "         64 GB (minimax-h3-image, comfy-minimax-h3-image)"
     echo "exec:    on CPU (an L40S with --gpu, one with 224 GiB of RAM with --big), a bash"
-    echo "         command in the same setup, from the sources' folder"
+    echo "         command in the same setup, from the sources' folder; what it writes to out/"
+    echo "         comes back into test/results/modal/exec"
     echo ""
     echo "examples:"
     echo "    modal.sh install comfy-flux2-4b z-image-turbo mask"
@@ -227,7 +228,7 @@ if [ "$command" = "exec" ]; then
         shift
     fi
 
-    remote $target "$*" "$stage/out"
+    remote $target "$*" "$test/results/modal/exec"
 
     exit
 fi
