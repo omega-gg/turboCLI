@@ -154,7 +154,7 @@ if [ $# -lt 2 -o $# -gt 8 ] \
     echo "renderer: cpu, cuda, mps"
     echo ""
     echo "dtype: default, bfloat16, float16, float32"
-    echo "       (default copies the model as published, no cast)"
+    echo "       (default copies the model as published, or casts to the engine's dtype)"
     echo "       (bfloat16 is recommended for CUDA, float16 for Apple MPS)"
     echo "       (the weights are cast on a fresh install alone, remove first to recast)"
     echo ""

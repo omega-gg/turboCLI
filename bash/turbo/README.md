@@ -51,7 +51,7 @@ engine: flux2-4b
 renderer: cpu, cuda, mps
 
 dtype: default, bfloat16, float16, float32
-       (default copies the model as published, no cast)
+       (default copies the model as published, or casts to the engine's dtype)
        (bfloat16 is recommended for CUDA, float16 for Apple MPS)
        (the weights are cast on a fresh install alone, remove first to recast)
 

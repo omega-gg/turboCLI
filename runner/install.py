@@ -710,7 +710,9 @@ def main():
 
         # A concrete dtype re-saves the repo through PIPELINE's from_pretrained, which only a
         # declaration engine supports: an engine with its own load() takes the files as published.
-        cast = args.dtype != "default"
+        # "default" takes the engine's MODEL dtype when it names one (a repo published in fp32).
+        dtype = args.dtype if args.dtype != "default" else model.get("dtype", "default")
+        cast  = dtype != "default"
 
         if cast and hasattr(mod, "load"):
             print("%s keeps its weights in the dtype they were published in." % mod.ID,
