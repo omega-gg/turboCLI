@@ -39,8 +39,8 @@
 
 import os
 
-from . import comfy_flux2_4b as k4  # cheap: no torch at top level
 from . import flux3_6b as stock     # cheap: no torch at top level
+from . import _comfy  # cheap: no torch at top level
 
 ID   = "comfy-flux3-6b"
 TYPE = "flux3"
@@ -173,7 +173,7 @@ def load(ctx, params):
     disk-stream offloader. OFFLOADER-ONLY (int8 needs the comfy quant path). The VAE is built
     from the scaffold."""
     scaffold = ctx.model  # engine/<id>/ (scaffolding + engine.json)
-    files    = k4._by_role(scaffold)
+    files    = _comfy.by_role(scaffold)
 
     if ctx.backend is None:
         raise RuntimeError("%s requires an offload backend (offload=offloader); both big models "
@@ -181,7 +181,7 @@ def load(ctx, params):
 
     from diffusers import Flux3Transformer2DModel
 
-    vae = k4._build_vae(scaffold, files["vae"], ctx.dtype)
+    vae = _comfy.flux2_vae(scaffold, files["vae"], ctx.dtype)
 
     return ctx.backend.load_pipe_comfy(
         _pipeline_class(),

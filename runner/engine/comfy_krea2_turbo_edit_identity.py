@@ -39,6 +39,7 @@
 # not inherit GATED.
 
 from . import comfy_krea2_turbo as base  # cheap: base imports no torch at top level
+from . import _comfy  # cheap: no torch at top level
 
 ID   = "comfy-krea2-turbo-edit-identity"
 BASE = base.ID
@@ -71,7 +72,7 @@ def load(ctx, params, ref_boost=REF_BOOST, ref_position=REF_POSITION):
     """The base's assembly on the edit pipeline, the engine's LoRA first at 1.0 (ComfyUI-native
     keys, as ComfyUI's model takes them), any user --loras after it. An engine building on this
     one passes its own boost and placement."""
-    ctx.loras = [(base._by_role(ctx.model)["lora"], 1.0)] + list(ctx.loras)
+    ctx.loras = [(_comfy.by_role(ctx.model)["lora"], 1.0)] + list(ctx.loras)
 
     return base.load(ctx, params, _pipeline_class(ref_boost, ref_position))
 

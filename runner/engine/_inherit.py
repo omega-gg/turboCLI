@@ -28,9 +28,9 @@
 
 # The fixed, known contract symbols a variant may inherit -- ID is excluded (a variant always
 # declares its own). Function hooks are copied as function OBJECTS, so an inherited load()/loras()
-# keeps the BASE module's __globals__ and still resolves the base's private helpers (_by_role,
-# _build_vae, ...) -- so those helpers need not be copied. Private names / imported modules are not
-# in this set and are never copied.
+# keeps the BASE module's __globals__ and still resolves the base's private helpers
+# (_pipeline_class, ...) -- so those helpers need not be copied. Private names / imported modules
+# are not in this set and are never copied.
 _INHERITED = (
     "TYPE", "PIPELINE", "TRANSFORMER", "MODES", "CFG", "INFERENCE",
     "MODEL", "COMFY", "SCAFFOLD", "LORAS",

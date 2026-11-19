@@ -40,7 +40,7 @@
 # cheap. The heavy imports live inside load().
 
 import os
-import json
+from . import _comfy  # cheap: no torch at top level
 
 ID   = "comfy-qwen-image-edit-2511"
 TYPE = "qwen-image-edit"  # offloader seam vocabulary (same family as qwen-image-edit-2511)
@@ -80,28 +80,6 @@ SCAFFOLD = {
         "transformer/config.json",
     ],
 }
-
-
-def _by_role(engine_dir):
-    """{role: absolute path} for each reused ComfyUI file. Reads the engine.json comfy record
-    (written by install: {root, external, components, scaffold}) and resolves each component's
-    root-relative `path` (e.g. models/vae/qwen_image_vae.safetensors) against `root`."""
-    with open(os.path.join(engine_dir, "engine.json")) as f:
-        comfy = json.load(f)["comfy"]
-
-    return {c["role"]: os.path.join(comfy["root"], *c["path"].split("/"))
-            for c in comfy["components"]}
-
-
-def _build_vae(scaffold, weight_file, backend):
-    """ComfyUI's own VAE, the model comfy/sd.py builds for the file, run as sd.py runs it
-    through the offloader's comfy_vae, so it decodes and encodes as ComfyUI does. Shared by the
-    engines on a Wan VAE (comfy-qwen-image-2-1, comfy-krea2-turbo)."""
-    # z_dim and the latent statistics the pipeline reads.
-    with open(os.path.join(scaffold, "vae", "config.json")) as f:
-        config = json.load(f)
-
-    return backend.comfy_vae(weight_file, config)
 
 
 def _pipeline_class():
@@ -148,7 +126,7 @@ def load(ctx, params):
     text encoder as ComfyUI's own models on the offloader. OFFLOADER-ONLY. The VAE is ComfyUI's
     own; the scheduler comes from the scaffold."""
     scaffold = ctx.model  # engine/<id>/ (scaffolding + engine.json); shared by inheriting variants
-    files    = _by_role(scaffold)
+    files    = _comfy.by_role(scaffold)
 
     if ctx.backend is None:
         engine_id = os.path.basename(os.path.normpath(scaffold))  # engine/<id> -> <id>
@@ -159,7 +137,7 @@ def load(ctx, params):
 
     scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(scaffold, subfolder="scheduler")
 
-    vae = _build_vae(scaffold, files["vae"], ctx.backend)  # ComfyUI's own
+    vae = _comfy.comfy_vae(scaffold, files["vae"], ctx.backend)  # ComfyUI's own
 
     # An inheriting variant may add a reused "lora" component (see comfy-...-lightning); apply it
     # to the transformer at full strength before user-supplied ctx.loras.

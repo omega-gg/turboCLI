@@ -38,7 +38,6 @@
 
 import os
 
-from . import comfy_flux2_4b as k4  # cheap: no torch at top level
 from . import comfy_flux2_9b as base
 
 ID   = "comfy-flux2-9b-distilled"
@@ -99,4 +98,4 @@ def _build_vae(scaffold, weight_file, dtype):
 
 def load(ctx, params):
     """comfy-flux2-4b's assembly with the small decoder VAE."""
-    return k4.load(ctx, params, build_vae=_build_vae)
+    return base.load(ctx, params, build_vae=_build_vae)

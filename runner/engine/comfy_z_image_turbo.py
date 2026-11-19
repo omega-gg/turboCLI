@@ -39,8 +39,7 @@
 # IMPORTANT (see engine/__init__.py): no torch/diffusers import at top level, discovery stays
 # cheap. The heavy imports live inside load().
 
-import os
-import json
+from . import _comfy  # cheap: no torch at top level
 
 ID   = "comfy-z-image-turbo"
 TYPE = "z-image"  # speak the offloader seam's vocabulary (same pipeline family as z-image-turbo)
@@ -78,17 +77,6 @@ SCAFFOLD = {
         "vae/config.json",
     ],
 }
-
-
-def _by_role(engine_dir):
-    """{role: absolute path} for each reused ComfyUI file. Reads the engine.json comfy record
-    (written by install: {root, external, components, scaffold}) and resolves each component's
-    root-relative `path` (e.g. models/vae/ae.safetensors) against `root`."""
-    with open(os.path.join(engine_dir, "engine.json")) as f:
-        comfy = json.load(f)["comfy"]
-
-    return {c["role"]: os.path.join(comfy["root"], *c["path"].split("/"))
-            for c in comfy["components"]}
 
 
 def _pipeline_class(base="ZImagePipeline"):
@@ -132,7 +120,7 @@ def _build(ctx, pipeline):
     text encoder as ComfyUI's own models on the offloader. OFFLOADER-ONLY. The VAE and the
     scheduler come from the scaffold."""
     scaffold = ctx.model  # engine/comfy-z-image-turbo/ (scaffolding + engine.json)
-    files    = _by_role(scaffold)
+    files    = _comfy.by_role(scaffold)
 
     if ctx.backend is None:
         raise RuntimeError("%s requires an offload backend (offload=offloader): ComfyUI's models "

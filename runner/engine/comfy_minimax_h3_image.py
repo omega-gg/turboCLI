@@ -40,8 +40,8 @@
 # the sampler (comfy_sampler). The pipeline is a short loop of its own: diffusers' H3 transformer
 # takes packed rows and position ids, ComfyUI's packs them itself.
 
-from . import comfy_flux2_4b as k4       # cheap: no torch at top level
 from . import minimax_h3_image as stock  # cheap: no torch at top level
+from . import _comfy  # cheap: no torch at top level
 
 ID   = "comfy-minimax-h3-image"
 TYPE = "minimax-h3-image"
@@ -157,7 +157,7 @@ def _pipeline_class():
 def load(ctx, params):
     """Assemble the pipeline of _pipeline_class from ComfyUI's single files via the offloader.
     OFFLOADER-ONLY."""
-    files = k4._by_role(ctx.model)  # engine/<id>/ (scaffolding + engine.json)
+    files = _comfy.by_role(ctx.model)  # engine/<id>/ (scaffolding + engine.json)
 
     if ctx.backend is None:
         raise RuntimeError("%s requires an offload backend (offload=offloader): ComfyUI's models "

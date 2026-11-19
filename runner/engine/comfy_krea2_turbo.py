@@ -26,7 +26,7 @@
 # engine runs it on ComfyUI's split single files, both SCALED-FP8 and kept fp8, dequantized per
 # forward as ComfyUI does (emulated on a GPU without fp8 tensor cores): the ~13GB Krea2
 # transformer and the ~9GB Qwen3-VL-4B text encoder. The VAE is ComfyUI's own, the same file as
-# comfy-qwen (the offloader's comfy_vae, see comfy_qwen_image_edit_2511._build_vae). Only the
+# comfy-qwen (the offloader's comfy_vae, see _comfy.comfy_vae). Only the
 # scheduler + configs come from the diffusers repo.
 #
 # GATED: that scaffold sits in krea/Krea-2-Turbo, which needs a Hugging Face token from an account
@@ -48,8 +48,8 @@
 
 import os
 import json
+from . import _comfy  # cheap: no torch at top level
 
-from . import comfy_qwen_image_edit_2511 as qe  # cheap: no torch at top level
 
 ID   = "comfy-krea2-turbo"
 TYPE = "krea2"  # offloader seam vocabulary (single-stream Krea2 MMDiT family)
@@ -97,17 +97,6 @@ SCAFFOLD = {
 }
 
 
-def _by_role(engine_dir):
-    """{role: absolute path} for each reused ComfyUI file. Reads the engine.json comfy record
-    (written by install: {root, external, components, scaffold}) and resolves each component's
-    root-relative `path` (e.g. models/vae/qwen_image_vae.safetensors) against `root`."""
-    with open(os.path.join(engine_dir, "engine.json")) as f:
-        comfy = json.load(f)["comfy"]
-
-    return {c["role"]: os.path.join(comfy["root"], *c["path"].split("/"))
-            for c in comfy["components"]}
-
-
 def _pipeline_class():
     """Krea2Pipeline encoding through ComfyUI's text encoder, as ComfyUI's CLIPTextEncode does; an
     engine building on this one passes reference images too. Built here so diffusers stays out of
@@ -140,7 +129,7 @@ def load(ctx, params, pipeline_cls=None):
     other offload modes. Build the small resident components (VAE, scheduler) from the scaffold
     here, then hand the backend the transformer and the text encoder by their ComfyUI model."""
     scaffold = ctx.model  # engine/<id>/ (scaffolding + engine.json)
-    files    = _by_role(scaffold)
+    files    = _comfy.by_role(scaffold)
 
     if ctx.backend is None:
         engine_id = os.path.basename(os.path.normpath(scaffold))  # engine/<id> -> <id>
@@ -151,7 +140,7 @@ def load(ctx, params, pipeline_cls=None):
     from diffusers import Krea2Transformer2DModel, FlowMatchEulerDiscreteScheduler
 
     scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(scaffold, subfolder="scheduler")
-    vae = qe._build_vae(scaffold, files["vae"], ctx.backend)  # ComfyUI's own
+    vae = _comfy.comfy_vae(scaffold, files["vae"], ctx.backend)  # ComfyUI's own
 
     # The distilled/patch config, read straight from the scaffold's model_index.json.
     with open(os.path.join(scaffold, "model_index.json")) as f:

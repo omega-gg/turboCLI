@@ -31,7 +31,7 @@
 # OFFLOADER-ONLY: int8 needs the comfy quant path, so load() bails out for other offload modes.
 # The transformer and the text encoder are ComfyUI's own models, which the offloader runs behind
 # the pipeline's calls (its "qwen_image21" model), prefix K/V cache included. So is the VAE (the
-# offloader's comfy_vae, see comfy_qwen_image_edit_2511._build_vae), which decodes a single image
+# offloader's comfy_vae, see _comfy.comfy_vae), which decodes a single image
 # in row strips, exact and in a quarter of diffusers' memory, where diffusers' tiles bent the alpha
 # along their seams. The sampling schedule is pinned to ComfyUI's (shift 0.69, simple), see load().
 #
@@ -42,8 +42,8 @@
 
 import math
 import os
+from . import _comfy  # cheap: no torch at top level
 
-from . import comfy_qwen_image_edit_2511 as qe  # cheap: no torch at top level
 
 ID   = "comfy-qwen-image-2-1"
 TYPE = "qwen-image-21"
@@ -92,7 +92,7 @@ def load(ctx, params):
     """Assemble a QwenImage21Pipeline from ComfyUI's int8 single files via the disk-stream
     offloader. OFFLOADER-ONLY (int8 needs the comfy quant path)."""
     scaffold = ctx.model  # engine/<id>/ (scaffolding + engine.json)
-    files    = qe._by_role(scaffold)
+    files    = _comfy.by_role(scaffold)
 
     if ctx.backend is None:
         raise RuntimeError("%s requires an offload backend (offload=offloader); both big models "
@@ -108,7 +108,7 @@ def load(ctx, params):
     scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
         scaffold, subfolder="scheduler", base_shift=0.69, max_shift=0.69, shift_terminal=None)
     processor = Qwen3VLProcessor.from_pretrained(os.path.join(scaffold, "processor"))
-    vae = qe._build_vae(scaffold, files["vae"], ctx.backend)
+    vae = _comfy.comfy_vae(scaffold, files["vae"], ctx.backend)
 
     # The pipeline sizes each reference to about output_resolution squared (1024 by default),
     # and an output of another size shifts the edit (ComfyUI's TextEncodeQwenImage21 says so).

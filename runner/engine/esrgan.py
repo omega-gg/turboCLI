@@ -27,6 +27,10 @@
 # Install (python -m runner.install): kind "url" -> the checkpoint (a GitHub release asset) into
 # model/RealESRGAN/RealESRGAN_x4plus.pth. revision is the release tag, not an HF commit.
 
+import os
+
+from . import _comfy  # cheap: no torch at top level
+
 ID    = "esrgan"
 MODES = ("image-upscale",)
 
@@ -39,18 +43,10 @@ MODEL = {"kind": "url", "model": "RealESRGAN", "revision": "v0.1.0",
 def weights(model_dir):
     """The model file: the checkpoint in model_dir, or for comfy-esrgan, whose model_dir is its
     registry entry, the ComfyUI file its engine.json names."""
-    import os
-    import json
+    if os.path.isfile(os.path.join(model_dir, "engine.json")):
+        return _comfy.by_role(model_dir)["upscaler"]
 
-    record = os.path.join(model_dir, "engine.json")
-
-    if not os.path.isfile(record):
-        return os.path.join(model_dir, MODEL["file"])
-
-    with open(record) as f:
-        comfy = json.load(f)["comfy"]
-
-    return os.path.join(comfy["root"], *comfy["components"][0]["path"].split("/"))
+    return os.path.join(model_dir, MODEL["file"])
 
 
 def run(ctx, params, emit):

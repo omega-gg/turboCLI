@@ -36,6 +36,10 @@
 #   LORAS = base.LORAS + [ ... ]                       # or: dict(base.COMFY, components=...)
 # See qwen_image_edit_2511_lightning[_angles].py and comfy_qwen_image_edit_2511_lightning.py.
 #
+# HELPERS: an engine imports one engine at most, its BASE (or the stock sibling a comfy engine
+# builds on). What several engines share lives in an underscore module, which discovery skips:
+# _comfy.py (the comfy engines' record and VAEs), _upscale.py, _segment.py, _mask.py, _apply.py.
+#
 # IMAGE-UPSCALE: a compute engine (esrgan) exposes weights(model_dir), its model file. A diffusion
 # engine (z-image-turbo-upscale) names that engine in UPSCALER (installed first, run by core before
 # its img2img pass) and declares STRENGTH (img2img strength) and PROMPT (used when none is given).

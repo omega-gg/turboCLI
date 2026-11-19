@@ -33,7 +33,7 @@
 #
 # The VAE is reused too. AutoencoderKLFlux2 has no from_single_file mapping in diffusers, but it
 # needs none: ComfyUI's flux2-vae.safetensors is ALREADY in diffusers key layout (251/251 keys,
-# identical shapes, verified), so _build_vae just instantiates from the scaffold config and
+# identical shapes, verified), so _comfy.flux2_vae instantiates from the scaffold config and
 # load_state_dict's the file.
 #
 # install:  runner.install --comfy <ComfyUI dir> resolves/downloads the components and writes
@@ -45,7 +45,7 @@
 # cheap. The heavy imports live inside load().
 
 import os
-import json
+from . import _comfy  # cheap: no torch at top level
 
 ID   = "comfy-flux2-4b"
 TYPE = "flux2"  # speak the offloader seam's vocabulary (same pipeline family as flux2-4b)
@@ -91,34 +91,6 @@ SCAFFOLD = {
 }
 
 
-def _by_role(engine_dir):
-    """{role: absolute path} for each reused ComfyUI file. Reads the engine.json comfy record
-    (written by install: {root, external, components, scaffold}) and resolves each component's
-    root-relative `path` (e.g. models/diffusion_models/flux-2-klein-4b.safetensors) against
-    `root`."""
-    with open(os.path.join(engine_dir, "engine.json")) as f:
-        comfy = json.load(f)["comfy"]
-
-    return {c["role"]: os.path.join(comfy["root"], *c["path"].split("/"))
-            for c in comfy["components"]}
-
-
-def _build_vae(scaffold, weight_file, dtype):
-    """Instantiate the Flux2 VAE from the scaffold config and load ComfyUI's single file.
-    AutoencoderKLFlux2 has no from_single_file mapping in diffusers, but needs none: the ComfyUI
-    file is already in diffusers key layout (251/251 keys, identical shapes, verified), so it
-    binds as-is. `.to(dtype)` leaves the integer bn.num_batches_tracked buffer alone."""
-    import safetensors.torch as safetensors_torch
-    from diffusers import AutoencoderKLFlux2
-
-    cfg = AutoencoderKLFlux2.load_config(os.path.join(scaffold, "vae"))
-    vae = AutoencoderKLFlux2.from_config(cfg)
-
-    vae.load_state_dict(safetensors_torch.load_file(weight_file), strict=True)
-
-    return vae.to(dtype).eval()
-
-
 def _pipeline_class():
     """Flux2KleinPipeline encoding through ComfyUI's text encoder, as ComfyUI's CLIPTextEncode
     does. Built here so diffusers stays out of engine discovery."""
@@ -137,13 +109,13 @@ def _pipeline_class():
     return Flux2Pipe
 
 
-def load(ctx, params, build_vae=_build_vae):
+def load(ctx, params, build_vae=_comfy.flux2_vae):
     """Build the Flux2KleinPipeline of _pipeline_class from ComfyUI's single files, the
     transformer and the text encoder as ComfyUI's own models on the offloader. OFFLOADER-ONLY.
     The VAE (`build_vae`, an engine building on this one passes its own) and the scheduler come
     from the scaffold."""
     scaffold = ctx.model  # engine/<id>/ (scaffolding + engine.json)
-    files    = _by_role(scaffold)
+    files    = _comfy.by_role(scaffold)
 
     if ctx.backend is None:
         engine_id = os.path.basename(os.path.normpath(scaffold))  # engine/<id> -> <id>
