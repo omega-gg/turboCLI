@@ -25,6 +25,7 @@ like a mask, its time is shown, not judged.
 | `--record` | write this machine's reference instead of checking it |
 | `--repeat <N>` | run each case N times and keep the fastest; the image must not change |
 | `--cool` | before each run, wait for the GPU to cool to 50 °C, or pause 60 s on mps and cpu |
+| `--warmup` | before each case, one run of each side that is not kept, so no measured run reads the files cold |
 | `--tolerance <P>` | percent slower still passing, 10 by default |
 | `--comfy <dir>` | also run the comfy engines through the ComfyUI in `<dir>` |
 | `--comfy-only <dir>` | run the comfy engines through that ComfyUI alone, no turbo |
@@ -58,8 +59,14 @@ With `--repeat 1` turbo always goes first, so against ComfyUI it alone reads the
 and ComfyUI finds them cached. The cold read lands in turbo's load and encode, and in its
 sampling too, since a streamed model reads its weights during the first step: on Modal, where the
 files are on a network Volume, comfy-minimax-h3-image at 4096² sampled in 23.27 s against
-ComfyUI's 18.90 s (+23%, `SLOWER`) with one repeat, and in 19.30 s against 19.32 s with two. Judge
-turbo against ComfyUI with `--repeat 2` or more.
+ComfyUI's 18.90 s (+23%, `SLOWER`) with one repeat, and in 19.30 s against 19.32 s with two.
+
+Repeats alone leave a smaller bias: the first step keeps getting faster run after run as the files
+warm, so the side running last gets the warmest one, and with an odd `--repeat` that is ComfyUI.
+comfy-z-image-turbo at 1024² on the L40S, three repeats: turbo's first step 6.66, 3.79, 3.86 s
+(first, second, first), ComfyUI's 3.86, 3.81, 3.61 s, a +2% that was the order. `--warmup` runs
+each side once before measuring, every measured run then warm. Judge turbo against ComfyUI with
+`--warmup --repeat 2`.
 
 ## Against ComfyUI
 

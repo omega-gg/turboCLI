@@ -140,10 +140,13 @@ publishes its transformer in fp32, which the offloader streams as it is and comp
 default install saves it in bf16 (`MODEL["dtype"]`), `z-image-turbo-upscale` 11.9 s to 4.17 s,
 `z-image-turbo` 20.05 s to about 5.4 s on the L40S. At 4096 the comfy engines lost 2 to 3% a step
 streaming part of the model back: the offloader now loads a model declaring
-`memory_usage_factor` once at its first forward with KSampler's memory estimate. After both, on
-the L40S against ComfyUI: text-to-image +2% at 1024 (the image SAME) and -4% at 4096, the upscale
-+1% and +0%, the steady steps equal; what remains is the first step reading the model off the
-Volume, which moves more than that between runs on both sides.
+`memory_usage_factor` with KSampler's memory estimate, right after `prepare_latents`, before the
+first step as KSampler does. After both, on the L40S against ComfyUI: text-to-image +2% at 1024
+(the image SAME) and -4% at 4096, the upscale +1% and +0%, the steady steps equal. The +1 to 2%
+at 1024 was the test's order: the side running last gets the warmest first step, ComfyUI with
+three repeats. With `test/run.sh --warmup` turbo's first step is the faster (3.15 s against
+3.20 s), and cold against cold, each side alone in a fresh container, its sampling too (7.20 s
+against 7.51 s).
 
 Every output is
 736x1024 RGB, within 1.5 levels of the original's mean, the L40S's 59 dB (ESRGAN) and 39.4 dB

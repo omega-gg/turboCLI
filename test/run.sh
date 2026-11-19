@@ -57,6 +57,8 @@ usage()
     echo "--repeat <N>               run each case N times, keep the fastest (default $repeat)"
     echo "--cool                     before each run, wait for the GPU to cool to 50 C"
     echo "                           (nvidia-smi), or pause 60 s on mps and cpu"
+    echo "--warmup                   before each case, one run of each side that is not kept, so"
+    echo "                           no measured run reads the model files cold"
     echo "--tolerance <P>            percent slower still passing (default $tolerance)"
     echo "--comfy <dir>              also run the comfy engines through the ComfyUI in <dir>"
     echo "--comfy-only <dir>         run the comfy engines through the ComfyUI in <dir> alone"
@@ -75,6 +77,7 @@ size=""
 record=false
 listing=false
 cool=false
+warmup=false
 comfy=""
 sides="turbo"
 engines=""
@@ -87,6 +90,7 @@ while [ $# -gt 0 ]; do
         --record)     record=true;;
         --repeat)     repeat="$2"; shift;;
         --cool)       cool=true;;
+        --warmup)     warmup=true;;
         --tolerance)  tolerance="$2"; shift;;
         --comfy)      comfy="$2"; sides="turbo comfy"; shift;;
         --comfy-only) comfy="$2"; sides="comfy"; shift;;
@@ -328,8 +332,8 @@ run_comfy()
         sleep 0.1
     done
 
-    "$python" -s "$test/comfy.py" run "$engine" "$mode" "$prompt" $seed $target "$input" "$output" \
-        "http://127.0.0.1:$port" >> "$log.run" 2>&1
+    "$python" -s "$test/comfy.py" run "$engine" "$mode" "$prompt" $seed $target "$input" \
+        "$output" "http://127.0.0.1:$port" >> "$log.run" 2>&1
     status=$?
 
     end="$(now)"
@@ -549,6 +553,23 @@ while read engine mode pairs; do
                | awk '$1 == "offload:" { print $2 }')"
 
     : > "$runs"
+
+    # --warmup: one run of each side first, not kept. The model files come off the disk or the
+    # Volume for it, so the side that goes first does not take that read in a measured run.
+    if [ $warmup = true ]; then
+
+        for side in $pairs; do
+
+            printf "warming up %s %s %s..." $side $engine $mode
+
+            if run_$side $engine $mode "$results/$side-$engine-$mode-warmup.png" \
+                      "$results/$side-$engine-$mode-warmup.log" < /dev/null > /dev/null; then
+                echo " done"
+            else
+                echo " failed (see $results/$side-$engine-$mode-warmup.log)"
+            fi
+        done
+    fi
 
     # Each run's line: side, the time that decides (sampling, or wall time for a run without
     # steps), md5, wall, load, encode, sampling, decode, image. Sides alternate, so heat lands on
