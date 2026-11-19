@@ -52,6 +52,13 @@ if a case's image changes between its runs. Record with them too: a reference re
 every later run look faster, and hides a real slowdown. Each repeat swaps which side goes first,
 so neither always reads the files cold.
 
+With `--repeat 1` turbo always goes first, so against ComfyUI it alone reads the model files cold
+and ComfyUI finds them cached. The cold read lands in turbo's load and encode, and in its
+sampling too, since a streamed model reads its weights during the first step: on Modal, where the
+files are on a network Volume, comfy-minimax-h3-image at 4096² sampled in 23.27 s against
+ComfyUI's 18.90 s (+23%, `SLOWER`) with one repeat, and in 19.30 s against 19.32 s with two. Judge
+turbo against ComfyUI with `--repeat 2` or more.
+
 ## Against ComfyUI
 
 `--comfy <dir>` runs each comfy engine that has a ComfyUI graph in [comfy.py](comfy.py) through
@@ -83,6 +90,12 @@ keeps the CPU path honest; it is slow, so a small size and a few engines, now an
 `modal.sh exec <command>` runs a command in the same setup on CPU, for a look around, and
 `modal.sh exec --gpu <command>` on an L40S. A run's logs and images come back into
 `results/modal/`.
+
+The L40S containers have 64 GiB of RAM. A model past that, MiniMax-H3-Image (ComfyUI's 49.5 GB
+and a process, the stock 135 GB), would stream off the Volume every step, so its runs take
+`--big`, a container with 224 GiB (`modal.sh run --big ...`, `modal.sh exec --big ...`). It is
+made for 4 to 20 MP, best at 16 MP, so it runs at `--size 2048` and `--size 4096` too, each size
+its own reference file.
 
 The working trees of turboCLI and turbo-offloader (`../turbo-offloader`, or `TURBO_OFFLOADER`) go
 up as they are, so it tests what is about to be committed. The image is turboCLI as its

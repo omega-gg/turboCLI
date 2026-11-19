@@ -10,7 +10,10 @@ Every engine turboCLI can install, by task, to help you pick one. Install an eng
 - **Requirements**: *gated* needs a Hugging Face token from an account that accepted the model's
   license; *offloader* runs only with `offload=offloader`
   ([turbo-offloader](https://omega.gg/turbo-offloader)), because its quantized weights need
-  ComfyUI's ops.
+  ComfyUI's ops; *MiniMax license*: the
+  [MiniMax-H3-Image Community License](https://huggingface.co/MiniMaxAI/MiniMax-H3-Image/blob/main/LICENSE)
+  excludes the EU, the UK, South Korea and the US, and asks for MiniMax's written authorization
+  above $1M of annual revenue or for a hosted service.
 - `comfy-` engines use the model files of a ComfyUI install, the way ComfyUI runs them. Give
   `install.sh` your ComfyUI folder to reuse its files; without one they are downloaded.
 
@@ -32,6 +35,8 @@ Every engine turboCLI can install, by task, to help you pick one. Install an eng
 | `comfy-qwen-image-2-1-turbo` | Qwen-Image-2.1-Turbo, its 8-step distillation, with RGBA output | 17 GB | 8 | offloader |
 | `moss-image` | MOSS-Image SFT, a 5B generator strong at text and layouts (OpenMOSS's weights, bf16) | 27 GB | 50 | |
 | `comfy-moss-image` | MOSS-Image SFT in int8, as ComfyUI's template runs it | 13 GB | 25 | offloader |
+| `minimax-h3-image` | MiniMax-H3-Image, a 33B distilled generator made for 4 to 20 MP, best at 16 MP (MiniMax's weights, bf16) | 135 GB | 6 | MiniMax license |
+| `comfy-minimax-h3-image` | MiniMax-H3-Image in int8, as ComfyUI's template runs it | 49 GB | 6 | offloader, MiniMax license |
 
 ## Image editing
 
@@ -51,6 +56,8 @@ Image-to-image: the prompt describes the change, applied to one or more referenc
 | `comfy-qwen-image-2-1` | Qwen-Image 2.1, edits from up to 10 reference images, with RGBA output | 17 GB | 25 | offloader |
 | `comfy-qwen-image-2-1-turbo` | Qwen-Image-2.1-Turbo, its 8-step distillation, with RGBA output | 17 GB | 8 | offloader |
 | `comfy-moss-image` | MOSS-Image SFT in int8 editing from an instruction, Comfy-Org's edit LoRA (from chinoll/Moss-Image-Edit) | 13 GB | 30 | offloader |
+| `minimax-h3-image` | MiniMax-H3-Image, edits from reference images, `<Picture 1>` in the prompt (MiniMax's weights, bf16) | 135 GB | 6 | MiniMax license |
+| `comfy-minimax-h3-image` | MiniMax-H3-Image in int8, edits from reference images, as ComfyUI's template runs it | 49 GB | 6 | offloader, MiniMax license |
 | `qwen-image-edit-2511` | Qwen-Image-Edit-2511, a 20B model made for editing (diffusers weights) | 58 GB | 40 | |
 | `qwen-image-edit-2511-lightning` | Qwen-Image-Edit-2511 with the Lightning LoRA | 59 GB | 4 | |
 | `qwen-image-edit-2511-lightning-angles` | Lightning plus fal's Multiple-Angles LoRA, for prompts starting with `<sks>` | 59 GB | 4 | |

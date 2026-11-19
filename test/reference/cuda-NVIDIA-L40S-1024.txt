@@ -1,4 +1,4 @@
-# cuda-NVIDIA-L40S-1024, recorded 2026-11-17: turboCLI 231c9785fb7b2992d679bcfa406a73382d0846c7
+# cuda-NVIDIA-L40S-1024, recorded 2026-11-19: turboCLI 231c9785fb7b2992d679bcfa406a73382d0846c7
 # side engine mode md5 wall load encode sampling decode (seconds)
 comfy comfy-flux2-4b text-to-image def3e5489962a099e0340efffc29bd79 14.22 - - 5.64 -
 comfy comfy-flux2-9b-distilled text-to-image 3dea337490ea3715af74997da4f30bc9 9.30 - - 3.31 -
@@ -6,6 +6,8 @@ comfy comfy-flux3-6b text-to-image 9f38bda4c76bf52f79dcda1e2d9985a0 9.64 - - 3.8
 comfy comfy-krea2-turbo text-to-image 1721266e201a40b9af61010d72f39314 14.51 - - 8.54 -
 comfy comfy-krea2-turbo-edit-general image-to-image 09a5527f445606a83f83bc032986a3d7 21.21 - - 14.40 -
 comfy comfy-krea2-turbo-edit-identity image-to-image 3249e25b0e2197bae681b4b9a60571bd 20.73 - - 13.93 -
+comfy comfy-minimax-h3-image image-to-image ca54e4860b7eb87aa11d04e3212e28c0 29.28 - - 8.76 -
+comfy comfy-minimax-h3-image text-to-image dad725b38514b7b1c4c5694111de39a7 23.13 - - 5.19 -
 comfy comfy-moss-image image-to-image 37c22ac46d35d889fde456cd73688503 21.01 - - 11.13 -
 comfy comfy-moss-image text-to-image eec2fb304ac64b7ba63a306d9675dbaf 15.95 - - 9.28 -
 comfy comfy-qwen-image-2-1-turbo image-to-image d26c9c46e507b534649ecf21baf04df2 11.76 - - 3.93 -
@@ -22,6 +24,8 @@ turbo comfy-flux3-6b text-to-image 8d16ad241c18d2cd0993205cc1235b09 19.49 10.56 
 turbo comfy-krea2-turbo text-to-image f90c2993ae936f814dbde76ee2e2ce50 21.74 7.24 2.88 8.50 0.89
 turbo comfy-krea2-turbo-edit-general image-to-image f1756bbb3adf188b6aedc1c0024a8f45 31.10 7.07 4.68 15.59 1.31
 turbo comfy-krea2-turbo-edit-identity image-to-image 144f528253ab862edc43cec2c01e7233 30.03 8.84 4.01 13.48 1.24
+turbo comfy-minimax-h3-image image-to-image b92b08f07e5f14f60f4b61339f4ef1b5 28.32 8.19 10.48 8.81 0.81
+turbo comfy-minimax-h3-image text-to-image 0e72d80699068963317608c11988564b 22.30 8.16 7.55 5.22 1.38
 turbo comfy-moss-image image-to-image 53722c45aeb31a9e312154eba8f0388c 30.47 9.63 6.75 11.17 0.53
 turbo comfy-moss-image text-to-image bb334047c70fb23d30b230144bb71219 25.27 9.37 3.81 9.17 0.69
 turbo comfy-qwen-image-2-1 image-to-image 1c376044d0a1bbb79bb32787fbb53988 25.34 7.23 5.88 8.92 0.89
@@ -38,5 +42,7 @@ turbo flux3-6b text-to-image 93efa42051c598bc65b9eef4cde9bc2e 23.46 7.62 4.92 7.
 turbo mask image-to-mask d10c3a5ca24768ecdda057d718feb65a 2.36 - - - -
 turbo mask-birefnet image-to-mask 73da29b40a97d869c72637833f986598 8.37 - - - -
 turbo mask-lucida image-to-mask c620024a76516b9c9fe02b6041e80b9a 8.53 - - - -
+turbo minimax-h3-image image-to-image c3b4b510a507d8bead7e5540770c107a 65.00 7.58 19.48 34.31 3.59
+turbo minimax-h3-image text-to-image df21f833770b88ebc94a22d2fb44e396 61.70 9.31 20.59 28.12 3.66
 turbo moss-image text-to-image 6e10774117ed83a6cd9882d9344e2dff 51.62 9.49 5.56 33.36 0.68
 turbo z-image-turbo text-to-image 6fc4aa160a8606a8f784fe58c5f20bdb 38.26 8.51 4.18 20.05 2.20

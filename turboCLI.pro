@@ -31,6 +31,7 @@ OTHER_FILES += README.md  \
                doc/mask-fade-plan.md \
                doc/mask-glow-plan.md \
                doc/mask-tolerance-plan.md \
+               doc/minimax-h3-image-plan.md \
                doc/moss-image-plan.md \
                doc/reinstall-prune-plan.md \
                doc/test-suite-plan.md \
@@ -64,6 +65,7 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/comfy_krea2_turbo.py \
                runner/engine/comfy_krea2_turbo_edit_general.py \
                runner/engine/comfy_krea2_turbo_edit_identity.py \
+               runner/engine/comfy_minimax_h3_image.py \
                runner/engine/comfy_moss_image.py \
                runner/engine/comfy_qwen_image_2_1.py \
                runner/engine/comfy_qwen_image_2_1_turbo.py \
@@ -78,6 +80,7 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/mask_birefnet.py \
                runner/engine/mask_inspyrenet.py \
                runner/engine/mask_lucida.py \
+               runner/engine/minimax_h3_image.py \
                runner/engine/moss_image.py \
                runner/engine/qwen_image_edit_2511.py \
                runner/engine/qwen_image_edit_2511_lightning.py \

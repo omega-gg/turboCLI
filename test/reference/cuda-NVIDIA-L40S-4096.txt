@@ -1,0 +1,8 @@
+# cuda-NVIDIA-L40S-4096, recorded 2026-11-19: turboCLI 231c9785fb7b2992d679bcfa406a73382d0846c7
+# side engine mode md5 wall load encode sampling decode (seconds)
+comfy comfy-minimax-h3-image image-to-image ddea4c1e6bf6fc406f8c4240d3003218 54.60 - - 26.53 -
+comfy comfy-minimax-h3-image text-to-image 8e48d0d0215d24f736b80d02d8795f50 43.45 - - 19.32 -
+turbo comfy-minimax-h3-image image-to-image 0890041649abdd5066dac2c15e94f469 52.11 8.30 11.58 25.94 6.27
+turbo comfy-minimax-h3-image text-to-image e4374cb04a44ff3609400bac91b784b5 42.09 8.30 8.27 19.30 6.23
+turbo minimax-h3-image image-to-image d151ee1a9dba3c73eb00cc0ab23afe4a 189.09 12.33 40.64 119.66 16.43
+turbo minimax-h3-image text-to-image ce1dfb6ff99d79a2065e926c0d7bb2f8 242.87 70.98 68.87 86.37 16.64

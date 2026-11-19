@@ -31,8 +31,8 @@ set -e
 if [ "$1" != "install" -a "$1" != "run" -a "$1" != "exec" ]; then
 
     echo "Usage: modal.sh install [engine ...]"
-    echo "       modal.sh run [run.sh options] [engine ...]"
-    echo "       modal.sh exec [--gpu] <command>"
+    echo "       modal.sh run [--big] [run.sh options] [engine ...]"
+    echo "       modal.sh exec [--gpu | --big] <command>"
     echo ""
     echo "Runs the test suite on Modal, on L40S GPUs, with turboCLI's own scripts: the working"
     echo "trees of turboCLI and turbo-offloader (../turbo-offloader, or TURBO_OFFLOADER) go up as"
@@ -45,15 +45,18 @@ if [ "$1" != "install" -a "$1" != "run" -a "$1" != "exec" ]; then
     echo "run:     test/run.sh with these options, one L40S per engine, all at once (MODAL_JOBS"
     echo "         at a time, 8 by default); no engine: every installed one. The reference, the"
     echo "         summaries, the logs and images come back into test/. With --renderer cpu, on"
-    echo "         CPU containers instead (slow: a small --size and a few engines)"
-    echo "exec:    on CPU (an L40S with --gpu), a bash command in the same setup, from the"
-    echo "         sources' folder"
+    echo "         CPU containers instead (slow: a small --size and a few engines). With --big,"
+    echo "         on L40S containers with 224 GiB of RAM instead of 64, for the models past"
+    echo "         64 GB (minimax-h3-image, comfy-minimax-h3-image)"
+    echo "exec:    on CPU (an L40S with --gpu, one with 224 GiB of RAM with --big), a bash"
+    echo "         command in the same setup, from the sources' folder"
     echo ""
     echo "examples:"
     echo "    modal.sh install comfy-flux2-4b z-image-turbo mask"
     echo "    modal.sh run --list"
     echo "    modal.sh run --record --repeat 2 --comfy /opt/ComfyUI"
     echo "    modal.sh run --renderer cpu --size 256 mask comfy-flux2-4b"
+    echo "    modal.sh run --big --size 4096 --comfy /opt/ComfyUI comfy-minimax-h3-image"
     echo "    modal.sh exec 'bash turboCLI/bash/turbo/check-model.sh'"
 
     exit 1
@@ -145,7 +148,7 @@ EOF
     echo "$1"
 }
 
-# Runs a script in a container: <cpu|gpu> <script> <folder its out/ lands in>.
+# Runs a script in a container: <cpu|gpu|gpu_big> <script> <folder its out/ lands in>.
 remote()
 {
     mkdir -p "$3"
@@ -216,6 +219,12 @@ if [ "$command" = "exec" ]; then
         target="gpu"
 
         shift
+
+    elif [ "$1" = "--big" ]; then
+
+        target="gpu_big"
+
+        shift
     fi
 
     remote $target "$*" "$stage/out"
@@ -223,13 +232,15 @@ if [ "$command" = "exec" ]; then
     exit
 fi
 
-# run: run.sh's options apart from the engines.
+# run: run.sh's options apart from the engines, and --big, which is ours.
 arguments=""
 engines=""
+gpu="gpu"
 
 while [ $# -gt 0 ]; do
 
     case "$1" in
+        --big) gpu="gpu_big";;
         --renderer|--size|--repeat|--tolerance|--comfy|--comfy-only)
             arguments="$arguments $(printf '%q %q' "$1" "$2")"; shift;;
         -*) arguments="$arguments $1";;
@@ -240,7 +251,7 @@ while [ $# -gt 0 ]; do
 done
 
 # The L40S, unless the run asks for the CPU, which CPU containers serve (no GPU billed).
-target="gpu"
+target="$gpu"
 renderer="--renderer cuda"
 
 if [[ "$arguments " == *" --renderer cpu "* ]]; then

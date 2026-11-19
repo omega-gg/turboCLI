@@ -93,7 +93,9 @@ def _pipeline_class():
             self._callback = None
             self._step = 0
 
+            # The prompt is encoded as given: no prompt upsampler (diffusers 0.43's first step).
             blocks = Flux3DistilledAutoBlocks()
+            blocks.sub_blocks.pop("prompt_upsampler")
             blocks.sub_blocks.pop("text_encoder")
 
             # NOTE: Each workflow's denoise loop opens its bar on itself: it goes through ours,

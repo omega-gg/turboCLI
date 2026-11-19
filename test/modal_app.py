@@ -21,7 +21,8 @@
 #==================================================================================================
 
 # The Modal side of test/modal.sh, which starts it with `modal run`. It only carries a bash script
-# into a container and runs it there: on CPU, or on an L40S GPU (48 GB: every engine fits).
+# into a container and runs it there: on CPU, or on an L40S GPU (48 GB: every engine fits), with
+# 64 GiB of RAM or, for the biggest models, 224 GiB (gpu_big).
 #
 # - The image is turboCLI as its own bash/python/build.sh and bash/turbo/build.sh build it, in
 #   /opt/sky (SKY_PATH_BIN), and ComfyUI as test/comfyui.sh installs it, in /opt/ComfyUI; Modal
@@ -92,10 +93,19 @@ def gpu(script, sources):
     return shell(script, sources)
 
 
+# The same L40S with the RAM of a model past 64 GB (MiniMax-H3-Image: ComfyUI's 49.5 GB and a
+# process, the stock 135 GB), which would otherwise stream off the Volume every step.
+@app.function(gpu="L40S", memory=229376, **options)
+def gpu_big(script, sources):
+    return shell(script, sources)
+
+
 @app.local_entrypoint()
 def main(target: str, script: str, sources: str, out: str):
+    function = {"gpu": gpu, "gpu_big": gpu_big}.get(target, cpu)
+
     with open(sources, "rb") as f:
-        status, files = (gpu if target == "gpu" else cpu).remote(script, f.read())
+        status, files = function.remote(script, f.read())
 
     tarfile.open(fileobj=io.BytesIO(files)).extractall(out, filter="data")
     sys.exit(status)

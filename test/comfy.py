@@ -225,6 +225,37 @@ def moss(engine, f, prompt, seed, width, height, image):
     })
 
 
+def h3_image(engine, f, prompt, seed, width, height, image):
+    # image_minimax_h3_image_t2i.json and _edit.json, the prompt expander off. The conditioning
+    # gives the latent, at the output's size as turbo's (the edit template's takes the scaled
+    # source's); an edit's source goes in at 4 MP on the 32 grid, as <Picture 1>.
+    module = declaration(engine)
+
+    graph = loaders(f, "minimax")
+    conditioning = {"clip": ["2", 0], "vae": ["3", 0], "prompt": prompt, "width": width,
+                    "height": height}
+
+    if image:
+        graph.update({
+            "13": ("LoadImage", {"image": image}),
+            "14": ("ResizeImageMaskNode", {"input": ["13", 0], "scale_method": "area",
+                                           "resize_type": "scale total pixels",
+                                           "resize_type.megapixels": 4}),
+            "15": ("ResizeImageMaskNode", {"input": ["14", 0], "scale_method": "area",
+                                           "resize_type": "scale to multiple",
+                                           "resize_type.multiple": 32}),
+        })
+        conditioning["images.image_1"] = ["15", 0]
+
+    return dict(graph, **{
+        "6": ("MiniMaxH3ImageConditioning", conditioning),
+        "7": ("ConditioningZeroOut", {"conditioning": ["6", 0]}),
+        "9": ksampler(seed, module.INFERENCE, ["1", 0], ["6", 0], ["7", 0], ["6", 1],
+                      module.CFG[1]),
+        "12": ("VAEDecode", {"samples": ["9", 0], "vae": ["3", 0]}),
+    })
+
+
 GRAPHS = {
     ("comfy-flux2-4b", "text-to-image"): flux2,
     ("comfy-flux2-9b-distilled", "text-to-image"): flux2,
@@ -237,6 +268,8 @@ GRAPHS = {
     ("comfy-qwen-image-2-1-turbo", "image-to-image"): qwen21,
     ("comfy-moss-image", "text-to-image"): moss,
     ("comfy-moss-image", "image-to-image"): moss,
+    ("comfy-minimax-h3-image", "text-to-image"): h3_image,
+    ("comfy-minimax-h3-image", "image-to-image"): h3_image,
 }
 
 
