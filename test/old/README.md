@@ -7,6 +7,7 @@ Reference images (736x1024, flux2-4b generations) for re-running the mask-engine
 | [knight.png](knight.png) | a knight standing in a temple courtyard (the subject scene) |
 | [courtyard.png](courtyard.png) | the same courtyard with the knight removed (the clean background plate) |
 | [chest.png](chest.png) | the courtyard with a treasure chest added (an edit of `courtyard.png`) |
+| [knight-small.png](knight-small.png) | `knight.png` at half size (368x512, lanczos), the image-upscale input |
 
 Masks are generated then applied. `image-to-mask <engine> <renderer> <input images> <mask>`
 generates a mask/matte (engine = mask | mask-birefnet | mask-lucida | mask-inspyrenet);

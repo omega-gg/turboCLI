@@ -60,7 +60,7 @@ if [ $# -gt 1 ]; then
     echo ""
     echo "ENGINES: every engine supporting the mode, with 'installed' or 'absent', and 'gated'"
     echo "         when its download needs a Hugging Face token"
-    echo "         (text-to-image, image-to-image, image-to-mask)"
+    echo "         (text-to-image, image-to-image, image-to-mask, image-upscale)"
     echo ""
     echo "SETTINGS: the run settings an engine was installed with, one 'key: value' per line"
     echo "          (renderer, dtype, inference, offload, slicing), and 'comfy: <folder>'"

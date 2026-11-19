@@ -138,6 +138,12 @@ width="${size%x*}"
 
 height="${size#*x}"
 
+# image-upscale: old/knight-small.png (368x512) to the size's height, x2 at least (x2 at 1024, x4
+# at 2048, x8 at 4096), the same image as the other modes' at each size.
+scale=$(( height / 512 > 2 ? height / 512 : 2 ))
+
+upscaled="$(( 368 * scale ))x$(( 512 * scale ))"
+
 if [ "$renderer" = "cuda" ]; then
 
     device="$(nvidia-smi --query-gpu=name --format=csv,noheader | head -n 1 | tr -d '\r')"
@@ -226,7 +232,7 @@ wait_cool()
 # Every installed engine, stock and comfy, in each of its modes, "engine mode" per line.
 turbo_cases()
 {
-    for mode in text-to-image image-to-image image-to-mask; do
+    for mode in text-to-image image-to-image image-to-mask image-upscale; do
 
         bash "$turbo/check-model.sh" ENGINES:$mode | tr -d '\r' \
             | awk -v m=$mode '$2 == "installed" { print $1, m }'
@@ -271,6 +277,9 @@ run_turbo()
                 input="$images/knight.png"
             fi
             bash "$turbo/image-to-mask.sh" "$engine" $renderer "$input" "$output";;
+        image-upscale)
+            bash "$turbo/image-upscale.sh" "$engine" $renderer "$images/knight-small.png" \
+                 "$output" $scale none $seed -1 ${offload:-offloader};;
     esac 2>&1 | stamp > "$log" || return 1
 
     end="$(now)"
@@ -293,10 +302,15 @@ run_turbo()
 
 run_comfy()
 {
-    local engine="$1" mode="$2" output="$3" log="$4" prompt="$fox" input="-" flag="" server start \
-          end status
+    local engine="$1" mode="$2" output="$3" log="$4" prompt="$fox" input="-" target=$size flag="" \
+          server start end status
 
     if [ "$mode" = "image-to-image" ]; then prompt="$edit" input="$images/knight.png"; fi
+
+    if [ "$mode" = "image-upscale" ]; then
+
+        prompt="" input="$images/knight-small.png" target=$upscaled
+    fi
 
     if [ "$renderer" = "cpu" ]; then flag="--cpu"; fi
 
@@ -314,7 +328,7 @@ run_comfy()
         sleep 0.1
     done
 
-    "$python" -s "$test/comfy.py" run "$engine" "$mode" "$prompt" $seed $size "$input" "$output" \
+    "$python" -s "$test/comfy.py" run "$engine" "$mode" "$prompt" $seed $target "$input" "$output" \
         "http://127.0.0.1:$port" >> "$log.run" 2>&1
     status=$?
 

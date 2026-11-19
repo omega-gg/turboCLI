@@ -50,6 +50,8 @@ def main():
     parser.add_argument("--options", default="")
     parser.add_argument("--width", default="512")
     parser.add_argument("--height", default="512")
+    # image-upscale: the factor applied to both sides (width / height are ignored)
+    parser.add_argument("--scale", default="2.0")
     parser.add_argument("--seed", default="-1")
     parser.add_argument("--inference", default="-1")
     parser.add_argument("--renderer", default="cpu")
@@ -68,6 +70,7 @@ def main():
         "output": args.output,
         "width": args.width,
         "height": args.height,
+        "scale": args.scale,
         "seed": args.seed,
         "inference": args.inference,
         "renderer": args.renderer,

@@ -73,3 +73,12 @@ Image-to-image: the prompt describes the change, applied to one or more referenc
 | `mask-birefnet` | A subject matte (background removal) with BiRefNet | 0.4 GB | | |
 | `mask-lucida` | A BiRefNet fine-tune for glass, camouflage, text and print | 0.8 GB | | |
 | `mask-inspyrenet` | A subject matte with InSPyReNet | 0.4 GB | | |
+
+## Upscaling
+
+| Engine | Description | Size | Steps | Requirements |
+|---|---|---|---|---|
+| `esrgan` | Real-ESRGAN x4plus: sharp and fast, adds no detail the source lacks; no prompt | 0.07 GB | | |
+| `comfy-esrgan` | Real-ESRGAN x4plus from ComfyUI's file | 0.07 GB | | |
+| `z-image-turbo-upscale` | `esrgan`, then a short Z-Image-Turbo pass that redraws the fine detail (ComfyUI's upscale template); optional prompt | 20 GB | 5 | |
+| `comfy-z-image-turbo-upscale` | The same from ComfyUI's files, with `comfy-esrgan` | 21 GB | 5 | offloader |

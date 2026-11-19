@@ -47,6 +47,10 @@ engine: flux2-4b
         mask-birefnet            (BiRefNet matte model)
         mask-lucida              (Lucida matte model)
         mask-inspyrenet          (InSPyReNet matte model)
+        esrgan                   (Real-ESRGAN x4plus upscale model)
+        comfy-esrgan
+        z-image-turbo-upscale    (installs esrgan too)
+        comfy-z-image-turbo-upscale (installs comfy-esrgan too)
 
 renderer: cpu, cuda, mps
 
@@ -113,7 +117,7 @@ MODES: list the installed engine id(s) supporting ANY of the listed modes
 
 ENGINES: every engine supporting the mode, with 'installed' or 'absent', and 'gated'
          when its download needs a Hugging Face token
-         (text-to-image, image-to-image, image-to-mask)
+         (text-to-image, image-to-image, image-to-mask, image-upscale)
 
 SETTINGS: the run settings an engine was installed with, one 'key: value' per line
           (renderer, dtype, inference, offload, slicing), and 'comfy: <folder>'
@@ -233,6 +237,41 @@ examples:
     image-to-image flux2-4b cpu  "knight in armor" shield.png,helmet.png output.png
     image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none "" 8080
     image-to-image comfy-qwen-image-2-1-turbo cuda "make it night" frame.png output.png 1024 768 -1 -1 offloader none none align=1
+```
+
+### [image-upscale.sh](image-upscale.sh) - Upscale an image by a factor
+
+```
+Usage: image-upscale <engine> <renderer> <input image> <output image>
+                     [scale = 2.0] [prompt = none]
+                     [seed = -1] [inference = -1]
+                     [offload = offloader] [slicing = none]
+                     [loras = none]
+                     [server]
+
+engine: esrgan                      Real-ESRGAN x4plus (no prompt)
+        comfy-esrgan                Real-ESRGAN x4plus from ComfyUI's file
+        z-image-turbo-upscale       esrgan, then a Z-Image Turbo img2img pass
+        comfy-z-image-turbo-upscale the same from ComfyUI's files
+
+renderer: cpu, cuda, mps
+
+scale: the factor applied to both sides (1.5, 2.0, ...)
+
+prompt: what the Z-Image pass draws, "masterpiece, 8k" when none (esrgan ignores it)
+
+offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
+
+slicing: none, slice
+
+loras: none, comma separated <path>@[weight]
+
+server: host:port (or port for 127.0.0.1) of a rendering server
+
+examples:
+    image-upscale esrgan                cuda photo.png big.png 1.5
+    image-upscale z-image-turbo-upscale cuda photo.png big.png 2.0 "a red fox"
+    image-upscale z-image-turbo-upscale cuda photo.png big.png 2.0 none -1 -1 offloader none none 8080
 ```
 
 ### [image-to-mask.sh](image-to-mask.sh) - Generate a mask / matte

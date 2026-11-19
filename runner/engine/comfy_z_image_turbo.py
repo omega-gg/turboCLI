@@ -91,12 +91,12 @@ def _by_role(engine_dir):
             for c in comfy["components"]}
 
 
-def _pipeline_class():
-    """ZImagePipeline encoding through ComfyUI's text encoder, as ComfyUI's CLIPTextEncode does.
-    Built here so diffusers stays out of engine discovery."""
-    from diffusers import ZImagePipeline
+def _pipeline_class(base="ZImagePipeline"):
+    """The diffusers Z-Image `base` pipeline encoding through ComfyUI's text encoder, as ComfyUI's
+    CLIPTextEncode does. Built here so diffusers stays out of engine discovery."""
+    import diffusers
 
-    class ZImagePipe(ZImagePipeline):
+    class ZImagePipe(getattr(diffusers, base)):
         def _encode_prompt(self, prompt, device=None, prompt_embeds=None,
                            max_sequence_length=512):
             if prompt_embeds is not None:
@@ -107,12 +107,29 @@ def _pipeline_class():
 
             return [self.text_encoder.encode(p)[0].to(device) for p in prompts]
 
+        if base == "ZImageImg2ImgPipeline":
+            def prepare_latents(self, image, timestep, batch_size, channels, height, width,
+                                dtype, device, generator, latents=None):
+                # ComfyUI's VAEEncode takes the latent's mean and leaves the seed to the noise;
+                # diffusers samples the latent, drawing on the generator first. The pipeline takes
+                # a latent as it is.
+                vae = self.vae
+                mean = vae.encode(image.to(device, dtype)).latent_dist.mode()
+                image = (mean - vae.config.shift_factor) * vae.config.scaling_factor
+
+                return super().prepare_latents(image, timestep, batch_size, channels, height,
+                                               width, dtype, device, generator, latents)
+
     return ZImagePipe
 
 
 def load(ctx, params):
-    """Build the ZImagePipeline of _pipeline_class from ComfyUI's single files, the transformer and
-    the text encoder as ComfyUI's own models on the offloader. OFFLOADER-ONLY. The VAE and the
+    return _build(ctx, _pipeline_class())
+
+
+def _build(ctx, pipeline):
+    """Build `pipeline` (a _pipeline_class) from ComfyUI's single files, the transformer and the
+    text encoder as ComfyUI's own models on the offloader. OFFLOADER-ONLY. The VAE and the
     scheduler come from the scaffold."""
     scaffold = ctx.model  # engine/comfy-z-image-turbo/ (scaffolding + engine.json)
     files    = _by_role(scaffold)
@@ -128,7 +145,7 @@ def load(ctx, params):
                                          torch_dtype=ctx.dtype, local_files_only=True)
 
     return ctx.backend.load_pipe_comfy(
-        _pipeline_class(),
+        pipeline,
         {"model": "lumina2", "file": files["transformer"], "config": {}},
         {"model": "lumina2", "file": files["text_encoder"]},
         {"scheduler": scheduler, "tokenizer": None, "vae": vae},

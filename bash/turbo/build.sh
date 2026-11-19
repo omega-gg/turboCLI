@@ -60,6 +60,9 @@ einops_version="0.8.2"
 kornia_version="0.8.3"
 transparent_background_version="1.3.4"
 
+# Model upscalers for the esrgan engines (reads ESRGAN and kin from a .pth or a .safetensors).
+spandrel_version="0.4.2"
+
 # NOTE: The align option of image-to-image imports cv2. transparent-background pulls
 #       opencv-python and albumentations opencv-python-headless, two wheels writing the same cv2/
 #       folder, so both are pinned to one version.
@@ -280,6 +283,7 @@ uv pip install \
     "$(require einops $einops_version)" \
     "$(require kornia $kornia_version)" \
     "$(require transparent-background $transparent_background_version)" \
+    "$(require spandrel $spandrel_version)" \
     "$(require opencv-python $opencv_version)" \
     "$(require opencv-python-headless $opencv_version)" \
     "git+https://github.com/huggingface/diffusers@$diffusers_ref"

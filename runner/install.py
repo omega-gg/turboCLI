@@ -60,6 +60,7 @@ import json
 import glob
 import shutil
 import argparse
+import functools
 import importlib
 
 # LoRAs install into a "lora/" subfolder of the model dir (apart from the base checkpoint files).
@@ -237,8 +238,10 @@ def _install_url(mod, name, revision, out):
     print("Done.", flush=True)
 
 
+@functools.cache
 def _discover():
-    # name -> engine module (cheap: modules hold constants only, no torch/diffusers at top).
+    # name -> engine module (cheap: modules hold constants only, no torch/diffusers at top). Once
+    # per process: _engine_installed reads an UPSCALER from it.
     engines = {}
 
     for path in sorted(glob.glob(os.path.join(os.path.dirname(__file__), "engine", "*.py"))):
@@ -291,10 +294,16 @@ def _engine_installed(mod):
     if record is None:
         return False
 
+    # The UPSCALER (esrgan) runs inside this engine: without it, this one cannot run either.
+    upscaler = getattr(mod, "UPSCALER", None)
+
+    if upscaler is not None and not _engine_installed(_discover()[upscaler]):
+        return False
+
     comfy = record.get("comfy")
 
     if comfy is not None:
-        if not _has_index(_engine_dir(mod.ID)):
+        if comfy.get("scaffold") and not _has_index(_engine_dir(mod.ID)):
             return False
 
         components = comfy.get("components", [])
@@ -399,21 +408,27 @@ def _install_comfy(mod, comfy, out):
 
     shutil.rmtree(os.path.join(models, "split_files"), ignore_errors=True)
 
-    # Scaffold: the small diffusers configs/tokenizer/scheduler (no weights) for offline load.
-    scaffold = mod.SCAFFOLD
-    repo = scaffold["repository"] + "/" + scaffold["model"]
+    # Scaffold: the small diffusers configs/tokenizer/scheduler (no weights) for offline load. None
+    # for an engine that reads its file as is (comfy-esrgan).
+    scaffold = getattr(mod, "SCAFFOLD", None)
 
-    print("Fetching scaffold: %s" % repo, flush=True)
+    if scaffold is not None:
+        repo = scaffold["repository"] + "/" + scaffold["model"]
 
-    snapshot_download(repo_id=repo, revision=scaffold.get("revision") or None,
-                      allow_patterns=scaffold["allow_patterns"], local_dir=out)
+        print("Fetching scaffold: %s" % repo, flush=True)
 
-    # snapshot_download leaves a .cache/ bookkeeping dir in local_dir; drop it.
-    shutil.rmtree(os.path.join(out, ".cache"), ignore_errors=True)
+        snapshot_download(repo_id=repo, revision=scaffold.get("revision") or None,
+                          allow_patterns=scaffold["allow_patterns"], local_dir=out)
 
-    _prune_scaffold(out, scaffold["allow_patterns"])
+        # snapshot_download leaves a .cache/ bookkeeping dir in local_dir; drop it.
+        shutil.rmtree(os.path.join(out, ".cache"), ignore_errors=True)
 
-    repositories.append(repo)
+        _prune_scaffold(out, scaffold["allow_patterns"])
+
+        repositories.append(repo)
+
+        scaffold = {"repository": scaffold["repository"], "model": scaffold["model"],
+                    "revision": scaffold.get("revision")}
 
     # engine.json: the registry record -- component refs (for load + reference-counted GC) and the
     # loader scaffold's source. `root` is the reused ComfyUI install dir; components store their
@@ -423,9 +438,7 @@ def _install_comfy(mod, comfy, out):
     _write_engine({
         "id": mod.ID, "model": None, "revision": None, "loras": [],
         "comfy": {"root": root, "external": not _under(models, default_folder()),
-                  "components": manifest,
-                  "scaffold": {"repository": scaffold["repository"], "model": scaffold["model"],
-                               "revision": scaffold.get("revision")}},
+                  "components": manifest, "scaffold": scaffold},
     })
 
     # Trim the HF cache for anything pulled (a pure reuse pulls nothing, so it may not exist).
@@ -597,8 +610,12 @@ def main():
     # contained model/ComfyUI/ layout in our model dir (see the COMFY dispatch / _install_comfy).
     parser.add_argument("--comfy", default=None)
 
-    args = parser.parse_args()
+    _install(parser.parse_args())
 
+
+def _install(args):
+    """Install (or --remove) the engine args name. An engine declaring UPSCALER installs that
+    engine first, with the same arguments."""
     global _settings
 
     _settings = {"renderer": args.renderer, "dtype": args.dtype, "inference": args.inference,
@@ -619,6 +636,10 @@ def main():
     if args.remove:
         _remove(mod.ID)
         return
+
+    # The UPSCALER (esrgan) runs inside this engine. --model names this engine's model, not its.
+    if hasattr(mod, "UPSCALER"):
+        _install(argparse.Namespace(**dict(vars(args), engine=mod.UPSCALER, model=None)))
 
     # ComfyUI-reuse engines reuse a ComfyUI install's split single files: with --comfy an existing
     # install, else a self-contained model/ComfyUI/ layout. The scaffold + registry entry live in
@@ -744,7 +765,7 @@ def main():
             pipe = PipelineCls.from_pretrained(
                 base_repo,
                 revision=revision or None,
-                torch_dtype=getattr(torch, args.dtype),
+                torch_dtype=getattr(torch, dtype),
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
             )

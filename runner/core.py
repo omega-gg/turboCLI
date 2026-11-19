@@ -644,27 +644,45 @@ def generate(params, emit, should_stop=None):
     else:
         generator = torch.Generator(device="cpu").manual_seed(seed)
 
-    width = int(params["width"])
-    height = int(params["height"])
-
     inference = int(params["inference"])
 
     # -1 (the run-script default) means "use this engine's own default step count".
     if inference < 0:
         inference = by_mode(getattr(mod, "INFERENCE", 4), mode)
 
-    prompt = params["prompt"]
+    prompt = params.get("prompt", "")
 
     kwargs = dict(
         prompt=prompt,
-        width=width,
-        height=height,
         num_inference_steps=inference,
         generator=generator,
     )
 
     cfg_name, cfg_value = mod.CFG
     kwargs[cfg_name] = by_mode(cfg_value, mode)
+
+    if mode == "image-upscale":
+        from PIL import Image
+
+        from .engine._upscale import esrgan, keep_alpha, upscale_size
+
+        emit("loading input: %s" % image_list[0])
+
+        source = Image.open(image_list[0])
+
+        # The UPSCALER engine brings the input to the target size (on the latent grid), then the
+        # img2img pass redraws the detail. The strength cuts the steps asked to `inference`.
+        size     = upscale_size(source, float(params.get("scale", 2.0)), 16)
+        upscaler = ENGINES[mod.UPSCALER]
+        weights  = upscaler.weights(resolve_model(upscaler, params))
+
+        prompt = prompt or mod.PROMPT
+
+        kwargs.update(prompt=prompt, width=size[0], height=size[1], strength=mod.STRENGTH,
+                      num_inference_steps=int(inference / mod.STRENGTH),
+                      image=esrgan(source.convert("RGB"), size, params["renderer"], weights, emit))
+    else:
+        kwargs.update(width=int(params["width"]), height=int(params["height"]))
 
     if mode == "image-to-image":
         from PIL import Image
@@ -804,6 +822,10 @@ def generate(params, emit, should_stop=None):
             return False
 
         image = result.images[0]
+
+        # An upscale keeps the input's alpha channel, as the esrgan engines do.
+        if mode == "image-upscale":
+            image = keep_alpha(image, source)
 
         # NOTE: The step never costs the render: whatever goes wrong, the image is saved as it
         #       came.

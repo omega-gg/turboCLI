@@ -35,3 +35,7 @@
 #   BASE  = base.ID
 #   LORAS = base.LORAS + [ ... ]                       # or: dict(base.COMFY, components=...)
 # See qwen_image_edit_2511_lightning[_angles].py and comfy_qwen_image_edit_2511_lightning.py.
+#
+# IMAGE-UPSCALE: a compute engine (esrgan) exposes weights(model_dir), its model file. A diffusion
+# engine (z-image-turbo-upscale) names that engine in UPSCALER (installed first, run by core before
+# its img2img pass) and declares STRENGTH (img2img strength) and PROMPT (used when none is given).

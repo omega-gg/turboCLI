@@ -186,6 +186,22 @@ The `mask` engine and `image-apply-mask.sh` need no download and run on the CPU;
 with `sh install.sh mask cpu` and `sh install.sh mask-apply cpu`. The matte engines download their
 model. [test/old/README.md](test/old/README.md) has longer recipes, with the images to try them on.
 
+## Upscaling an image
+
+`image-upscale.sh` makes an image bigger by a factor, the same on both sides:
+
+```sh
+sh image-upscale.sh esrgan cuda photo.png big.png 2.0
+sh image-upscale.sh z-image-turbo-upscale cuda photo.png big.png 2.0 "a red fox in the snow"
+```
+
+`esrgan` sharpens what is there and is done in seconds. `z-image-turbo-upscale` runs `esrgan`, then
+a short Z-Image-Turbo pass that redraws the fine detail. Its prompt is optional: without one it
+draws "masterpiece, 8k", and a short description of the picture helps on faces, text and
+textures. After the prompt come the seed, the steps, the offload, the slicing, the LoRAs and a
+server, as for `image-to-image.sh`. A transparent input keeps its alpha. Installing
+`z-image-turbo-upscale` installs `esrgan` too.
+
 ## Running a server
 
 Each script run starts python and loads the model, which can take longer than making the image. A

@@ -7,5 +7,6 @@ OTHER_FILES += bash/turbo/README.md \
                bash/turbo/server.sh \
                bash/turbo/text-to-image.sh \
                bash/turbo/image-to-image.sh \
+               bash/turbo/image-upscale.sh \
                bash/turbo/image-to-mask.sh \
                bash/turbo/image-apply-mask.sh \
