@@ -135,11 +135,12 @@ they went.
 | `esrgan` (launch to image) | 7.9 s | 4.2 s |
 | `z-image-turbo-upscale` (sampling) | 34.4 s | 11.9 s |
 
-Two Z-Image gaps outside the upscale code, fixed after. The stock engine's pinned revision now
-publishes its transformer in fp32, which the offloader streams as it is and computes in fp32: a
-default install saves it in bf16 (`MODEL["dtype"]`), `z-image-turbo-upscale` 11.9 s to 4.17 s,
-`z-image-turbo` 20.05 s to about 5.4 s on the L40S. At 4096 the comfy engines lost 2 to 3% a step
-streaming part of the model back: the offloader now loads a model declaring
+A stock engine takes the dtype its Hugging Face page publishes: Z-Image-Turbo's pinned revision
+publishes its transformer in fp32, which the offloader streams as it is and computes in fp32,
+z-image-turbo-upscale 11.9 s against ComfyUI's 4.1 s on the L40S. Installed with `bfloat16`
+(install.sh's dtype) it takes 4.17 s, z-image-turbo about 5.4 s against 20.05 s. A Z-Image gap
+outside the upscale code, fixed after: at 4096 the comfy engines lost 2 to 3% a step streaming
+part of the model back: the offloader now loads a model declaring
 `memory_usage_factor` with KSampler's memory estimate, right after `prepare_latents`, before the
 first step as KSampler does. After both, on the L40S against ComfyUI: text-to-image +2% at 1024
 (the image SAME) and -4% at 4096, the upscale +1% and +0%, the steady steps equal. The +1 to 2%

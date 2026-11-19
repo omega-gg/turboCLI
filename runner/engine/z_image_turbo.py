@@ -36,8 +36,5 @@ INFERENCE = 8
 
 # Install (python -m runner.install): base model HF repo = "<repository>/<model>". No LoRAs.
 # "revision" pins the HF commit (mutable repos -> reproducible installs); check validates it.
-# "dtype": this revision publishes its transformer in fp32 (24.6 GB), which the offloader streams
-# as it is and computes in fp32, 6x slower a step than ComfyUI's bf16 on an L40S. A default install
-# saves it in bf16, as ComfyUI's own file is.
 MODEL = {"repository": "Tongyi-MAI", "model": "Z-Image-Turbo",
-         "revision": "f332072aa78be7aecdf3ee76d5c247082da564a6", "dtype": "bfloat16"}
+         "revision": "f332072aa78be7aecdf3ee76d5c247082da564a6"}
