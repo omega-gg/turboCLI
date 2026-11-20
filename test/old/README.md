@@ -8,6 +8,8 @@ Reference images (736x1024, flux2-4b generations) for re-running the mask-engine
 | [courtyard.png](courtyard.png) | the same courtyard with the knight removed (the clean background plate) |
 | [chest.png](chest.png) | the courtyard with a treasure chest added (an edit of `courtyard.png`) |
 | [knight-small.png](knight-small.png) | `knight.png` at half size (368x512, lanczos), the image-upscale input |
+| [knight-drift.png](knight-drift.png) | `knight-small.png` as an engine drifts it, the image-adjust input: zoomed 0.6% about the center and moved 3 px right and 2 up (bicubic), then warmer and lifted (R x0.94 + 14, G x0.97 + 6, B x0.90) |
+| [knight-night.png](knight-night.png) | the same move, then a night the prompt asked for (R x0.30, G x0.38, B x0.55 + 10): aligned, its colors left as is |
 
 Masks are generated then applied. `image-to-mask <engine> <renderer> <input images> <mask>`
 generates a mask/matte (engine = mask | mask-birefnet | mask-lucida | mask-inspyrenet);

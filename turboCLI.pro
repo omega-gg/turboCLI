@@ -20,6 +20,7 @@ OTHER_FILES += README.md  \
                doc/comfy-z-image-turbo-plan.md \
                doc/engine-inheritance-plan.md \
                doc/flux3-6b-plan.md \
+               doc/image-adjust-plan.md \
                doc/image-align-plan.md \
                doc/image-area-plan.md \
                doc/image-mask-plan.md \
@@ -43,12 +44,16 @@ OTHER_FILES += README.md  \
                test/comfyui.sh \
                test/old/README.md \
                test/old/knight.png \
+               test/old/knight-drift.png \
+               test/old/knight-night.png \
                test/old/courtyard.png \
                test/old/chest.png \
 
 OTHER_FILES += runner/__init__.py \
+               runner/align.py \
                runner/check.py \
                runner/cli.py \
+               runner/color.py \
                runner/core.py \
                runner/install.py \
                runner/server.py \
@@ -58,6 +63,7 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/_mask.py \
                runner/engine/_options.py \
                runner/engine/_segment.py \
+               runner/engine/adjust.py \
                runner/engine/comfy_flux2_4b.py \
                runner/engine/comfy_flux2_9b.py \
                runner/engine/comfy_flux2_9b_distilled.py \

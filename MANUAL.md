@@ -121,17 +121,26 @@ output's area (an image of the output's size goes as it is, so the edit does not
 keeps them at their own size up to 4096x4096.
 
 **Putting an edit back in place.** An edit of part of a picture has to come back where it was,
-and Qwen-Image 2.1 zooms and shifts its result a little, differently for each seed. `align=1`,
-after the LoRAs, measures that against the first input image and undoes it:
+and Qwen-Image 2.1 zooms and shifts its result a little, differently for each seed. `align`,
+after the LoRAs, measures that against the first input image, the picture being edited, and
+undoes it:
 
 ```sh
 sh image-to-image.sh comfy-qwen-image-2-1-turbo cuda "make it night" frame.png night.png \
-                     1024 768 -1 -1 offloader none none align=1
+                     1024 768 -1 -1 offloader none none align
 ```
 
 A line `align: ...` says what it did: aligned, or left as is when the result was already in place,
 was redrawn rather than moved, or was zoomed by more than 3%, which a prompt asks for ("zoom out")
-rather than an engine drifts.
+rather than an engine drifts. `align=5` moves that limit to 5%.
+
+**Keeping the colors.** An edit meant to keep the picture can still move its colors: cleaning up a
+deep blue frame, MiniMax-H3-Image lifts the shadows and warms it, Qwen-Image 2.1 greys it.
+`color` matches the result's colors to the first input image, one curve per channel, so the new
+detail stays. The curve is measured on what the edit left alone, so a shirt the prompt made red
+stays red. A change of more than 16 levels on average was asked for ("make it night") and is
+left as is; `color=24` moves that limit to 24. It runs after `align` when both are given
+(`align,color`), and its line `color: ...` gives the mean move of each channel and what it did.
 
 **LoRAs.** A LoRA adds a style or a subject to an engine that supports it. Give its file and a
 strength after an `@`, several separated by a comma; a missing strength is 1.
@@ -201,6 +210,22 @@ draws "masterpiece, 8k", and a short description of the picture helps on faces, 
 textures. After the prompt come the seed, the steps, the offload, the slicing, the LoRAs and a
 server, as for `image-to-image.sh`. A transparent input keeps its alpha. Installing
 `z-image-turbo-upscale` installs `esrgan` too.
+
+## Adjusting an existing image
+
+`image-adjust.sh` gives an image made earlier the fixes of `align` and `color`, against the image
+it was made from:
+
+```sh
+sh image-adjust.sh clean.png frame.png fixed.png color
+sh image-adjust.sh edit.png frame.png fixed.png align,color
+```
+
+The image to fix, its reference and the output come first, then the fixes: `align`, `color`, or
+both, each with its limit if you give one (`align,color=24`), and a server last if you use one.
+It needs no download and no graphics card, and takes about a tenth of a second for the colors of
+a 16 MP image. `align` leaves an image of another shape than
+its reference as it is: it measures a drift, not a reframing.
 
 ## Running a server
 

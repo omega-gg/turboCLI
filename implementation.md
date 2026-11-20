@@ -27,14 +27,16 @@ turboCLI/
     core.py          shared engine: discovery, resident-pipe cache, one generation
     install.py       online installer + engine registry + reference-counted remove
     check.py         install verifier (torch-free)
+    align.py         the align fix: an edit's zoom and shift undone (torch-free, cv2)
+    color.py         the color fix: an edit's tones matched back (torch-free, numpy)
     engine/          one declaration module per engine (+ _*.py helpers, not engines): the mask /
-                     mask-apply / mask-birefnet / mask-lucida / mask-inspyrenet and esrgan
-                     "compute" engines live here too, over the _mask / _apply / _segment /
+                     mask-apply / mask-birefnet / mask-lucida / mask-inspyrenet, esrgan and
+                     adjust "compute" engines live here too, over the _mask / _apply / _segment /
                      _options / _upscale helpers; _comfy holds what the comfy engines share
   bash/
     python/          build.sh / check.sh -- bundled standalone CPython + uv
     turbo/           build/install/remove/check/check-model/server/text-to-image/image-to-image/
-                     image-to-mask/image-apply-mask/image-upscale
+                     image-to-mask/image-apply-mask/image-upscale/image-adjust
   backend/           EMPTY in-repo (a .gitignore placeholder); build.sh grafts the offloader here
   doc/               plan docs, kept as records after implementation
   test/
@@ -237,7 +239,8 @@ apply. Per-call scalars ride a general-purpose **`--options`** field (`key=value
 (`default|region` for mask, `composite|putalpha` for apply), `glow=N` (pixels, `mask`
 `mode=default` only, how much thicker the mask gets) and `fade=<l>:<t>:<r>:<b>` (pixels, `mask`
 either mode, how far each border of a crop softens; the parser splits on commas before it
-reads `=`, so a value that carries several numbers separates them with colons). The engine modules
+reads `=`, so a value that carries several numbers separates them with colons; a key alone, as
+`align`, has an empty value: its default). The engine modules
 stay torch-free at
 import (heavy imports live in `run()`), so discovery and the diffusion path never load the
 segmentation stack — the load-bearing zero-regression guarantee.
@@ -279,7 +282,7 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `BASE` | base engine ID to inherit from (below) |
 | `PIPELINE` | `"diffusers:XxxPipeline"` string, resolved lazily |
 | `TRANSFORMER` | `"diffusers:XxxTransformer2DModel"`; **presence = offload-wired** (core.py:553-558) |
-| `MODES` | wire modes tuple: `"text-to-image"` / `"image-to-image"` / `"image-to-mask"` / `"image-apply-mask"` / `"image-upscale"` |
+| `MODES` | wire modes tuple: `"text-to-image"` / `"image-to-image"` / `"image-to-mask"` / `"image-apply-mask"` / `"image-upscale"` / `"image-adjust"` |
 | `CFG` | one `(kwarg, value)` pair injected into the pipe call (core.py:599-600); the value may be a dict, one per mode (`by_mode`: comfy-moss-image's templates differ) |
 | `INFERENCE` | default step count when the caller passes `-1` (fallback 4, core.py:586-587); a dict too, one per mode |
 | `MODEL` | install spec `{repository, model, revision}` (stock); optional `kind` = `snapshot`\|`url` picks a non-diffusers install (verbatim HF repo / raw asset); optional `allow_patterns` narrows the diffusers snapshot (default `model_index.json` + every folder; `flux3-6b` takes its components and `modular_model_index.json` only); it only *renames* the folder: omitted, `resolve_model` falls back to `ID` (core.py:173), which is why COMFY engines declare none |
@@ -370,6 +373,7 @@ answer is derivable.
 | `esrgan` / `comfy-esrgan` | compute upscale engines, mode `image-upscale` (`_upscale.py`): spandrel loads Real-ESRGAN x4plus (url xinntao release `v0.1.0` / one COMFY component, no scaffold), the model stays resident (one, keyed by file and device), runs fp16 `channels_last` on a GPU (54 dB from fp32, 3.3x faster on an A1000) in 512 tiles overlapping by 32 with ramp blending (halved on out of memory down to 128: ComfyUI's numbers), then lanczos to `scale`. An alpha channel follows at the same size |
 | `z-image-turbo-upscale` / `comfy-z-image-turbo-upscale` | ComfyUI's "Image Upscale (Z-image-Turbo)" blueprint without its 1 MP prescale: the `UPSCALER` (`esrgan` / `comfy-esrgan`) to `scale` on the 16 grid, then `ZImageImg2ImgPipeline` (comfy: `_pipeline_class("ZImageImg2ImgPipeline")` through `_build`) at strength 0.33, `int(5 / 0.33)` steps asked so 5 run, empty prompt = "masterpiece, 8k". BASE `z-image-turbo` / `comfy-z-image-turbo`. The comfy img2img `prepare_latents` encodes to the latent's mean as ComfyUI's VAEEncode does (diffusers samples it from the generator, which also shifts the noise: 22.7 dB against ComfyUI, then 37.9 dB); the offloader loads Z-Image with KSampler's memory estimate, which makes room for the activations (manual `empty_cache` calls after the ESRGAN tiles and the encode, tried before it, ran slower once it was in). Against ComfyUI: -5% on the A1000, -24% on the L40S (`doc/image-upscale-plan.md`) |
 | `mask-apply` | compute engine, mode `image-apply-mask`; applies a mask via `composite` or `putalpha`, or trims an image down to what shows via `trim`; register-only; options `mode=composite\|putalpha\|trim`, `pad=N` and `speck=N` for `trim` |
+| `adjust` | compute engine, mode `image-adjust` (`image-adjust.sh`); the align and color steps of image-to-image on an existing image, images `base,reference`, options `align[=<percent>]` and/or `color[=<levels>]` (the key alone for the default limit), align first; register-only; also holds the steps' `parse` and `step`, which `core.generate` imports |
 
 ## The backend seam (runner side)
 
@@ -416,7 +420,8 @@ comma-separated `<path>@<weight>` entries; `parse_loras` accepts any finite floa
 clamp — diff-style patches use >1 and negative, matching ComfyUI).
 
 1. Validate engine + mode, then the offload ladder above (core.py:525-567). An image-to-image
-   run's `align=<n>` option must name one of its inputs, checked before any model loads.
+   run's `align[=<percent>]` and `color[=<levels>]` options, a limit given or the default,
+   must be positive numbers (`engine/adjust.parse`), checked before any model loads.
 2. `get_pipe` (core.py:447): compare `_engine_key` to the resident key — `(ID, model dir,
    renderer, offload, slicing) + extra_key(params) + (user loras,)` (core.py:297-308); reuse on
    match, else `release_pipe("config changed")` and reload via the engine's `load()` or
@@ -443,17 +448,27 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
    10 s); the edit used to collect before sampling, which delayed its result ~0.8 s on an L4 (the
    emptied cache also made the first step reallocate). The call itself runs under
    `torch.inference_mode()` (core.py:735-736).
-8. **Align** (image-to-image with `align=<n>`, `runner/align.py`, torch free): the zoom and
-   shift an engine adds to its result (Qwen-Image 2.1 does, by a different amount for each
-   seed) are measured against input `n` and undone. Edge maps of both, so a relit frame still
-   measures, matched in 64 px tiles by phase correlation on a copy of at most 1 MP; a zoom and
-   shift per axis through the tile shifts, outliers dropped, fitted 3 times on the result warped
-   back. The warp (Lanczos, the edge repeated) is applied only past 0.75 px at the corners and
-   under a 3% zoom (past it the zoom was asked for, "zoom out" or a camera that moves), and kept
-   only if it takes a fifth off the tile shifts: less, and the engine redrew the frame. One
-   `align:` line says which; any failure is logged and the result saved as it came. 0.1 to 0.4 s
-   on the CPU. OpenCV 5's `phaseCorrelate` windows its inputs in place, so the overlapping tiles
-   go as copies (`doc/image-align-plan.md`).
+8. **Align** (image-to-image with `align[=<percent>]`, `runner/align.py`, torch free): the zoom
+   and shift an engine adds to its result (Qwen-Image 2.1 does, by a different amount for each
+   seed) are measured against the first input, the picture it edits, and undone. Edge maps of
+   both, so a relit frame still measures, matched in 64 px tiles by phase correlation on a copy of
+   at most 1 MP; a zoom and shift per axis through the tile shifts, outliers dropped, fitted 3
+   times on the result warped back. The warp (Lanczos, the edge repeated) is applied only past
+   0.75 px at the corners and under a 3% zoom or the given limit (past it the zoom was asked for,
+   "zoom out" or a camera that moves), and kept only if it takes a fifth off the tile shifts:
+   less, and the engine redrew the frame. One `align:` line says which; any failure is logged and
+   the result saved as it came. 0.1 to 0.4 s on the CPU. OpenCV 5's `phaseCorrelate` windows its
+   inputs in place, so the overlapping tiles go as copies (`doc/image-align-plan.md`).
+   **Color** (`color[=<levels>]`, `runner/color.py`, PIL and numpy) runs after it: one curve per
+   channel, the median of the first input's levels in 16 bins of the result's, fitted pixel
+   against pixel on 256 px copies, on the pixels the edit left alone (first those within 48
+   levels of their reference, then 3 times those the curve explains), so an edit's own colors
+   neither steer it nor get undone. Applied with `Image.point`, the alpha untouched, about 0.1 s
+   at 16 MP. A mean move over 16 levels (or the given limit) was asked for ("make it night", 20
+   at least on the bench, a drift 11.7 at most) and under 1 level is nothing: both are left as
+   is. One `color:` line gives the mean move of each channel. Each step (`engine/adjust.step`)
+   has its own `try`: a failure logs, says `<step>: failed, left as is`, and the next step still
+   runs (`doc/image-adjust-plan.md`).
 9. Save (PNG at ComfyUI's SaveImage `compress_level=4`, lossless), then emit
    `Saved: <output>` immediately "so the client gets the result as early as possible"
    (core.py:769-770).
@@ -468,6 +483,7 @@ generating "<prompt≤60>" (<N> steps)...
   0%|step 0/N (00:00)                            heartbeat
  42%|step 5/12 (00:31, 3.50s/it)                 one line per step, tqdm-native figures
 align: zoom <x>% x <y>%, ..., aligned            i2i with align only, informational
+color: R <x> G <y> B <z>, matched                i2i with color only, informational
 Saved: <path>                                    THE success sentinel (exit 0 / HTTP success)
 ERROR: <message or traceback>                    validation or unexpected failure
 CANCELLED: stopped on request, server is idle
@@ -516,6 +532,10 @@ on arrival to the millisecond by perl: load, encode, sampling and decode, sampli
 mask engine has no steps; its time, mostly start-up, is shown, not judged). Each run also prints
 its time from launch to `Saved:`, where a client takes the image, not to the process's exit.
 `--cool` and `--repeat` keep a throttling laptop from failing a run that is not slower.
+The `adjust` engine has two cases on the knight, a drift and a night (`image-adjust`,
+`image-adjust-night`): besides its md5, each must print the line of each fix it expects (aligned
+and matched; aligned and left as is), since a fix that stops working still saves an image that
+`--record` would keep.
 
 `--comfy <dir>` also runs each comfy engine through a ComfyUI install (`test/comfy.py`: the
 template graph, its files from the engine's `COMFY` declaration), alternating with turbo, each
@@ -568,6 +588,7 @@ turbo against ComfyUI engine by engine, are in turbo-offloader's `implementation
   `doc/image-trim-plan.md` (the `trim` of image-apply-mask, a cutout cut down to what shows),
   `doc/image-area-plan.md` (each input image keeps its ratio; `IMAGE_AREA` since removed),
   `doc/image-align-plan.md` (the `align` option of image-to-image, an edit put back in place),
+  `doc/image-adjust-plan.md` (the `color` option, and `image-adjust.sh` for an existing image),
   `doc/moss-image-plan.md` (the stock and comfy MOSS-Image pair, ComfyUI's sampler and
   templates),
   `doc/minimax-h3-image-plan.md` (the stock and comfy MiniMax-H3-Image pair, the PDD grid, the

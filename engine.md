@@ -70,6 +70,7 @@ Image-to-image: the prompt describes the change, applied to one or more referenc
 |---|---|---|---|---|
 | `mask` | A mask of where an edit differs from its reference, as a pixel difference or grown boxes | none | | no GPU |
 | `mask-apply` | Applies a mask: composite onto a reference, alpha cutout, or trim | none | | no GPU |
+| `adjust` | Fixes an existing image against its reference: the zoom and shift undone, the colors matched (`image-adjust.sh`) | none | | no GPU |
 | `mask-birefnet` | A subject matte (background removal) with BiRefNet | 0.4 GB | | |
 | `mask-lucida` | A BiRefNet fine-tune for glass, camouflage, text and print | 0.8 GB | | |
 | `mask-inspyrenet` | A subject matte with InSPyReNet | 0.4 GB | | |

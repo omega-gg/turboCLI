@@ -18,6 +18,15 @@ on the knight) and image upscale ([old/knight-small.png](old/knight-small.png), 
 the size's height: x2 at 1024, x4 at 2048, x8 at 4096, x2 at least). `esrgan` has no steps:
 like a mask, its time is shown, not judged.
 
+The `adjust` engine (`image-adjust.sh align,color`, register it with `install.sh adjust cpu`)
+has two cases against [old/knight-small.png](old/knight-small.png): `image-adjust` on
+[old/knight-drift.png](old/knight-drift.png),
+an engine's drift, and `image-adjust-night` on [old/knight-night.png](old/knight-night.png), a
+night the prompt asked for. Besides its image, each must print what each fix did: the drift
+`align: ..., aligned` and `color: ..., matched`, the night `aligned` and `color: ..., left as
+is`. A fix that stops working still saves an image, which `--record` would keep; the line fails
+the case instead. No steps either: their time is shown, not judged.
+
 | option | |
 |---|---|
 | `--renderer <cuda\|mps\|cpu>` | cuda when nvidia-smi answers, mps on macOS, else cpu |

@@ -156,15 +156,19 @@ if [ $# -lt 5 -o $# -gt 14 ] \
     echo ""
     echo "loras: none, comma separated <path>@[weight]"
     echo ""
-    echo "options: key=value,... align=<n> aligns the result on input image n (from 1): the"
-    echo "         zoom and shift an engine adds to its result are measured and undone."
+    echo "options: key=value,... both fixes below work against the first input image:"
+    echo "         align undoes the zoom and shift an engine adds to its result, unless over"
+    echo "         3% (align=<percent> for another limit)."
+    echo "         color matches the result's colors to the input, the detail kept, unless they"
+    echo "         moved over 16 levels (color=<levels> for another limit)."
     echo ""
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
     echo "    image-to-image flux2-4b cpu  \"knight in armor\" shield.png,helmet.png output.png"
     echo "    image-to-image flux2-4b cuda \"knight in armor\" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none \"\" 8080"
-    echo "    image-to-image comfy-qwen-image-2-1-turbo cuda \"make it night\" frame.png output.png 1024 768 -1 -1 offloader none none align=1"
+    echo "    image-to-image comfy-qwen-image-2-1-turbo cuda \"make it night\" frame.png output.png 1024 768 -1 -1 offloader none none align"
+    echo "    image-to-image comfy-minimax-h3-image cuda \"clean and crisp\" frame.png output.png 4096 2304 -1 -1 offloader none none align,color"
 
     exit 1
 fi

@@ -10,3 +10,4 @@ OTHER_FILES += bash/turbo/README.md \
                bash/turbo/image-upscale.sh \
                bash/turbo/image-to-mask.sh \
                bash/turbo/image-apply-mask.sh \
+               bash/turbo/image-adjust.sh \

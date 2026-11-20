@@ -22,20 +22,19 @@
 
 # Parse the flat --options string ("key=value,...") into a dict. Engine-specific and torch-free;
 # a helper (underscore name) so engine discovery skips it. Each engine reads the keys it needs and
-# casts the string value itself (e.g. cutoff=40, mode=region).
+# casts the string value itself (e.g. cutoff=40, mode=region). A key alone (align) asks for its
+# default.
 
 
 def parse_options(spec):
-    """"cutoff=40,mode=region" -> {"cutoff": "40", "mode": "region"}. Blank -> {}. Items
-    with no "=" are ignored. Values stay strings; the caller casts."""
+    """"cutoff=40,mode=region,align" -> {"cutoff": "40", "mode": "region", "align": ""}. Blank
+    -> {}. A key with no "=" has an empty value. Values stay strings; the caller casts."""
     out = {}
 
     for item in spec.split(","):
-        if "=" not in item:
-            continue
+        key, _, value = item.partition("=")
 
-        key, value = item.split("=", 1)
-
-        out[key.strip()] = value.strip()
+        if key.strip():
+            out[key.strip()] = value.strip()
 
     return out

@@ -44,6 +44,7 @@ engine: flux2-4b
         qwen-image-edit-2511-lightning-angles
         mask                     (no download, registers a compute engine)
         mask-apply               (no download)
+        adjust                   (no download)
         mask-birefnet            (BiRefNet matte model)
         mask-lucida              (Lucida matte model)
         mask-inspyrenet          (InSPyReNet matte model)
@@ -117,7 +118,7 @@ MODES: list the installed engine id(s) supporting ANY of the listed modes
 
 ENGINES: every engine supporting the mode, with 'installed' or 'absent', and 'gated'
          when its download needs a Hugging Face token
-         (text-to-image, image-to-image, image-to-mask, image-upscale)
+         (text-to-image, image-to-image, image-to-mask, image-upscale, image-adjust)
 
 SETTINGS: the run settings an engine was installed with, one 'key: value' per line
           (renderer, dtype, inference, offload, slicing), and 'comfy: <folder>'
@@ -228,15 +229,19 @@ slicing: none, slice
 
 loras: none, comma separated <path>@[weight]
 
-options: key=value,... align=<n> aligns the result on input image n (from 1): the
-         zoom and shift an engine adds to its result are measured and undone.
+options: key=value,... both fixes below work against the first input image:
+         align undoes the zoom and shift an engine adds to its result, unless over
+         3% (align=<percent> for another limit).
+         color matches the result's colors to the input, the detail kept, unless they
+         moved over 16 levels (color=<levels> for another limit).
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
     image-to-image flux2-4b cpu  "knight in armor" shield.png,helmet.png output.png
     image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none "" 8080
-    image-to-image comfy-qwen-image-2-1-turbo cuda "make it night" frame.png output.png 1024 768 -1 -1 offloader none none align=1
+    image-to-image comfy-qwen-image-2-1-turbo cuda "make it night" frame.png output.png 1024 768 -1 -1 offloader none none align
+    image-to-image comfy-minimax-h3-image cuda "clean and crisp" frame.png output.png 4096 2304 -1 -1 offloader none none align,color
 ```
 
 ### [image-upscale.sh](image-upscale.sh) - Upscale an image by a factor
@@ -334,4 +339,26 @@ examples:
     image-apply-mask putalpha  photo.png,matte.png cutout.png
     image-apply-mask composite edited.png,mask.png,original.png output.png
     image-apply-mask trim      cutout.png trimmed.png pad=32,speck=1024
+```
+
+### [image-adjust.sh](image-adjust.sh) - Align an existing image on its reference, or match its colors
+
+```
+Usage: image-adjust <base image> <reference image> <output image> <fixes> [server]
+
+Fix an existing image against its reference, an engine's result against its input.
+Torch-free, no GPU.
+
+fixes: align        the zoom and shift an engine added are measured and undone,
+                    unless over 3% (align=<percent> for another limit)
+       color        the colors are matched to the reference, the detail kept,
+                    unless they moved over 16 levels (color=<levels> for another)
+       align,color  both, in that order
+
+server: host:port (or port for 127.0.0.1) of a rendering server
+
+examples:
+    image-adjust clean.png frame.png fixed.png color
+    image-adjust edit.png frame.png fixed.png align,color
+    image-adjust edit.png frame.png fixed.png align,color=24 8080
 ```

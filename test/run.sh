@@ -234,11 +234,13 @@ wait_cool()
 }
 
 # Every installed engine, stock and comfy, in each of its modes, "engine mode" per line.
+# image-adjust-night is a second case of image-adjust's engines: a night, whose colors stay.
 turbo_cases()
 {
-    for mode in text-to-image image-to-image image-to-mask image-upscale; do
+    for mode in text-to-image image-to-image image-to-mask image-upscale image-adjust \
+                image-adjust-night; do
 
-        bash "$turbo/check-model.sh" ENGINES:$mode | tr -d '\r' \
+        bash "$turbo/check-model.sh" ENGINES:${mode%-night} | tr -d '\r' \
             | awk -v m=$mode '$2 == "installed" { print $1, m }'
     done
 }
@@ -263,7 +265,18 @@ comfy_has()
 # image, not at the process's exit, as ComfyUI's ends when it returns the image.
 run_turbo()
 {
-    local engine="$1" mode="$2" output="$3" log="$4" input start end
+    local engine="$1" mode="$2" output="$3" log="$4" input start end expect=()
+
+    # NOTE: A fix that stops working still saves an image, which --record would keep: each
+    #       adjust case also needs the line of each fix saying it did what it should.
+    case "$mode" in
+        image-adjust)
+            input="$images/knight-drift.png"
+            expect=("align: .*, aligned$" "color: .*, matched$");;
+        image-adjust-night)
+            input="$images/knight-night.png"
+            expect=("align: .*, aligned$" "color: .*, left as is$");;
+    esac
 
     start="$(now)"
 
@@ -284,9 +297,17 @@ run_turbo()
         image-upscale)
             bash "$turbo/image-upscale.sh" "$engine" $renderer "$images/knight-small.png" \
                  "$output" $scale none $seed -1 ${offload:-offloader};;
+        image-adjust*)
+            bash "$turbo/image-adjust.sh" "$input" "$images/knight-small.png" "$output" \
+                 align,color;;
     esac 2>&1 | stamp > "$log" || return 1
 
     end="$(now)"
+
+    for line in "${expect[@]}"; do
+
+        grep -q "$line" "$log" || return 1
+    done
 
     awk -v start=$start -v end=$end '
         $2 == "model" && $3 == "ready" { ready = $1 }
@@ -488,7 +509,7 @@ judge()
         fi
     fi
 
-    report "$(printf "%-5s %-38s %-14s %8ss  load %6s encode %6s decode %6s  %s" $side $engine \
+    report "$(printf "%-5s %-38s %-18s %8ss  load %6s encode %6s decode %6s  %s" $side $engine \
               $mode ${best[1]} ${best[4]} ${best[5]} ${best[7]} "$result")"
 }
 

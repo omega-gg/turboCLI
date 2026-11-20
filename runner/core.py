@@ -584,22 +584,20 @@ def generate(params, emit, should_stop=None):
 
     image_list = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
 
-    # NOTE: An image-to-image result can be aligned on one of its inputs, see runner/align.py. The
-    #       option is checked before a model loads for it.
-    align_index = 0
+    # NOTE: An image-to-image result can be adjusted on its first input, the picture it edits
+    #       (align, color), see engine/adjust.py. The options are checked before a model loads.
+    steps = []
 
     if mode == "image-to-image":
         from .engine._options import parse_options
+        from .engine.adjust import parse
 
-        value = parse_options(params.get("options", "")).get("align")
+        try:
+            steps = parse(parse_options(params.get("options", "")))
+        except ValueError as error:
+            emit("ERROR: %s" % error)
 
-        if value is not None:
-            if not value.isdigit() or not 1 <= int(value) <= len(image_list):
-                emit("ERROR: align=%s names no input image (1 to %d)" % (value, len(image_list)))
-
-                return False
-
-            align_index = int(value)
+            return False
 
     offload = params["offload"]
 
@@ -827,17 +825,18 @@ def generate(params, emit, should_stop=None):
         if mode == "image-upscale":
             image = keep_alpha(image, source)
 
-        # NOTE: The step never costs the render: whatever goes wrong, the image is saved as it
-        #       came.
-        if align_index:
-            try:
-                from . import align
+        # NOTE: A step never costs the render: whatever goes wrong, the image is saved as the
+        #       steps before left it.
+        if steps:
+            from .engine.adjust import step
 
-                image = align.run(image, prompt_images[align_index - 1], emit)
+        for name, limit in steps:
+            try:
+                image = step(name, image, prompt_images[0], limit, emit)
             except Exception:
                 log(traceback.format_exc())
 
-                emit("align: failed, left as is")
+                emit("%s: failed, left as is" % name)
 
         # NOTE: ComfyUI's SaveImage compression level. Still lossless; level 6 (PIL's default)
         #       costs ~0.4 s more at 1024² for a few percent of file size. Other formats ignore

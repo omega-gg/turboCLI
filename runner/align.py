@@ -45,9 +45,10 @@ MIN_TILES = 16
 #       come out of a few tiles.
 MIN_SIDE = 4
 
-# NOTE: Past this the zoom was asked for, "zoom out" or a camera that moves, and stays. An engine
-#       drifts by less: Qwen-Image 2.1 by under 3% on the bench.
-MAX_ZOOM = 0.03
+# NOTE: Past this, in percent, the zoom was asked for, "zoom out" or a camera that moves, and
+#       stays. An engine drifts by less: Qwen-Image 2.1 by under 3% on the bench. The default of
+#       align alone, align=<percent> gives another.
+MAX_ZOOM = 3.0
 
 # NOTE: Under this at the corners, in output pixels, the warp would soften about as much as it
 #       moves.
@@ -168,8 +169,11 @@ def _offset(reference, result):
     return float(np.median(np.hypot(shifts[:, 0], shifts[:, 1])))
 
 
-def run(image, reference, emit):
-    """The result aligned on the reference, or as it was, with one line saying which."""
+def run(image, reference, emit, limit=None):
+    """The result aligned on the reference, or as it was, with one line saying which. A zoom over
+    limit percent (MAX_ZOOM by default) was asked for and stays."""
+    limit = limit or MAX_ZOOM
+
     if image.mode not in ("RGB", "RGBA", "L", "LA"):
         emit("align: skipped, %s images are not aligned" % image.mode)
 
@@ -218,8 +222,8 @@ def run(image, reference, emit):
 
     text = "align: zoom %+.2f%% x %+.2f%%" % ((zoom_x - 1) * 100, (zoom_y - 1) * 100)
 
-    if max(abs(zoom_x - 1), abs(zoom_y - 1)) > MAX_ZOOM:
-        emit(text + ", over %d%%, left as is" % round(MAX_ZOOM * 100))
+    if max(abs(zoom_x - 1), abs(zoom_y - 1)) * 100 > limit:
+        emit(text + ", over %g%%, left as is" % limit)
 
         return image
 
