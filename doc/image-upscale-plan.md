@@ -149,6 +149,10 @@ three repeats. With `test/run.sh --warmup` turbo's first step is the faster (3.1
 3.20 s), and cold against cold, each side alone in a fresh container, its sampling too (7.20 s
 against 7.51 s).
 
+The L40S references hold the four upscale engines at 1024 and 2048 (`--record --warmup
+--repeat 2`), against ComfyUI: comfy-esrgan -57% at both, the comfy Z-Image upscale -9% and -1%.
+At 4096, measured but not recorded, -53% and +0%.
+
 Every output is
 736x1024 RGB, within 1.5 levels of the original's mean, the L40S's 59 dB (ESRGAN) and 39.4 dB
 (Z-Image) from the laptop's. `comfy-z-image-turbo` text-to-image stays byte identical on the L40S
