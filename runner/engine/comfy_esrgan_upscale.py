@@ -32,6 +32,8 @@ from . import esrgan_upscale as base  # cheap: no torch at top level
 ID    = "comfy-esrgan-upscale"
 MODES = base.MODES
 
+UPSCALE = base.UPSCALE
+
 run     = base.run
 weights = base.weights
 

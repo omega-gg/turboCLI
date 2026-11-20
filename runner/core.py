@@ -690,8 +690,9 @@ def generate(params, emit, should_stop=None):
 
     kwargs.update(width=int(params["width"]), height=int(params["height"]))
 
-    # NOTE: The first input as the pipeline takes it, which the steps adjust the result against.
-    reference = None
+    # NOTE: The first input as the pipeline takes it, which the steps adjust the result against,
+    #       and its alpha, which an upscaler's result takes back.
+    reference = alpha = None
 
     if mode == "image-to-image":
         from PIL import Image
@@ -702,7 +703,13 @@ def generate(params, emit, should_stop=None):
         for ip in image_list:
             emit("loading input: %s" % ip)
 
-            prompt_images.append(Image.open(ip).convert("RGB"))
+            source = Image.open(ip)
+
+            if not prompt_images and getattr(mod, "UPSCALE", False) \
+                    and "A" in source.getbands():
+                alpha = source.getchannel("A")
+
+            prompt_images.append(source.convert("RGB"))
 
         kwargs["image"] = prompt_images
 
@@ -832,7 +839,12 @@ def generate(params, emit, should_stop=None):
 
             return False
 
-        return _save(result.images[0], params, steps, emit, reference)
+        image = result.images[0]
+
+        if alpha is not None:
+            image.putalpha(alpha.resize(image.size, Image.Resampling.LANCZOS))
+
+        return _save(image, params, steps, emit, reference)
     finally:
         # Housekeeping (return torch's retained allocator pool), on every path but only once the
         # result is out: it costs ~0.2 s the client need not wait for.

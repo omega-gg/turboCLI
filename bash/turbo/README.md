@@ -50,6 +50,8 @@ engine: flux2-4b
         mask-inspyrenet          (InSPyReNet matte model)
         esrgan-upscale           (Real-ESRGAN x4plus upscale model)
         comfy-esrgan-upscale
+        comfy-seedvr2-3b-upscale (SeedVR2 3B, ComfyUI's files)
+        comfy-seedvr2-7b-upscale (SeedVR2 7B, ComfyUI's files)
 
 renderer: cpu, cuda, mps
 
@@ -221,6 +223,8 @@ engine: flux2-4b
         qwen-image-edit-2511-lightning-angles
         esrgan-upscale                  upscalers: the first input to the output size
         comfy-esrgan-upscale
+        comfy-seedvr2-3b-upscale
+        comfy-seedvr2-7b-upscale
 
 renderer: cpu, cuda, mps
 

@@ -38,6 +38,8 @@ from . import _comfy  # cheap: no torch at top level
 ID    = "esrgan-upscale"
 MODES = ("image-to-image",)
 
+UPSCALE = True
+
 MODEL = {"kind": "url", "model": "RealESRGAN", "revision": "v0.1.0",
          "file": "RealESRGAN_x4plus.pth",
          "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/"

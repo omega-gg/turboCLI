@@ -153,6 +153,8 @@ if [ $# -lt 2 -o $# -gt 8 ] \
     echo "        mask-inspyrenet          (InSPyReNet matte model)"
     echo "        esrgan-upscale           (Real-ESRGAN x4plus upscale model)"
     echo "        comfy-esrgan-upscale"
+    echo "        comfy-seedvr2-3b-upscale (SeedVR2 3B, ComfyUI's files)"
+    echo "        comfy-seedvr2-7b-upscale (SeedVR2 7B, ComfyUI's files)"
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""

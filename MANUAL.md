@@ -202,13 +202,16 @@ height you give:
 
 ```sh
 sh image-to-image.sh esrgan-upscale cuda photo.png big.png none 2048 1536
+sh image-to-image.sh comfy-seedvr2-3b-upscale cuda photo.png big.png none 2048 1536
 ```
 
 `esrgan-upscale` sharpens what is there and is done in seconds; `comfy-esrgan-upscale` is the same
-on ComfyUI's file. They take no prompt (`none`). Give a size of the input's shape, the input is
-stretched to it otherwise. The other arguments and the `align` and `color` options are those of any
-image to image run. A transparent input keeps its alpha. `check-model.sh MODES:image-to-image`
-marks the upscalers `upscaler`.
+on ComfyUI's file. `comfy-seedvr2-3b-upscale` and `comfy-seedvr2-7b-upscale` run SeedVR2, a
+diffusion model that redraws the picture sharp at the output size in a single step, from ComfyUI's
+files and on the offloader; the 7B gives more detail and needs more memory. They take no prompt
+(`none`). Give a size of the input's shape, the input is stretched to it otherwise. The other
+arguments and the `align` and `color` options are those of any image to image run. A transparent
+input keeps its alpha. `check-model.sh MODES:image-to-image` marks the upscalers `upscaler`.
 
 ## Adjusting an existing image
 

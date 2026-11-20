@@ -15,8 +15,9 @@ modes it has: text to image (a fox in a snowy forest), image to image (an edit o
 [old/knight.png](old/knight.png), an upscaler enlarging
 [old/knight-small.png](old/knight-small.png), 368x512, to the size's height: x2 at 1024, x4 at
 2048, x8 at 4096, x2 at least) and image to mask (the `mask` engine on
-[old/chest.png](old/chest.png) against [old/courtyard.png](old/courtyard.png), the matte engines
-on the knight). `esrgan-upscale` has no steps: like a mask, its time is shown, not judged.
+[old/chest.png](old/chest.png) against [old/courtyard.png](old/courtyard.png), the matte engines on
+the knight). The ESRGAN upscalers have no steps: like a mask, their time is shown, not judged;
+SeedVR2's one step is.
 
 The `adjust` engine (`image-adjust.sh align,color`, register it with `install.sh adjust cpu`)
 has two cases against [old/knight-small.png](old/knight-small.png): `image-adjust` on

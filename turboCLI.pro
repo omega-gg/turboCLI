@@ -35,6 +35,7 @@ OTHER_FILES += README.md  \
                doc/minimax-h3-image-plan.md \
                doc/moss-image-plan.md \
                doc/reinstall-prune-plan.md \
+               doc/seedvr2-plan.md \
                doc/test-suite-plan.md \
                doc/upscalers-plan.md \
                test/README.md \
@@ -79,6 +80,8 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/comfy_qwen_image_2_1_turbo.py \
                runner/engine/comfy_qwen_image_edit_2511.py \
                runner/engine/comfy_qwen_image_edit_2511_lightning.py \
+               runner/engine/comfy_seedvr2_3b_upscale.py \
+               runner/engine/comfy_seedvr2_7b_upscale.py \
                runner/engine/comfy_z_image_turbo.py \
                runner/engine/esrgan_upscale.py \
                runner/engine/flux2_4b.py \

@@ -48,8 +48,8 @@ from runner.install import _discover, _engine_installed, _read_engine, _under, d
 
 
 def _upscaler(mod):
-    """An engine that enlarges its first input: one with weights(), see engine/__init__.py."""
-    return hasattr(mod, "weights")
+    """An engine that enlarges its first input: one declaring UPSCALE, see engine/__init__.py."""
+    return getattr(mod, "UPSCALE", False)
 
 
 def main():

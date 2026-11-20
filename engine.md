@@ -83,3 +83,5 @@ Image-to-image engines that make their first input as big as the output size.
 |---|---|---|---|---|
 | `esrgan-upscale` | Real-ESRGAN x4plus: sharp and fast, adds no detail the source lacks; no prompt | 0.07 GB | | |
 | `comfy-esrgan-upscale` | Real-ESRGAN x4plus from ComfyUI's file | 0.07 GB | | |
+| `comfy-seedvr2-3b-upscale` | SeedVR2 3B in int8, a one-step diffusion restorer: redraws the detail at the output size; no prompt | 4.0 GB | 1 | offloader |
+| `comfy-seedvr2-7b-upscale` | SeedVR2 7B in int8, the same with more detail | 8.8 GB | 1 | offloader |

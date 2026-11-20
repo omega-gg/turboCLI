@@ -123,6 +123,26 @@ def esrgan(engine, f, prompt, seed, width, height, image):
     }
 
 
+def seedvr2(engine, f, prompt, seed, width, height, image):
+    # utility_seedvr2_{3b,7b}_int8_upscale_image.json at the output size: ImageScale's lanczos in
+    # place of the template's scale by multiplier, no color correction, the alpha left out
+    tiled = {"tile_size": 512, "overlap": 128, "temporal_size": 4096, "temporal_overlap": 8}
+    return {
+        "1": ("UNETLoader", {"unet_name": f["transformer"], "weight_dtype": "default"}),
+        "3": ("VAELoader", {"vae_name": f["vae"]}),
+        "13": ("LoadImage", {"image": image}),
+        "14": ("ImageScale", {"image": ["13", 0], "upscale_method": "lanczos", "width": width,
+                              "height": height, "crop": "disabled"}),
+        "15": ("SeedVR2Preprocess", {"resized_images": ["14", 0]}),
+        "16": ("VAEEncodeTiled", dict(tiled, pixels=["15", 0], vae=["3", 0])),
+        "17": ("SeedVR2Conditioning", {"model": ["1", 0], "vae_conditioning": ["16", 0]}),
+        "8": ksampler(seed, 1, ["1", 0], ["17", 0], ["17", 1], ["16", 0]),
+        "11": ("VAEDecodeTiled", dict(tiled, samples=["8", 0], vae=["3", 0])),
+        "12": ("SeedVR2PostProcessing", {"images": ["11", 0], "original_resized_images": ["14", 0],
+                                         "color_correction_method": "none"}),
+    }
+
+
 def krea2(engine, f, prompt, seed, width, height, image):
     # image_krea2_turbo_t2i.json
     return dict(loaders(f, "krea2"), **{
@@ -273,6 +293,8 @@ GRAPHS = {
     ("comfy-flux3-6b", "text-to-image"): flux3,
     ("comfy-z-image-turbo", "text-to-image"): z_image,
     ("comfy-esrgan-upscale", "image-to-image"): esrgan,
+    ("comfy-seedvr2-3b-upscale", "image-to-image"): seedvr2,
+    ("comfy-seedvr2-7b-upscale", "image-to-image"): seedvr2,
     ("comfy-krea2-turbo", "text-to-image"): krea2,
     ("comfy-krea2-turbo-edit-identity", "image-to-image"): krea2_edit,
     ("comfy-krea2-turbo-edit-general", "image-to-image"): krea2_edit,

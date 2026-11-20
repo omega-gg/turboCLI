@@ -40,6 +40,6 @@
 # builds on). What several engines share lives in an underscore module, which discovery skips:
 # _comfy.py (the comfy engines' record and VAEs), _segment.py, _mask.py, _apply.py.
 #
-# UPSCALERS: image-to-image engines that enlarge their first input to the output size, compute
-# engines (esrgan-upscale) exposing weights(model_dir), their model file. That symbol makes an
-# engine an upscaler, which check --modes tags so a host can tell.
+# UPSCALERS: image-to-image engines that enlarge their first input to the output size, declaring
+# UPSCALE, which check --modes tags so a host can tell: compute engines (esrgan-upscale) or
+# diffusion ones (comfy-seedvr2-3b-upscale), whose first input core keeps the alpha of.

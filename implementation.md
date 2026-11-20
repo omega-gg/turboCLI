@@ -294,7 +294,8 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `extra_key(params)` | extra tuple folded into the pipe cache key (core.py:297-301) |
 | `load(ctx, params)` | full custom loader, bypasses `_default_load` |
 | `run(ctx, params, emit)` | **compute engine**: owns generation, returns a PIL image; short-circuits before the offload ladder / pipeline (core.py:537-549) — mask / matte / apply engines |
-| `weights(model_dir)` | an upscaler compute engine's model file (`esrgan-upscale`, `comfy-esrgan-upscale`), for its `run()`; it makes the engine an upscaler (`check --modes` tags it) |
+| `weights(model_dir)` | an upscaler compute engine's model file (`esrgan-upscale`, `comfy-esrgan-upscale`), for its `run()` |
+| `UPSCALE` | `True` on an upscaler (image-to-image to the output size, from its first input): `check --modes` tags it, and on the diffusion path core puts its first input's alpha back on the result |
 
 **Inheritance** (`engine/_inherit.py`, design in `doc/engine-inheritance-plan.md`): a variant
 declares `BASE = "<base id>"` and writes only its delta. `resolve()` folds each BASE chain once
@@ -370,6 +371,7 @@ answer is derivable.
 | `mask` | **compute engine** (declares `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box mask (options `mode=default\|region`); register-only install; options `cutoff=N` (0-255), `glow=N` (pixels, `default` only: the mask grows by about N, graded, which covers the outline a removal leaves where `region` would have boxed the whole footprint. It does not replace `region`, see `doc/mask-glow-plan.md`) and `fade=<l>:<t>:<r>:<b>` (pixels per border, either mode: the borders of a crop ramp to 0 over that many pixels, never more than a quarter of a side, since a grown box fills a crop to its edge, or a change runs off it, and the caller pads it back into a seam. 0 keeps a border hard and the caller owns the distance, see `doc/mask-fade-plan.md`). Both are off unless sent |
 | `mask-birefnet` / `mask-lucida` / `mask-inspyrenet` | compute matte engines, mode `image-to-mask`; MODEL `kind` snapshot (birefnet/lucida) or url (inspyrenet); `mask-lucida` BASE = `mask-birefnet`; optional plate keeps the cast shadow; options `cutoff=N` (shadow floor) |
 | `esrgan-upscale` / `comfy-esrgan-upscale` | compute upscalers, mode `image-to-image` on the first input (`esrgan_upscale.py`): spandrel loads Real-ESRGAN x4plus (url xinntao release `v0.1.0` / one COMFY component, no scaffold), the model stays resident (one, keyed by file and device), runs fp16 `channels_last` on a GPU (54 dB from fp32, 3.3x faster on an A1000) in 512 tiles overlapping by 32 with ramp blending (halved on out of memory down to 128: ComfyUI's numbers), then lanczos to the output size. An alpha channel follows at the same size |
+| `comfy-seedvr2-3b-upscale` / `comfy-seedvr2-7b-upscale` | ComfyUI's SeedVR2 template (`utility_seedvr2_{3b,7b}_int8_upscale_image`) on Comfy-Org's int8 ConvRot transformer and fp16 VAE, ComfyUI's own models on the offloader (its `seedvr2` model, `comfy_vae` tiled at 512/128, `comfy_sampler` euler/simple at ×1000): the first input resized to the output size (lanczos), zero padded to the 16 grid, VAEEncodeTiled, the latent and a ones mask as the condition, one Euler step from seeded noise with the stored positive embedding (no text encoder, `load_pipe_comfy(..., None, ...)`), VAEDecodeTiled, cropped back; the 7B inherits the 3B with its own file. Against ComfyUI on the L40S: -3% (3B), -5% (7B) (`doc/seedvr2-plan.md`) |
 | `mask-apply` | compute engine, mode `image-apply-mask`; applies a mask via `composite` or `putalpha`, or trims an image down to what shows via `trim`; register-only; options `mode=composite\|putalpha\|trim`, `pad=N` and `speck=N` for `trim` |
 | `adjust` | compute engine, mode `image-adjust` (`image-adjust.sh`); the align and color steps of image-to-image on an existing image, images `base,reference`, options `align[=<percent>]` and/or `color[=<levels>]` (the key alone for the default limit), align first; register-only; also holds the steps' `parse` and `step`, which `core.generate` imports |
 
@@ -430,7 +432,8 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
    a CPU generator regardless of renderer, for device-independent determinism.
 4. **image-to-image** (core.py:638-651): lazy PIL import; each input image goes to the
    pipeline as it is, which sizes it its own way (Qwen and Flux2 to ~1 MP, Flux3 only past
-   4096²).
+   4096²). An upscaler (`UPSCALE`) has its first input's alpha put back on its result,
+   resized by lanczos, as ESRGAN's run and ComfyUI's SeedVR2 template do.
 5. **Progress** (core.py:661-725): diffusers' tqdm bar is kept fully alive but rendered into a
    sink ("a disabled bar computes no stats"), and `progress_bar` is hooked per generation: a
    heartbeat `  0%|step 0/N (00:00)` at bar creation (real loop start, after text-encoding, so

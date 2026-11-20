@@ -149,6 +149,8 @@ if [ $# -lt 4 -o $# -gt 14 ] \
     echo "        qwen-image-edit-2511-lightning-angles"
     echo "        esrgan-upscale                  upscalers: the first input to the output size"
     echo "        comfy-esrgan-upscale"
+    echo "        comfy-seedvr2-3b-upscale"
+    echo "        comfy-seedvr2-7b-upscale"
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""
