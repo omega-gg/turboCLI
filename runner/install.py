@@ -763,7 +763,7 @@ def _install(args):
             pipe = PipelineCls.from_pretrained(
                 base_repo,
                 revision=revision or None,
-                torch_dtype=getattr(torch, dtype),
+                torch_dtype=getattr(torch, args.dtype),
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
             )
