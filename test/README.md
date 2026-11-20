@@ -30,6 +30,15 @@ like a mask, its time is shown, not judged.
 | `--comfy <dir>` | also run the comfy engines through the ComfyUI in `<dir>` |
 | `--comfy-only <dir>` | run the comfy engines through that ComfyUI alone, no turbo |
 
+## Lint before a commit
+
+The suite only meets the code paths its cases take. `python -m pyflakes runner test`
+(`pip install pyflakes`) reads them all, and catches an undefined name a revert or a move leaves
+behind before a user does: a reverted variable broke the explicit-dtype install
+(`install.sh <engine> cuda bfloat16`) until pyflakes named it. Run it on every change, a revert
+too. It prints one known false positive, `core.py`'s `pipe` (`release_pipe` deletes the global,
+then resets it); anything else is to fix.
+
 ## Record, update, check
 
 Images are only byte-identical on the same machine and software stack, so each machine has its
