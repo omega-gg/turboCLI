@@ -26,6 +26,8 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
+prompt="none"
+
 width="512"
 
 height="512"
@@ -113,14 +115,14 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 5 -o $# -gt 14 ] \
+if [ $# -lt 4 -o $# -gt 14 ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ] \
    || \
    [ $# -ge 11 -a "${11}" != "none" -a "${11}" != "slice" ]; then
 
-    echo "Usage: image-to-image <engine> <renderer> <prompt> <input images> <output image>"
-    echo "                      [width = $width] [height = $height]"
+    echo "Usage: image-to-image <engine> <renderer> <input images> <output image>"
+    echo "                      [prompt = $prompt] [width = $width] [height = $height]"
     echo "                      [seed = $seed] [inference = $inference]"
     echo "                      [offload = $offload] [slicing = $slicing]"
     echo "                      [loras = $loras]"
@@ -145,10 +147,16 @@ if [ $# -lt 5 -o $# -gt 14 ] \
     echo "        qwen-image-edit-2511"
     echo "        qwen-image-edit-2511-lightning"
     echo "        qwen-image-edit-2511-lightning-angles"
+    echo "        esrgan-upscale                  upscalers: the first input to the output size"
+    echo "        comfy-esrgan-upscale"
+    echo "        z-image-turbo-upscale"
+    echo "        comfy-z-image-turbo-upscale"
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""
     echo "input images: separated by a comma, 4 maximum"
+    echo ""
+    echo "prompt: what to draw, none for an empty one (an upscaler's is an optional hint)"
     echo ""
     echo "offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)"
     echo ""
@@ -165,10 +173,11 @@ if [ $# -lt 5 -o $# -gt 14 ] \
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    image-to-image flux2-4b cpu  \"knight in armor\" shield.png,helmet.png output.png"
-    echo "    image-to-image flux2-4b cuda \"knight in armor\" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none \"\" 8080"
-    echo "    image-to-image comfy-qwen-image-2-1-turbo cuda \"make it night\" frame.png output.png 1024 768 -1 -1 offloader none none align"
-    echo "    image-to-image comfy-minimax-h3-image cuda \"clean and crisp\" frame.png output.png 4096 2304 -1 -1 offloader none none align,color"
+    echo "    image-to-image flux2-4b cpu  shield.png,helmet.png output.png \"knight in armor\""
+    echo "    image-to-image flux2-4b cuda shield.png,helmet.png output.png \"knight in armor\" 512 512 -1 -1 offloader none none \"\" 8080"
+    echo "    image-to-image comfy-qwen-image-2-1-turbo cuda frame.png output.png \"make it night\" 1024 768 -1 -1 offloader none none align"
+    echo "    image-to-image comfy-minimax-h3-image cuda frame.png output.png \"clean and crisp\" 4096 2304 -1 -1 offloader none none align,color"
+    echo "    image-to-image esrgan-upscale cuda photo.png big.png none 2048 1536"
 
     exit 1
 fi
@@ -186,6 +195,8 @@ python="${SKY_PATH_PYTHON:-$sky/python}"
 engine="$1"
 
 renderer="$2"
+
+if [ $# -ge 5 ]; then prompt="$5"; fi
 
 if [ $# -ge 6 ]; then width="$6"; fi
 
@@ -205,6 +216,8 @@ if [ $# -ge 13 ]; then options="${13}"; fi
 
 if [ $# -ge 14 ]; then server="${14}"; fi
 
+if [ "$prompt" = "none" ]; then prompt=""; fi
+
 host=$(getOs)
 
 if [ $host = "win32" -o $host = "win64" ]; then
@@ -214,7 +227,7 @@ else
     os="default"
 fi
 
-path=$(getPath "$5")
+path=$(getPath "$4")
 
 #--------------------------------------------------------------------------------------------------
 # Images
@@ -226,7 +239,7 @@ temp=$IFS
 
 IFS="$separator"
 
-for p in $4; do
+for p in $3; do
 
     image=$(getPath "$p")
 
@@ -288,7 +301,7 @@ if [ -n "$server" ]; then
     curl -sS -N --max-time "3600" \
                 --data-urlencode "engine=$engine" \
                 --data-urlencode "mode=image-to-image" \
-                --data-urlencode "prompt=$3" \
+                --data-urlencode "prompt=$prompt" \
                 --data-urlencode "images=$images" \
                 --data-urlencode "output=$path" \
                 --data-urlencode "width=$width" \
@@ -357,12 +370,12 @@ fi
 # Run
 #--------------------------------------------------------------------------------------------------
 
-# NOTE: The prompt is passed via argv (--prompt="$3"), so arbitrary text reaches Python untouched;
-#       the equals form keeps a prompt that starts with '-' from being read as a flag.
+# NOTE: The prompt is passed via argv (--prompt="$prompt"), so arbitrary text reaches Python
+#       untouched; the equals form keeps a prompt that starts with '-' from being read as a flag.
 python -m runner.cli \
        --engine "$engine" \
        --mode "image-to-image" \
-       --prompt="$3" \
+       --prompt="$prompt" \
        --images "$images" \
        --output "$path" \
        --width "$width" \

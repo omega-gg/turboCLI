@@ -85,7 +85,7 @@ script keeps working.
 image-adjust <base image> <reference image> <output image> <fixes> [server]
 fixes: align, color, or align,color
 ```
-The images first and the output third, as image-upscale and image-to-mask take them; what to do
+The images first and the output third, as image-to-mask takes them; what to do
 after, where the other scripts take their options; the server last.
 `<fixes>` checked word by word (`case`), turned into `align=1,color=1`; sent as engine `adjust`,
 mode `image-adjust`, `images=base,reference`, renderer `cpu`, offload `none`, to the CLI or to a
@@ -216,3 +216,13 @@ loop (`ENGINES:${mode%-night}`) rather than inside an awk; `adjust._limit` reads
 for what is not a number, so one `not limit > 0` refuses both); `color.run` checks that enough
 pixels are left before every fit, the last one too. The bench decisions and the suite's
 (new, recorded, same, each fix forced off) came out as before.
+
+## Revised: the upscalers
+
+The upscalers are image-to-image engines (`doc/upscalers-plan.md`), so `align` and `color` reach
+them like any edit. `esrgan-upscale` is a compute engine, so the steps are parsed before the
+compute shortcut and `_save` runs them, then saves, for the compute and the diffusion paths alike;
+the reference is the first input as the pipeline decoded it, or read again for a compute engine. An
+upscale rarely moves: on the suite's 8 upscale results align always left it as is (0.3 s at 1 MP,
+1.2 s at 12 MP), color took back 1.4 to 2.1 levels (97 to 142 ms), a real move (a lanczos x2
+measures 0.2) that brings the result closer to its input.

@@ -20,16 +20,16 @@
 #
 #==================================================================================================
 
-# comfy-esrgan engine: the esrgan engine on ComfyUI's Real-ESRGAN x4plus file, reused from (or
-# downloaded into) ComfyUI's models/upscale_models. esrgan's run, whose weights() reads this
-# engine's engine.json.
+# comfy-esrgan-upscale engine: the esrgan-upscale engine on ComfyUI's Real-ESRGAN x4plus file,
+# reused from (or downloaded into) ComfyUI's models/upscale_models. esrgan-upscale's run, whose
+# weights() reads this engine's engine.json.
 #
 # Install (runner.install --comfy <ComfyUI dir>): one COMFY component, no scaffold (spandrel reads
 # the file as is).
 
-from . import esrgan as base  # cheap: no torch at top level
+from . import esrgan_upscale as base  # cheap: no torch at top level
 
-ID    = "comfy-esrgan"
+ID    = "comfy-esrgan-upscale"
 MODES = base.MODES
 
 run     = base.run

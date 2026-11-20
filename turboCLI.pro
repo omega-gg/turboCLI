@@ -36,6 +36,7 @@ OTHER_FILES += README.md  \
                doc/moss-image-plan.md \
                doc/reinstall-prune-plan.md \
                doc/test-suite-plan.md \
+               doc/upscalers-plan.md \
                test/README.md \
                test/run.sh \
                test/comfy.py \
@@ -63,7 +64,9 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/_mask.py \
                runner/engine/_options.py \
                runner/engine/_segment.py \
+               runner/engine/_upscale.py \
                runner/engine/adjust.py \
+               runner/engine/comfy_esrgan_upscale.py \
                runner/engine/comfy_flux2_4b.py \
                runner/engine/comfy_flux2_9b.py \
                runner/engine/comfy_flux2_9b_distilled.py \
@@ -78,6 +81,8 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/comfy_qwen_image_edit_2511.py \
                runner/engine/comfy_qwen_image_edit_2511_lightning.py \
                runner/engine/comfy_z_image_turbo.py \
+               runner/engine/comfy_z_image_turbo_upscale.py \
+               runner/engine/esrgan_upscale.py \
                runner/engine/flux2_4b.py \
                runner/engine/flux2_9b.py \
                runner/engine/flux3_6b.py \
@@ -92,3 +97,4 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/qwen_image_edit_2511_lightning.py \
                runner/engine/qwen_image_edit_2511_lightning_angles.py \
                runner/engine/z_image_turbo.py \
+               runner/engine/z_image_turbo_upscale.py \

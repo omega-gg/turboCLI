@@ -542,6 +542,38 @@ def _collect(device):
     last_collect = time.perf_counter()
 
 
+def _save(image, params, steps, emit, reference=None):
+    """Run the adjust steps against the first input, then save the image. Returns True, what
+    generate() answers for a saved image. `reference` is that input when the caller has it
+    decoded already; a compute engine reads its inputs itself, so it is read here then."""
+    if steps:
+        from .engine.adjust import step
+
+        if reference is None:
+            from PIL import Image
+
+            reference = Image.open(params["images"].split(",")[0].strip()).convert("RGB")
+
+    # NOTE: A step never costs the render: whatever goes wrong, the image is saved as the steps
+    #       before left it.
+    for name, limit in steps:
+        try:
+            image = step(name, image, reference, limit, emit)
+        except Exception:
+            log(traceback.format_exc())
+
+            emit("%s: failed, left as is" % name)
+
+    # NOTE: ComfyUI's SaveImage compression level. Still lossless; level 6 (PIL's default) costs
+    #       ~0.4 s more at 1024² for a few percent of file size. Other formats ignore it.
+    image.save(params["output"], compress_level=4)
+
+    # NOTE: Send "Saved:" so the client gets the result as early as possible.
+    emit("Saved: " + params["output"])
+
+    return True
+
+
 def generate(params, emit, should_stop=None):
     """Run one generation. Returns True if an image was saved, False otherwise (validation error,
     cancelled, or superseded). Unexpected errors propagate to the caller (cli/server wraps them).
@@ -568,24 +600,9 @@ def generate(params, emit, should_stop=None):
 
         return False
 
-    # A "compute" engine (mask / matte / apply) owns its own generation: no diffusion pipeline and
-    # no offloader. It reads inputs from `images`, a scalar from `options`, and returns the
-    # finished PIL image. Short-circuit here -- before the offload ladder and get_pipe -- so the
-    # resident diffusion pipe is untouched and none of the pipe machinery (progress bar) runs.
-    if hasattr(mod, "run"):
-        ctx = Ctx(params["renderer"], "none", None, resolve_model(mod, params), [])
-
-        image = mod.run(ctx, params, emit)
-        image.save(params["output"], compress_level=4)
-
-        emit("Saved: " + params["output"])
-
-        return True
-
-    image_list = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
-
     # NOTE: An image-to-image result can be adjusted on its first input, the picture it edits
-    #       (align, color), see engine/adjust.py. The options are checked before a model loads.
+    #       (align, color), see engine/adjust.py. The options are checked before anything loads,
+    #       a compute engine's model included (esrgan-upscale).
     steps = []
 
     if mode == "image-to-image":
@@ -598,6 +615,18 @@ def generate(params, emit, should_stop=None):
             emit("ERROR: %s" % error)
 
             return False
+
+    # A "compute" engine (mask / matte / apply / esrgan-upscale) owns its own generation: no
+    # diffusion pipeline and no offloader. It reads inputs from `images`, a scalar from `options`,
+    # and returns the finished PIL image. Short-circuit here -- before the offload ladder and
+    # get_pipe -- so the resident diffusion pipe is untouched and none of the pipe machinery
+    # (progress bar) runs.
+    if hasattr(mod, "run"):
+        ctx = Ctx(params["renderer"], "none", None, resolve_model(mod, params), [])
+
+        return _save(mod.run(ctx, params, emit), params, steps, emit)
+
+    image_list = [s.strip() for s in params.get("images", "").split(",") if s.strip()]
 
     offload = params["offload"]
 
@@ -659,18 +688,25 @@ def generate(params, emit, should_stop=None):
     cfg_name, cfg_value = mod.CFG
     kwargs[cfg_name] = by_mode(cfg_value, mode)
 
-    if mode == "image-upscale":
+    kwargs.update(width=int(params["width"]), height=int(params["height"]))
+
+    # NOTE: The first input as the pipeline takes it, which the steps adjust the result against.
+    reference = None
+
+    if hasattr(mod, "UPSCALER"):
         from PIL import Image
 
-        from .engine._upscale import esrgan, keep_alpha, upscale_size
+        from .engine._upscale import esrgan, keep_alpha
 
         emit("loading input: %s" % image_list[0])
 
         source = Image.open(image_list[0])
 
-        # The UPSCALER engine brings the input to the target size (on the latent grid), then the
-        # img2img pass redraws the detail. The strength cuts the steps asked to `inference`.
-        size     = upscale_size(source, float(params.get("scale", 2.0)), 16)
+        reference = source.convert("RGB")
+
+        # The UPSCALER engine brings the first input to the output size on the latent grid, then
+        # the img2img pass redraws the detail. The strength cuts the steps asked to `inference`.
+        size     = tuple(max(16, round(kwargs[side] / 16) * 16) for side in ("width", "height"))
         upscaler = ENGINES[mod.UPSCALER]
         weights  = upscaler.weights(resolve_model(upscaler, params))
 
@@ -678,11 +714,9 @@ def generate(params, emit, should_stop=None):
 
         kwargs.update(prompt=prompt, width=size[0], height=size[1], strength=mod.STRENGTH,
                       num_inference_steps=int(inference / mod.STRENGTH),
-                      image=esrgan(source.convert("RGB"), size, params["renderer"], weights, emit))
-    else:
-        kwargs.update(width=int(params["width"]), height=int(params["height"]))
+                      image=esrgan(reference, size, params["renderer"], weights, emit))
 
-    if mode == "image-to-image":
+    elif mode == "image-to-image":
         from PIL import Image
 
         # NOTE: The images go as they are, each pipeline sizes them its own way.
@@ -694,6 +728,8 @@ def generate(params, emit, should_stop=None):
             prompt_images.append(Image.open(ip).convert("RGB"))
 
         kwargs["image"] = prompt_images
+
+        reference = prompt_images[0]
 
     # Returns None to keep going, or why we should stop: "cancel" / "supersede".
     def stop_reason():
@@ -822,31 +858,10 @@ def generate(params, emit, should_stop=None):
         image = result.images[0]
 
         # An upscale keeps the input's alpha channel, as the esrgan engines do.
-        if mode == "image-upscale":
+        if hasattr(mod, "UPSCALER"):
             image = keep_alpha(image, source)
 
-        # NOTE: A step never costs the render: whatever goes wrong, the image is saved as the
-        #       steps before left it.
-        if steps:
-            from .engine.adjust import step
-
-        for name, limit in steps:
-            try:
-                image = step(name, image, prompt_images[0], limit, emit)
-            except Exception:
-                log(traceback.format_exc())
-
-                emit("%s: failed, left as is" % name)
-
-        # NOTE: ComfyUI's SaveImage compression level. Still lossless; level 6 (PIL's default)
-        #       costs ~0.4 s more at 1024² for a few percent of file size. Other formats ignore
-        #       it.
-        image.save(params["output"], compress_level=4)
-
-        # NOTE: Send "Saved:" so the client gets the result as early as possible.
-        emit("Saved: " + params["output"])
-
-        return True
+        return _save(image, params, steps, emit, reference)
     finally:
         # Housekeeping (return torch's retained allocator pool), on every path but only once the
         # result is out: it costs ~0.2 s the client need not wait for.

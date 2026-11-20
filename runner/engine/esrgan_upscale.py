@@ -20,9 +20,9 @@
 #
 #==================================================================================================
 
-# esrgan engine: upscale an image by `scale` with Real-ESRGAN x4plus. A "compute" engine (core's
-# run() seam, no diffusion, no offloader); the model runs at its native x4 in tiles, then lanczos
-# brings it to the asked size (see _upscale.py). No prompt.
+# esrgan-upscale engine: image-to-image that upscales its first input to the output size with
+# Real-ESRGAN x4plus. A "compute" engine (core's run() seam, no diffusion, no offloader); the model
+# runs at its native x4 in tiles, then lanczos brings it to the size (see _upscale.py). No prompt.
 #
 # Install (python -m runner.install): kind "url" -> the checkpoint (a GitHub release asset) into
 # model/RealESRGAN/RealESRGAN_x4plus.pth. revision is the release tag, not an HF commit.
@@ -31,8 +31,8 @@ import os
 
 from . import _comfy  # cheap: no torch at top level
 
-ID    = "esrgan"
-MODES = ("image-upscale",)
+ID    = "esrgan-upscale"
+MODES = ("image-to-image",)
 
 MODEL = {"kind": "url", "model": "RealESRGAN", "revision": "v0.1.0",
          "file": "RealESRGAN_x4plus.pth",
@@ -41,8 +41,8 @@ MODEL = {"kind": "url", "model": "RealESRGAN", "revision": "v0.1.0",
 
 
 def weights(model_dir):
-    """The model file: the checkpoint in model_dir, or for comfy-esrgan, whose model_dir is its
-    registry entry, the ComfyUI file its engine.json names."""
+    """The model file: the checkpoint in model_dir, or for comfy-esrgan-upscale, whose model_dir is
+    its registry entry, the ComfyUI file its engine.json names."""
     if os.path.isfile(os.path.join(model_dir, "engine.json")):
         return _comfy.by_role(model_dir)["upscaler"]
 

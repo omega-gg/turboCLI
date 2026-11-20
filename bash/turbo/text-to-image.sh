@@ -26,6 +26,8 @@ set -e
 # Settings
 #--------------------------------------------------------------------------------------------------
 
+prompt="none"
+
 width="512"
 
 height="512"
@@ -111,14 +113,14 @@ getPath()
 # Syntax
 #--------------------------------------------------------------------------------------------------
 
-if [ $# -lt 4 -o $# -gt 12 ] \
+if [ $# -lt 3 -o $# -gt 12 ] \
    || \
    [ "$2" != "cpu" -a "$2" != "cuda" -a "$2" != "mps" ] \
    || \
    [ $# -ge 10 -a "${10}" != "none" -a "${10}" != "slice" ]; then
 
-    echo "Usage: text-to-image <engine> <renderer> <prompt> <output image>"
-    echo "                     [width = $width] [height = $height]"
+    echo "Usage: text-to-image <engine> <renderer> <output image>"
+    echo "                     [prompt = $prompt] [width = $width] [height = $height]"
     echo "                     [seed = $seed] [inference = $inference]"
     echo "                     [offload = $offload] [slicing = $slicing]"
     echo "                     [loras = $loras]"
@@ -143,6 +145,8 @@ if [ $# -lt 4 -o $# -gt 12 ] \
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""
+    echo "prompt: what to draw, none for an empty one"
+    echo ""
     echo "offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)"
     echo ""
     echo "slicing: none, slice"
@@ -152,8 +156,8 @@ if [ $# -lt 4 -o $# -gt 12 ] \
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
-    echo "    text-to-image flux2-4b cpu  \"knight in armor\" output.png"
-    echo "    text-to-image flux2-4b cuda \"knight in armor\" output.png 512 512 -1 -1 offloader none none 8080"
+    echo "    text-to-image flux2-4b cpu  output.png \"knight in armor\""
+    echo "    text-to-image flux2-4b cuda output.png \"knight in armor\" 512 512 -1 -1 offloader none none 8080"
 
     exit 1
 fi
@@ -172,6 +176,8 @@ engine="$1"
 
 renderer="$2"
 
+if [ $# -ge 4 ]; then prompt="$4"; fi
+
 if [ $# -ge 5 ]; then width="$5"; fi
 
 if [ $# -ge 6 ]; then height="$6"; fi
@@ -188,6 +194,8 @@ if [ $# -ge 11 ]; then loras="${11}"; fi
 
 if [ $# -ge 12 ]; then server="${12}"; fi
 
+if [ "$prompt" = "none" ]; then prompt=""; fi
+
 host=$(getOs)
 
 if [ $host = "win32" -o $host = "win64" ]; then
@@ -197,7 +205,7 @@ else
     os="default"
 fi
 
-path=$(getPath "$4")
+path=$(getPath "$3")
 
 #--------------------------------------------------------------------------------------------------
 # LoRAs
@@ -252,7 +260,7 @@ if [ -n "$server" ]; then
     curl -sS -N --max-time "3600" \
                 --data-urlencode "engine=$engine" \
                 --data-urlencode "mode=text-to-image" \
-                --data-urlencode "prompt=$3" \
+                --data-urlencode "prompt=$prompt" \
                 --data-urlencode "output=$path" \
                 --data-urlencode "width=$width" \
                 --data-urlencode "height=$height" \
@@ -319,12 +327,12 @@ fi
 # Run
 #--------------------------------------------------------------------------------------------------
 
-# NOTE: The prompt is passed via argv (--prompt="$3"), so arbitrary text reaches Python untouched;
-#       the equals form keeps a prompt that starts with '-' from being read as a flag.
+# NOTE: The prompt is passed via argv (--prompt="$prompt"), so arbitrary text reaches Python
+#       untouched; the equals form keeps a prompt that starts with '-' from being read as a flag.
 python -m runner.cli \
        --engine "$engine" \
        --mode "text-to-image" \
-       --prompt="$3" \
+       --prompt="$prompt" \
        --output "$path" \
        --width "$width" \
        --height "$height" \

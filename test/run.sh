@@ -142,8 +142,8 @@ width="${size%x*}"
 
 height="${size#*x}"
 
-# image-upscale: old/knight-small.png (368x512) to the size's height, x2 at least (x2 at 1024, x4
-# at 2048, x8 at 4096), the same image as the other modes' at each size.
+# An upscaler's image-to-image case: old/knight-small.png (368x512) to the size's height, x2 at
+# least (x2 at 1024, x4 at 2048, x8 at 4096), the same image as the other modes' at each size.
 scale=$(( height / 512 > 2 ? height / 512 : 2 ))
 
 upscaled="$(( 368 * scale ))x$(( 512 * scale ))"
@@ -237,8 +237,7 @@ wait_cool()
 # image-adjust-night is a second case of image-adjust's engines: a night, whose colors stay.
 turbo_cases()
 {
-    for mode in text-to-image image-to-image image-to-mask image-upscale image-adjust \
-                image-adjust-night; do
+    for mode in text-to-image image-to-image image-to-mask image-adjust image-adjust-night; do
 
         bash "$turbo/check-model.sh" ENGINES:${mode%-night} | tr -d '\r' \
             | awk -v m=$mode '$2 == "installed" { print $1, m }'
@@ -265,11 +264,19 @@ comfy_has()
 # image, not at the process's exit, as ComfyUI's ends when it returns the image.
 run_turbo()
 {
-    local engine="$1" mode="$2" output="$3" log="$4" input start end expect=()
+    local engine="$1" mode="$2" output="$3" log="$4" input prompt="$edit" target=$size start end \
+          expect=()
 
     # NOTE: A fix that stops working still saves an image, which --record would keep: each
     #       adjust case also needs the line of each fix saying it did what it should.
     case "$mode" in
+        image-to-image)
+            input="$images/knight.png"
+
+            # NOTE: An upscaler enlarges the small knight, with no prompt, rather than edit it.
+            case "$engine" in
+                *-upscale) input="$images/knight-small.png" prompt=none target=$upscaled;;
+            esac;;
         image-adjust)
             input="$images/knight-drift.png"
             expect=("align: .*, aligned$" "color: .*, matched$");;
@@ -282,11 +289,11 @@ run_turbo()
 
     case "$mode" in
         text-to-image)
-            bash "$turbo/text-to-image.sh" "$engine" $renderer "$fox" "$output" \
+            bash "$turbo/text-to-image.sh" "$engine" $renderer "$output" "$fox" \
                  $width $height $seed -1 ${offload:-offloader};;
         image-to-image)
-            bash "$turbo/image-to-image.sh" "$engine" $renderer "$edit" "$images/knight.png" \
-                 "$output" $width $height $seed -1 ${offload:-offloader};;
+            bash "$turbo/image-to-image.sh" "$engine" $renderer "$input" "$output" "$prompt" \
+                 ${target%x*} ${target#*x} $seed -1 ${offload:-offloader};;
         image-to-mask)
             if [ "$engine" = "mask" ]; then
                 input="$images/chest.png,$images/courtyard.png"
@@ -294,9 +301,6 @@ run_turbo()
                 input="$images/knight.png"
             fi
             bash "$turbo/image-to-mask.sh" "$engine" $renderer "$input" "$output";;
-        image-upscale)
-            bash "$turbo/image-upscale.sh" "$engine" $renderer "$images/knight-small.png" \
-                 "$output" $scale none $seed -1 ${offload:-offloader};;
         image-adjust*)
             bash "$turbo/image-adjust.sh" "$input" "$images/knight-small.png" "$output" \
                  align,color;;
@@ -330,11 +334,12 @@ run_comfy()
     local engine="$1" mode="$2" output="$3" log="$4" prompt="$fox" input="-" target=$size flag="" \
           server start end status
 
-    if [ "$mode" = "image-to-image" ]; then prompt="$edit" input="$images/knight.png"; fi
+    if [ "$mode" = "image-to-image" ]; then
 
-    if [ "$mode" = "image-upscale" ]; then
-
-        prompt="" input="$images/knight-small.png" target=$upscaled
+        case "$engine" in
+            *-upscale) prompt="" input="$images/knight-small.png" target=$upscaled;;
+            *)         prompt="$edit" input="$images/knight.png";;
+        esac
     fi
 
     if [ "$renderer" = "cpu" ]; then flag="--cpu"; fi

@@ -13,7 +13,7 @@ them) once — the only step that needs the internet — and from then on you ge
 offline, on a plain CPU, an NVIDIA GPU (CUDA) or an Apple GPU (MPS):
 
 ```
-sh text-to-image.sh z-image-turbo cuda "a beautiful knight" out.png
+sh text-to-image.sh z-image-turbo cuda out.png "a beautiful knight"
 ```
 
 It is designed for embedding in client applications: fast cold and warm starts, one simple wire

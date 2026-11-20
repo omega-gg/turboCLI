@@ -26,7 +26,8 @@
 #
 #   python -m runner.check --engine <name>   # check one engine
 #   python -m runner.check                   # list installed engine ids
-#   python -m runner.check --modes <a,b>     # list installed engine ids supporting any listed mode
+#   python -m runner.check --modes <a,b>     # list installed engine ids supporting any listed
+#                                            # mode, an upscaler's followed by `upscaler`
 #   python -m runner.check --engines <mode>  # every engine of a mode, installed or absent,
 #                                            # and gated when it needs a token
 #   python -m runner.check --settings <name> # the run settings that install recorded, and the
@@ -46,6 +47,12 @@ from runner.install import _discover, _engine_installed, _read_engine, _under, d
                            settings
 
 
+def _upscaler(mod):
+    """An engine that enlarges its first input: one with weights() or an UPSCALER, see
+    engine/__init__.py."""
+    return hasattr(mod, "UPSCALER") or hasattr(mod, "weights")
+
+
 def main():
     parser = argparse.ArgumentParser(prog="runner.check")
 
@@ -61,7 +68,8 @@ def main():
     # --modes: print the installed engines supporting ANY of the listed modes (comma separated), so
     # a caller can ask "what can I use for text-to-image?" without hardcoding a list -- a multi-mode
     # query unions the categories rather than intersecting them. MODES is a contract symbol a
-    # variant inherits, and _discover folds BASE first, so variants answer too.
+    # variant inherits, and _discover folds BASE first, so variants answer too. An upscaler adds
+    # `upscaler`, so a host sends it the input at its own size rather than at the output's.
     if args.modes is not None:
         wanted = [m.strip() for m in args.modes.split(",") if m.strip()]
 
@@ -69,7 +77,7 @@ def main():
             mod = engines[eid]
 
             if _engine_installed(mod) and any(m in mod.MODES for m in wanted):
-                print(eid)
+                print("%s%s" % (eid, " upscaler" if _upscaler(mod) else ""))
 
         sys.exit(0)
 

@@ -20,24 +20,19 @@
 #
 #==================================================================================================
 
-# Model upscale for the image-upscale mode: the esrgan engines' run() and the ESRGAN pass of the
-# Z-Image upscale engines. A helper (underscore name) so engine discovery skips it. Top level is
-# torch free; torch and spandrel load inside the functions.
+# Model upscale for the upscalers: the esrgan engines' run() and the ESRGAN pass of the Z-Image
+# upscale engines. A helper (underscore name) so engine discovery skips it. Top level is torch
+# free; torch and spandrel load inside the functions.
 #
 # The model runs at its native scale in overlapping tiles blended by a linear ramp, then lanczos
-# brings the result to the asked size. Tile numbers are ComfyUI's ImageUpscaleWithModel: 512 with
-# a 32 overlap. On out of memory the result moves to the cpu (as ComfyUI keeps it), then the tile
-# halves, down to 128.
+# brings the result to the output size. Tile numbers are ComfyUI's ImageUpscaleWithModel: 512
+# with a 32 overlap. On out of memory the result moves to the cpu (as ComfyUI keeps it), then the
+# tile halves, down to 128.
 
 TILE, OVERLAP, TILE_MIN = 512, 32, 128
 
 # The last loaded model, (file, device, descriptor): a warm call pays no load (67 MB).
 _resident = None
-
-
-def upscale_size(image, scale, grid=1):
-    """The size `image` takes at `scale`, each side rounded to a multiple of `grid`."""
-    return tuple(max(grid, round(side * scale / grid) * grid) for side in image.size)
 
 
 def keep_alpha(result, source):
@@ -193,11 +188,11 @@ def esrgan(image, size, renderer, file, emit):
 
 
 def run(ctx, params, emit, file):
-    """The esrgan engines' run(): upscale the first input by `scale`, alpha included."""
+    """The esrgan engines' run(): upscale the first input to the output size, alpha included."""
     from PIL import Image
 
     path  = [s.strip() for s in params.get("images", "").split(",") if s.strip()][0]
     image = Image.open(path)
-    size  = upscale_size(image, float(params.get("scale", 2.0)))
+    size  = (int(params["width"]), int(params["height"]))
 
     return keep_alpha(esrgan(image.convert("RGB"), size, ctx.renderer, file, emit), image)

@@ -20,11 +20,11 @@
 #
 #==================================================================================================
 
-# z-image-turbo-upscale engine: ComfyUI's Z-Image Turbo upscale blueprint on the z-image-turbo
-# weights. The esrgan engine (UPSCALER) brings the input to `scale` on the 16 grid, then a short
-# img2img pass redraws the detail: strength 0.33, 5 steps, ComfyUI's "masterpiece, 8k" when no
-# prompt is given. The blueprint's 1 MP prescale is left out, `scale` sets the size. Core's
-# default load and its image-upscale branch cover it.
+# z-image-turbo-upscale engine: image-to-image as ComfyUI's Z-Image Turbo upscale blueprint, on the
+# z-image-turbo weights. The esrgan-upscale engine (UPSCALER) brings the first input to the output
+# size on the 16 grid, then a short img2img pass redraws the detail: strength 0.33, 5 steps,
+# ComfyUI's "masterpiece, 8k" when no prompt is given. The blueprint's 1 MP prescale is left out,
+# the output size is the size. Core's default load and its upscaler branch cover it.
 
 from . import z_image_turbo as base  # cheap: no torch at top level
 
@@ -33,11 +33,11 @@ BASE = base.ID
 
 PIPELINE = "diffusers:ZImageImg2ImgPipeline"
 
-MODES = ("image-upscale",)
+MODES = ("image-to-image",)
 
 INFERENCE = 5     # the steps that run: core asks INFERENCE / STRENGTH and the strength cuts it
 STRENGTH  = 0.33
 PROMPT    = "masterpiece, 8k"
 
 # Installed first, required by check, run by core before the img2img pass.
-UPSCALER = "esrgan"
+UPSCALER = "esrgan-upscale"

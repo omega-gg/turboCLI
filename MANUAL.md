@@ -88,12 +88,12 @@ can share theirs. It never deletes the files of a real ComfyUI install.
 ## Generating an image
 
 ```sh
-sh text-to-image.sh z-image-turbo cuda "a knight in a misty forest" knight.png 1024 768
+sh text-to-image.sh z-image-turbo cuda knight.png "a knight in a misty forest" 1024 768
 ```
 
-After the engine, the renderer, the prompt and the output file come, in order: the width and the
-height (512 by default), the seed, the number of steps, the offload, the slicing, the LoRAs and a
-server, see [bash/turbo/README.md](bash/turbo/README.md).
+After the engine, the renderer and the output file come, in order: the prompt (`none` for an
+empty one), the width and the height (512 by default), the seed, the number of steps, the
+offload, the slicing, the LoRAs and a server, see [bash/turbo/README.md](bash/turbo/README.md).
 A seed of `-1` picks a new one each time; the same seed, prompt and settings give the same image
 again. Steps at `-1` are the engine's own count, the one [engine.md](engine.md) gives.
 
@@ -109,10 +109,10 @@ What turboCLI prints tells you where it is:
 | `ERROR: ...` | What went wrong. No image is written. |
 
 **Image to image.** An edit takes up to four reference images, separated by a comma, before the
-output file:
+output file, and the prompt after it:
 
 ```sh
-sh image-to-image.sh flux2-4b cuda "make it night" photo.png night.png 1024 1024
+sh image-to-image.sh flux2-4b cuda photo.png night.png "make it night" 1024 1024
 ```
 
 The output has the width and the height you give. References keep their shape and are sized by
@@ -126,7 +126,7 @@ after the LoRAs, measures that against the first input image, the picture being 
 undoes it:
 
 ```sh
-sh image-to-image.sh comfy-qwen-image-2-1-turbo cuda "make it night" frame.png night.png \
+sh image-to-image.sh comfy-qwen-image-2-1-turbo cuda frame.png night.png "make it night" \
                      1024 768 -1 -1 offloader none none align
 ```
 
@@ -146,7 +146,7 @@ left as is; `color=24` moves that limit to 24. It runs after `align` when both a
 strength after an `@`, several separated by a comma; a missing strength is 1.
 
 ```sh
-sh text-to-image.sh comfy-krea2-turbo cuda "a portrait" out.png 1024 1024 -1 -1 offloader none \
+sh text-to-image.sh comfy-krea2-turbo cuda out.png "a portrait" 1024 1024 -1 -1 offloader none \
                     style.safetensors@0.8
 ```
 
@@ -197,19 +197,21 @@ model. [test/old/README.md](test/old/README.md) has longer recipes, with the ima
 
 ## Upscaling an image
 
-`image-upscale.sh` makes an image bigger by a factor, the same on both sides:
+An upscaler is an image-to-image engine that makes its first input as big as the width and the
+height you give:
 
 ```sh
-sh image-upscale.sh esrgan cuda photo.png big.png 2.0
-sh image-upscale.sh z-image-turbo-upscale cuda photo.png big.png 2.0 "a red fox in the snow"
+sh image-to-image.sh esrgan-upscale cuda photo.png big.png none 2048 1536
+sh image-to-image.sh z-image-turbo-upscale cuda photo.png big.png "a red fox in the snow" 2048 1536
 ```
 
-`esrgan` sharpens what is there and is done in seconds. `z-image-turbo-upscale` runs `esrgan`, then
-a short Z-Image-Turbo pass that redraws the fine detail. Its prompt is optional: without one it
-draws "masterpiece, 8k", and a short description of the picture helps on faces, text and
-textures. After the prompt come the seed, the steps, the offload, the slicing, the LoRAs and a
-server, as for `image-to-image.sh`. A transparent input keeps its alpha. Installing
-`z-image-turbo-upscale` installs `esrgan` too.
+`esrgan-upscale` sharpens what is there and is done in seconds. `z-image-turbo-upscale` runs
+`esrgan-upscale`, then a short Z-Image-Turbo pass that redraws the fine detail. Its prompt is
+optional: with `none` it draws "masterpiece, 8k", and a short description of the picture helps
+on faces, text and textures. Give a size of the input's shape, the input is stretched to it
+otherwise. The other arguments and the `align` and `color` options are those of any image to
+image run. A transparent input keeps its alpha. Installing `z-image-turbo-upscale` installs
+`esrgan-upscale` too. `check-model.sh MODES:image-to-image` marks the upscalers `upscaler`.
 
 ## Adjusting an existing image
 
@@ -234,7 +236,7 @@ server keeps the model loaded between images, so only the first one pays for it:
 
 ```sh
 sh server.sh start
-sh text-to-image.sh z-image-turbo cuda "a cat" cat.png 1024 768 -1 -1 offloader none none 8080
+sh text-to-image.sh z-image-turbo cuda cat.png "a cat" 1024 768 -1 -1 offloader none none 8080
 ```
 
 Give any generating script the server's port, or `host:port`, as its last argument and it runs

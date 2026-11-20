@@ -48,10 +48,10 @@ engine: flux2-4b
         mask-birefnet            (BiRefNet matte model)
         mask-lucida              (Lucida matte model)
         mask-inspyrenet          (InSPyReNet matte model)
-        esrgan                   (Real-ESRGAN x4plus upscale model)
-        comfy-esrgan
-        z-image-turbo-upscale    (installs esrgan too)
-        comfy-z-image-turbo-upscale (installs comfy-esrgan too)
+        esrgan-upscale           (Real-ESRGAN x4plus upscale model)
+        comfy-esrgan-upscale
+        z-image-turbo-upscale    (installs esrgan-upscale too)
+        comfy-z-image-turbo-upscale (installs comfy-esrgan-upscale too)
 
 renderer: cpu, cuda, mps
 
@@ -113,12 +113,13 @@ no argument (or 'list'): list the installed engine id(s)
 
 engine: an installed id, reports whether it is installed
 
-MODES: list the installed engine id(s) supporting ANY of the listed modes
+MODES: list the installed engine id(s) supporting ANY of the listed modes, an
+       upscaler's followed by 'upscaler'
        (text-to-image, image-to-image)
 
 ENGINES: every engine supporting the mode, with 'installed' or 'absent', and 'gated'
          when its download needs a Hugging Face token
-         (text-to-image, image-to-image, image-to-mask, image-upscale, image-adjust)
+         (text-to-image, image-to-image, image-to-mask, image-adjust)
 
 SETTINGS: the run settings an engine was installed with, one 'key: value' per line
           (renderer, dtype, inference, offload, slicing), and 'comfy: <folder>'
@@ -150,8 +151,8 @@ examples:
 ### [text-to-image.sh](text-to-image.sh) - Generate an image from a text prompt
 
 ```
-Usage: text-to-image <engine> <renderer> <prompt> <output image>
-                     [width = 512] [height = 512]
+Usage: text-to-image <engine> <renderer> <output image>
+                     [prompt = none] [width = 512] [height = 512]
                      [seed = -1] [inference = -1]
                      [offload = offloader] [slicing = none]
                      [loras = none]
@@ -176,6 +177,8 @@ engine: flux2-4b
 
 renderer: cpu, cuda, mps
 
+prompt: what to draw, none for an empty one
+
 offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
 
 slicing: none, slice
@@ -185,15 +188,15 @@ loras: none, comma separated <path>@[weight]
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    text-to-image flux2-4b cpu  "knight in armor" output.png
-    text-to-image flux2-4b cuda "knight in armor" output.png 512 512 -1 4 offloader none none 8080
+    text-to-image flux2-4b cpu  output.png "knight in armor"
+    text-to-image flux2-4b cuda output.png "knight in armor" 512 512 -1 -1 offloader none none 8080
 ```
 
 ### [image-to-image.sh](image-to-image.sh) - Generate an image from a text prompt and reference images
 
 ```
-Usage: image-to-image <engine> <renderer> <prompt> <input images> <output image>
-                      [width = 512] [height = 512]
+Usage: image-to-image <engine> <renderer> <input images> <output image>
+                      [prompt = none] [width = 512] [height = 512]
                       [seed = -1] [inference = -1]
                       [offload = offloader] [slicing = none]
                       [loras = none]
@@ -218,10 +221,16 @@ engine: flux2-4b
         qwen-image-edit-2511
         qwen-image-edit-2511-lightning
         qwen-image-edit-2511-lightning-angles
+        esrgan-upscale                  upscalers: the first input to the output size
+        comfy-esrgan-upscale
+        z-image-turbo-upscale
+        comfy-z-image-turbo-upscale
 
 renderer: cpu, cuda, mps
 
 input images: separated by a comma, 4 maximum
+
+prompt: what to draw, none for an empty one (an upscaler's is an optional hint)
 
 offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
 
@@ -238,45 +247,11 @@ options: key=value,... both fixes below work against the first input image:
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
-    image-to-image flux2-4b cpu  "knight in armor" shield.png,helmet.png output.png
-    image-to-image flux2-4b cuda "knight in armor" shield.png,helmet.png output.png 512 512 -1 -1 offloader none none "" 8080
-    image-to-image comfy-qwen-image-2-1-turbo cuda "make it night" frame.png output.png 1024 768 -1 -1 offloader none none align
-    image-to-image comfy-minimax-h3-image cuda "clean and crisp" frame.png output.png 4096 2304 -1 -1 offloader none none align,color
-```
-
-### [image-upscale.sh](image-upscale.sh) - Upscale an image by a factor
-
-```
-Usage: image-upscale <engine> <renderer> <input image> <output image>
-                     [scale = 2.0] [prompt = none]
-                     [seed = -1] [inference = -1]
-                     [offload = offloader] [slicing = none]
-                     [loras = none]
-                     [server]
-
-engine: esrgan                      Real-ESRGAN x4plus (no prompt)
-        comfy-esrgan                Real-ESRGAN x4plus from ComfyUI's file
-        z-image-turbo-upscale       esrgan, then a Z-Image Turbo img2img pass
-        comfy-z-image-turbo-upscale the same from ComfyUI's files
-
-renderer: cpu, cuda, mps
-
-scale: the factor applied to both sides (1.5, 2.0, ...)
-
-prompt: what the Z-Image pass draws, "masterpiece, 8k" when none (esrgan ignores it)
-
-offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
-
-slicing: none, slice
-
-loras: none, comma separated <path>@[weight]
-
-server: host:port (or port for 127.0.0.1) of a rendering server
-
-examples:
-    image-upscale esrgan                cuda photo.png big.png 1.5
-    image-upscale z-image-turbo-upscale cuda photo.png big.png 2.0 "a red fox"
-    image-upscale z-image-turbo-upscale cuda photo.png big.png 2.0 none -1 -1 offloader none none 8080
+    image-to-image flux2-4b cpu  shield.png,helmet.png output.png "knight in armor"
+    image-to-image flux2-4b cuda shield.png,helmet.png output.png "knight in armor" 512 512 -1 -1 offloader none none "" 8080
+    image-to-image comfy-qwen-image-2-1-turbo cuda frame.png output.png "make it night" 1024 768 -1 -1 offloader none none align
+    image-to-image comfy-minimax-h3-image cuda frame.png output.png "clean and crisp" 4096 2304 -1 -1 offloader none none align,color
+    image-to-image esrgan-upscale cuda photo.png big.png none 2048 1536
 ```
 
 ### [image-to-mask.sh](image-to-mask.sh) - Generate a mask / matte

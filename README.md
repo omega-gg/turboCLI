@@ -69,7 +69,7 @@ sh build.sh cpu
 
 sh install.sh z-image-turbo
 
-sh text-to-image.sh z-image-turbo cpu "a beautiful knight" out.png
+sh text-to-image.sh z-image-turbo cpu out.png "a beautiful knight"
 ```
 
 ### CUDA
@@ -87,7 +87,7 @@ sh build.sh cuda
 # CUDA prefers bfloat16
 sh install.sh z-image-turbo bfloat16
 
-sh text-to-image.sh z-image-turbo cuda "a beautiful knight" out.png
+sh text-to-image.sh z-image-turbo cuda out.png "a beautiful knight"
 ```
 
 ### Apple MPS
@@ -105,7 +105,7 @@ sh build.sh mps
 # MPS prefers float16 (bfloat16 support is patchy)
 sh install.sh z-image-turbo float16
 
-sh text-to-image.sh z-image-turbo mps "a beautiful knight" out.png
+sh text-to-image.sh z-image-turbo mps out.png "a beautiful knight"
 ```
 
 ## Sample engine
