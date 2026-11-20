@@ -38,10 +38,8 @@
 #
 # HELPERS: an engine imports one engine at most, its BASE (or the stock sibling a comfy engine
 # builds on). What several engines share lives in an underscore module, which discovery skips:
-# _comfy.py (the comfy engines' record and VAEs), _upscale.py, _segment.py, _mask.py, _apply.py.
+# _comfy.py (the comfy engines' record and VAEs), _segment.py, _mask.py, _apply.py.
 #
-# UPSCALERS: image-to-image engines that enlarge their first input to the output size. A compute
-# engine (esrgan-upscale) exposes weights(model_dir), its model file. A diffusion engine
-# (z-image-turbo-upscale) names that engine in UPSCALER (installed first, run by core before its
-# img2img pass) and declares STRENGTH (img2img strength) and PROMPT (used when none is given).
-# Either symbol makes an engine an upscaler, which check --modes tags so a host can tell.
+# UPSCALERS: image-to-image engines that enlarge their first input to the output size, compute
+# engines (esrgan-upscale) exposing weights(model_dir), their model file. That symbol makes an
+# engine an upscaler, which check --modes tags so a host can tell.

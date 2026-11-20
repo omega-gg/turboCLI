@@ -47,16 +47,8 @@ def declaration(engine):
 
 
 def files(engine):
-    """{role: path relative to ComfyUI's models/}, its UPSCALER's included. A COMFY the engine
-    inherits is read from its BASE."""
-    module = found = declaration(engine)
-    while not hasattr(found, "COMFY"):
-        found = declaration(found.BASE)
-
-    paths = {c["role"]: c["path"] for c in found.COMFY["components"]}
-    if hasattr(module, "UPSCALER"):
-        paths.update(files(module.UPSCALER))
-    return paths
+    """{role: path relative to ComfyUI's models/}."""
+    return {c["role"]: c["path"] for c in declaration(engine).COMFY["components"]}
 
 
 # Each graph builder takes (engine, files, prompt, seed, width, height, image) and returns
@@ -73,23 +65,10 @@ def loaders(f, clip_type):
 
 
 def ksampler(seed, steps, model, positive, negative, latent, cfg=1.0, sampler="euler",
-             scheduler="simple", denoise=1.0):
+             scheduler="simple"):
     return ("KSampler", {"seed": seed, "steps": steps, "cfg": cfg, "sampler_name": sampler,
-                         "scheduler": scheduler, "denoise": denoise, "model": model,
+                         "scheduler": scheduler, "denoise": 1.0, "model": model,
                          "positive": positive, "negative": negative, "latent_image": latent})
-
-
-def upscaled(f, image, width, height, node):
-    """Upscale Image (using Model) on `image`, lanczos to the output size; nodes `node` to
-    `node` + 3, the last one the image."""
-    n = [str(node + i) for i in range(4)]
-    return {
-        n[0]: ("UpscaleModelLoader", {"model_name": f["upscaler"]}),
-        n[1]: ("LoadImage", {"image": image}),
-        n[2]: ("ImageUpscaleWithModel", {"upscale_model": [n[0], 0], "image": [n[1], 0]}),
-        n[3]: ("ImageScale", {"image": [n[2], 0], "upscale_method": "lanczos", "width": width,
-                              "height": height, "crop": "disabled"}),
-    }
 
 
 def flux2(engine, f, prompt, seed, width, height, image):
@@ -134,24 +113,14 @@ def z_image(engine, f, prompt, seed, width, height, image):
 
 
 def esrgan(engine, f, prompt, seed, width, height, image):
-    # the model upscale of Image Upscale(Z-image-Turbo).json, to the output size
-    return upscaled(f, image, width, height, 9)
-
-
-def z_image_upscale(engine, f, prompt, seed, width, height, image):
-    # Image Upscale(Z-image-Turbo).json at the output size (no 1 MP prescale), euler in place of
-    # dpmpp_2m_sde and simple in place of beta (diffusers' scheduler's sampler), as z_image
-    module = declaration(engine)
-
-    return dict(loaders(f, "lumina2"), **upscaled(f, image, width, height, 13), **{
-        "4": ("ModelSamplingAuraFlow", {"model": ["1", 0], "shift": 3.0}),
-        "5": ("CLIPTextEncode", {"text": prompt or module.PROMPT, "clip": ["2", 0]}),
-        "6": ("ConditioningZeroOut", {"conditioning": ["5", 0]}),
-        "7": ("VAEEncode", {"pixels": ["16", 0], "vae": ["3", 0]}),
-        "8": ksampler(seed, module.INFERENCE, ["4", 0], ["5", 0], ["6", 0], ["7", 0],
-                      denoise=module.STRENGTH),
-        "12": ("VAEDecode", {"samples": ["8", 0], "vae": ["3", 0]}),
-    })
+    # Upscale Image (using Model), lanczos to the output size
+    return {
+        "9": ("UpscaleModelLoader", {"model_name": f["upscaler"]}),
+        "10": ("LoadImage", {"image": image}),
+        "11": ("ImageUpscaleWithModel", {"upscale_model": ["9", 0], "image": ["10", 0]}),
+        "12": ("ImageScale", {"image": ["11", 0], "upscale_method": "lanczos", "width": width,
+                              "height": height, "crop": "disabled"}),
+    }
 
 
 def krea2(engine, f, prompt, seed, width, height, image):
@@ -304,7 +273,6 @@ GRAPHS = {
     ("comfy-flux3-6b", "text-to-image"): flux3,
     ("comfy-z-image-turbo", "text-to-image"): z_image,
     ("comfy-esrgan-upscale", "image-to-image"): esrgan,
-    ("comfy-z-image-turbo-upscale", "image-to-image"): z_image_upscale,
     ("comfy-krea2-turbo", "text-to-image"): krea2,
     ("comfy-krea2-turbo-edit-identity", "image-to-image"): krea2_edit,
     ("comfy-krea2-turbo-edit-general", "image-to-image"): krea2_edit,

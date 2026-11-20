@@ -143,6 +143,17 @@ turbo scripts copied into `skz` (and its stale `image-upscale.sh` deleted).
   `comfy-z-image-turbo-upscale` could not fetch its scaffold again (an SSL certificate error), the
   one already there serves.
 
+## Revised: the Z-Image upscalers removed
+
+`z-image-turbo-upscale` and `comfy-z-image-turbo-upscale` were not good enough to keep, so they go,
+with what only they used: the `UPSCALER` engine symbol and its install-first and check rules
+(`install.py`), core's img2img upscale branch and its alpha, `comfy_z_image_turbo`'s img2img
+pipeline class (`_pipeline_class(base)`, `_build`), the test graph and the L40S reference lines.
+The upscalers left are the two ESRGAN engines, and an upscaler is an engine with `weights()`. An
+upscaler takes no prompt any more; turbopixel still sends the one typed, which ESRGAN ignores.
+`_upscale.py`, a helper only so they could share the ESRGAN pass, is folded into
+`esrgan_upscale.py`.
+
 ## Carried over from the image-upscale plan
 
 `doc/image-upscale-plan.md` planned the `image-upscale` mode and script, which are gone; what it

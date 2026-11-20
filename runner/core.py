@@ -693,30 +693,7 @@ def generate(params, emit, should_stop=None):
     # NOTE: The first input as the pipeline takes it, which the steps adjust the result against.
     reference = None
 
-    if hasattr(mod, "UPSCALER"):
-        from PIL import Image
-
-        from .engine._upscale import esrgan, keep_alpha
-
-        emit("loading input: %s" % image_list[0])
-
-        source = Image.open(image_list[0])
-
-        reference = source.convert("RGB")
-
-        # The UPSCALER engine brings the first input to the output size on the latent grid, then
-        # the img2img pass redraws the detail. The strength cuts the steps asked to `inference`.
-        size     = tuple(max(16, round(kwargs[side] / 16) * 16) for side in ("width", "height"))
-        upscaler = ENGINES[mod.UPSCALER]
-        weights  = upscaler.weights(resolve_model(upscaler, params))
-
-        prompt = prompt or mod.PROMPT
-
-        kwargs.update(prompt=prompt, width=size[0], height=size[1], strength=mod.STRENGTH,
-                      num_inference_steps=int(inference / mod.STRENGTH),
-                      image=esrgan(reference, size, params["renderer"], weights, emit))
-
-    elif mode == "image-to-image":
+    if mode == "image-to-image":
         from PIL import Image
 
         # NOTE: The images go as they are, each pipeline sizes them its own way.
@@ -855,13 +832,7 @@ def generate(params, emit, should_stop=None):
 
             return False
 
-        image = result.images[0]
-
-        # An upscale keeps the input's alpha channel, as the esrgan engines do.
-        if hasattr(mod, "UPSCALER"):
-            image = keep_alpha(image, source)
-
-        return _save(image, params, steps, emit, reference)
+        return _save(result.images[0], params, steps, emit, reference)
     finally:
         # Housekeeping (return torch's retained allocator pool), on every path but only once the
         # result is out: it costs ~0.2 s the client need not wait for.

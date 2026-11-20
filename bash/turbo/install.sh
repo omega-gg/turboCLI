@@ -153,8 +153,6 @@ if [ $# -lt 2 -o $# -gt 8 ] \
     echo "        mask-inspyrenet          (InSPyReNet matte model)"
     echo "        esrgan-upscale           (Real-ESRGAN x4plus upscale model)"
     echo "        comfy-esrgan-upscale"
-    echo "        z-image-turbo-upscale    (installs esrgan-upscale too)"
-    echo "        comfy-z-image-turbo-upscale (installs comfy-esrgan-upscale too)"
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""

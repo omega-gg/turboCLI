@@ -202,16 +202,13 @@ height you give:
 
 ```sh
 sh image-to-image.sh esrgan-upscale cuda photo.png big.png none 2048 1536
-sh image-to-image.sh z-image-turbo-upscale cuda photo.png big.png "a red fox in the snow" 2048 1536
 ```
 
-`esrgan-upscale` sharpens what is there and is done in seconds. `z-image-turbo-upscale` runs
-`esrgan-upscale`, then a short Z-Image-Turbo pass that redraws the fine detail. Its prompt is
-optional: with `none` it draws "masterpiece, 8k", and a short description of the picture helps
-on faces, text and textures. Give a size of the input's shape, the input is stretched to it
-otherwise. The other arguments and the `align` and `color` options are those of any image to
-image run. A transparent input keeps its alpha. Installing `z-image-turbo-upscale` installs
-`esrgan-upscale` too. `check-model.sh MODES:image-to-image` marks the upscalers `upscaler`.
+`esrgan-upscale` sharpens what is there and is done in seconds; `comfy-esrgan-upscale` is the same
+on ComfyUI's file. They take no prompt (`none`). Give a size of the input's shape, the input is
+stretched to it otherwise. The other arguments and the `align` and `color` options are those of any
+image to image run. A transparent input keeps its alpha. `check-model.sh MODES:image-to-image`
+marks the upscalers `upscaler`.
 
 ## Adjusting an existing image
 

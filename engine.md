@@ -83,5 +83,3 @@ Image-to-image engines that make their first input as big as the output size.
 |---|---|---|---|---|
 | `esrgan-upscale` | Real-ESRGAN x4plus: sharp and fast, adds no detail the source lacks; no prompt | 0.07 GB | | |
 | `comfy-esrgan-upscale` | Real-ESRGAN x4plus from ComfyUI's file | 0.07 GB | | |
-| `z-image-turbo-upscale` | `esrgan-upscale`, then a short Z-Image-Turbo pass that redraws the fine detail (ComfyUI's upscale template); optional prompt | 20 GB | 5 | |
-| `comfy-z-image-turbo-upscale` | The same from ComfyUI's files, with `comfy-esrgan-upscale` | 21 GB | 5 | offloader |

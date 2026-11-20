@@ -60,7 +60,6 @@ import json
 import glob
 import shutil
 import argparse
-import functools
 import importlib
 
 # LoRAs install into a "lora/" subfolder of the model dir (apart from the base checkpoint files).
@@ -238,10 +237,8 @@ def _install_url(mod, name, revision, out):
     print("Done.", flush=True)
 
 
-@functools.cache
 def _discover():
-    # name -> engine module (cheap: modules hold constants only, no torch/diffusers at top). Once
-    # per process: _engine_installed reads an UPSCALER from it.
+    # name -> engine module (cheap: modules hold constants only, no torch/diffusers at top).
     engines = {}
 
     for path in sorted(glob.glob(os.path.join(os.path.dirname(__file__), "engine", "*.py"))):
@@ -292,12 +289,6 @@ def _engine_installed(mod):
     record = _read_engine(mod.ID)
 
     if record is None:
-        return False
-
-    # The UPSCALER (esrgan) runs inside this engine: without it, this one cannot run either.
-    upscaler = getattr(mod, "UPSCALER", None)
-
-    if upscaler is not None and not _engine_installed(_discover()[upscaler]):
         return False
 
     comfy = record.get("comfy")
@@ -610,12 +601,8 @@ def main():
     # contained model/ComfyUI/ layout in our model dir (see the COMFY dispatch / _install_comfy).
     parser.add_argument("--comfy", default=None)
 
-    _install(parser.parse_args())
+    args = parser.parse_args()
 
-
-def _install(args):
-    """Install (or --remove) the engine args name. An engine declaring UPSCALER installs that
-    engine first, with the same arguments."""
     global _settings
 
     _settings = {"renderer": args.renderer, "dtype": args.dtype, "inference": args.inference,
@@ -636,10 +623,6 @@ def _install(args):
     if args.remove:
         _remove(mod.ID)
         return
-
-    # The UPSCALER (esrgan) runs inside this engine. --model names this engine's model, not its.
-    if hasattr(mod, "UPSCALER"):
-        _install(argparse.Namespace(**dict(vars(args), engine=mod.UPSCALER, model=None)))
 
     # ComfyUI-reuse engines reuse a ComfyUI install's split single files: with --comfy an existing
     # install, else a self-contained model/ComfyUI/ layout. The scaffold + registry entry live in

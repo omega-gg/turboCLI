@@ -50,8 +50,6 @@ engine: flux2-4b
         mask-inspyrenet          (InSPyReNet matte model)
         esrgan-upscale           (Real-ESRGAN x4plus upscale model)
         comfy-esrgan-upscale
-        z-image-turbo-upscale    (installs esrgan-upscale too)
-        comfy-z-image-turbo-upscale (installs comfy-esrgan-upscale too)
 
 renderer: cpu, cuda, mps
 
@@ -223,14 +221,12 @@ engine: flux2-4b
         qwen-image-edit-2511-lightning-angles
         esrgan-upscale                  upscalers: the first input to the output size
         comfy-esrgan-upscale
-        z-image-turbo-upscale
-        comfy-z-image-turbo-upscale
 
 renderer: cpu, cuda, mps
 
 input images: separated by a comma, 4 maximum
 
-prompt: what to draw, none for an empty one (an upscaler's is an optional hint)
+prompt: what to draw, none for an empty one (an upscaler takes none)
 
 offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
 
