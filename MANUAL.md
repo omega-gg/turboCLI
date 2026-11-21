@@ -172,7 +172,7 @@ streaming to it every step, but much slower: `comfy-minimax-h3-hq` takes 13.7 s 
 
 | Reference | What it does |
 | --- | --- |
-| `first=frame.png`, `last=end.png` | The frames the video starts and ends on. An untagged image is a frame too, the first then the last. |
+| `first=frame.png`, `last=end.png` | The frames the video starts and ends on, one of each at most. An untagged image is a frame too, the first then the last. |
 | `image=hero.png` | A picture reference: `<Picture 1>`, `<Picture 2>`... in the prompt, in order. |
 | `audio=voice.wav` | A voice or sound reference: `<Audio 1>`... ("he says, in the voice of `<Audio 1>`"). |
 | `guide=line.wav@3.5` | An exact recording placed in the soundtrack at 3.5 seconds, the video made to match it (lip sync). |

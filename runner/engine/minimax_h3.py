@@ -76,7 +76,21 @@ def extra_key(params):
     """The workflow, which picks the transformer: the resident pipe reloads when it changes."""
     from ._options import parse_references
 
-    return (bool(parse_references(params.get("images", ""))["references"]),)
+    return (params.get("mode") == "image-to-video"
+            and bool(parse_references(params.get("images", ""))["references"]),)
+
+
+def check(params):
+    """diffusers' workflows, before anything loads: references alone (ref2va takes no frame)
+    and no audio guide."""
+    from ._options import parse_references
+
+    inputs = parse_references(params.get("images", ""))
+
+    if inputs["guide"] is not None:
+        raise ValueError("diffusers' MiniMax H3 takes no audio guide")
+    if inputs["references"] and any(inputs["frames"]):
+        raise ValueError("diffusers' MiniMax H3 pins no frame with references")
 
 
 def _pipeline_class(ref=False):
@@ -201,15 +215,12 @@ def _pipeline_class(ref=False):
             return bar
 
         @staticmethod
-        def _inputs(image, references, guide):
+        def _inputs(image, references):
             """The workflow's inputs: the references (MiniMaxH3ImageReference,
-            MiniMaxH3AudioReference), or the first and last frames."""
+            MiniMaxH3AudioReference), or the first and last frames (check() refused the
+            rest)."""
             first, last = (list(image or ()) + [None, None])[:2]
 
-            if guide is not None:
-                raise ValueError("diffusers' MiniMax H3 takes no audio guide")
-            if references and (first or last):
-                raise ValueError("diffusers' MiniMax H3 pins no frame with references")
             if references:
                 return {"references": [MiniMaxH3AudioReference.from_file(r) if isinstance(r, str)
                                        else MiniMaxH3ImageReference(image=r) for r in references]}
@@ -226,15 +237,11 @@ def _pipeline_class(ref=False):
 
         def __call__(self, prompt, image=None, height=None, width=None, duration=5.0,
                      num_inference_steps=INFERENCE, generator=None, callback_on_step_end=None,
-                     references=(), guide=None, attention=None, scheduler=None, crop=None,
-                     **_):
-            if (attention, scheduler, crop) != (None, None, None):
-                raise ValueError("minimax-h3 runs as diffusers does: no video option")
-
+                     references=(), **_):
             self._callback = callback_on_step_end
             self._step = 0
 
-            inputs = self._inputs(image, references, guide)
+            inputs = self._inputs(image, references)
             num_frames = max(5, round(duration * FPS))
 
             prompt_embeds, tags = self.encode_prompt(prompt, inputs, height, width, num_frames,
@@ -250,7 +257,9 @@ def _pipeline_class(ref=False):
                 return SimpleNamespace(videos=[], audio=None, fps=FPS)
 
             # The frames in [0, 1], to 8 bits as ComfyUI's save_to does: times 255, truncated.
-            frames = (np.asarray(out["videos"])[0] * 255).clip(0, 255).astype(np.uint8)
+            frames = np.asarray(out["videos"])[0]
+            frames = np.clip(np.multiply(frames, 255, out=frames), 0, 255, out=frames)
+            frames = frames.astype(np.uint8)
 
             audio = out["audio"][0].float().cpu().numpy()
 

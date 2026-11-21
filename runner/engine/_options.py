@@ -64,10 +64,17 @@ def parse_references(spec):
             untagged += 1
 
         if role in ("first", "last"):
+            if untagged > 2 or out["frames"][role == "last"] is not None:
+                raise ValueError("one first and one last frame at most")
             out["frames"][role == "last"] = path
         elif role == "guide":
-            path, _, at = path.rpartition("@")
-            out["guide"] = (path, float(at))
+            path, at, seconds = path.rpartition("@")
+            try:
+                out["guide"] = (path, float(seconds))
+            except ValueError:
+                at = ""
+            if not at:
+                raise ValueError("a guide is <audio>@<seconds>: %s" % item)
         else:
             out["references"].append((role, path))
 

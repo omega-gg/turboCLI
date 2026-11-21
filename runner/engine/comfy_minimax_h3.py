@@ -55,6 +55,11 @@ CFG   = ("guidance_scale", 1.0)              # BasicGuider: no CFG (the pipe ign
 
 INFERENCE = 20
 
+# The options a video takes (core checks them), each in place of the engine's for that video:
+# cuDNN SDPA first, as the experimental H3 ran ComfyUI, the scheduler, and the keyframes' fit
+# (an ImageScale with center crop before the node, or none).
+OPTIONS = {"attention": ("cudnn",), "scheduler": ("simple", "beta"), "crop": ("none", "center")}
+
 # ComfyUI's files as its templates name them, at the root of Comfy-Org's repo (no split_files/).
 COMFY = {
     "repository": "Comfy-Org/MiniMax-H3",
@@ -84,11 +89,7 @@ def frames(duration):
     return n + (5 - n % 17) % 17
 
 
-def extra_key(params):
-    """The workflow, which picks the transformer: the resident pipe reloads when it changes."""
-    from ._options import parse_references
-
-    return (bool(parse_references(params.get("images", ""))["references"]),)
+extra_key = stock.extra_key  # the workflow, which picks the transformer
 
 
 def _scale(image, width, height, crop):
@@ -252,14 +253,14 @@ def _pipeline_class(default_crop="none"):
             # process_latent_out (model_base.py:2240-2252): the audio back off the video's
             # schedule, then the pack split into its two latents.
             n = shapes[0][1:].numel()
-            latents = latents.float().clone()
+            latents = latents.float()
             latents[..., n:] *= 1.0 / self.transformer.audio_scale
             video = latents[:, :, :n].reshape(shapes[0])
             audio = latents[:, :, n:].reshape(shapes[1])
 
             # VAEDecode, then save_to's 8 bits: each [0, 1] value times 255, truncated.
             pixels = self.vae.decode(video.cpu(), return_dict=False)[0][0].movedim(0, -1)
-            pixels = (pixels * 255).clamp(0, 255).byte().numpy()
+            pixels = pixels.mul_(255).clamp_(0, 255).byte().numpy()
 
             # VAEDecodeAudio (nodes_audio.py:99-113): the waveform, its loudness capped.
             waveform = self.audio_vae.decode(audio.cpu(), return_dict=False)[0]

@@ -89,12 +89,6 @@ ENGINES = {}   # name -> engine module
 # NOTE: The modes whose result is a video (runner/video.py), the others an image.
 VIDEO_MODES = ("text-to-video", "image-to-video")
 
-# NOTE: A video's options and their values (MiniMax H3's comfy engines), each in place of the
-#       engine's: cuDNN SDPA first, as the experimental H3 ran ComfyUI, the scheduler, and the
-#       keyframes' fit (an ImageScale with center crop before the node, or none).
-VIDEO_OPTIONS = {"attention": ("cudnn",), "scheduler": ("simple", "beta"),
-                 "crop": ("none", "center")}
-
 for _path in sorted(glob.glob(os.path.join(os.path.dirname(__file__), "engine", "*.py"))):
     _file = os.path.basename(_path)
 
@@ -583,15 +577,11 @@ def _save(image, params, steps, emit, reference=None):
     return True
 
 
-def _video_inputs(spec, emit):
+def _video_inputs(references, emit):
     """image-to-video's input references (engine/_options.parse_references) as the pipeline takes
     them: the frames and the picture references opened, the audio as their paths, the guide as it
     is, a (path, seconds) pair."""
     from PIL import Image
-
-    from .engine._options import parse_references
-
-    references = parse_references(spec)
 
     def load(path, image=True):
         emit("loading input: %s" % path)
@@ -661,16 +651,30 @@ def generate(params, emit, should_stop=None):
 
             return False
 
-    video_options = {}
+    # NOTE: A video's options are the engine's (OPTIONS: each name and its values), its
+    #       references parsed and the engine's own limits checked (check), before anything
+    #       loads.
+    video_options, references = {}, None
 
     if mode in VIDEO_MODES:
-        from .engine._options import parse_options
+        from .engine._options import parse_options, parse_references
 
         video_options = parse_options(params.get("options", ""))
+        allowed = getattr(mod, "OPTIONS", {})
 
-        if any(v not in VIDEO_OPTIONS.get(k, ()) for k, v in video_options.items()):
-            emit("ERROR: a video's options are " + ", ".join(
-                "%s=%s" % (k, "|".join(v)) for k, v in VIDEO_OPTIONS.items()))
+        if any(v not in allowed.get(k, ()) for k, v in video_options.items()):
+            emit("ERROR: %s takes %s" % (engine, ", ".join(
+                "%s=%s" % (k, "|".join(v)) for k, v in allowed.items()) or "no option"))
+
+            return False
+
+        try:
+            if mode == "image-to-video":
+                references = parse_references(params.get("images", ""))
+            if hasattr(mod, "check"):
+                mod.check(params)
+        except ValueError as error:
+            emit("ERROR: %s" % error)
 
             return False
 
@@ -778,7 +782,7 @@ def generate(params, emit, should_stop=None):
         reference = prompt_images[0]
 
     elif mode == "image-to-video":
-        kwargs.update(_video_inputs(params.get("images", ""), emit))
+        kwargs.update(_video_inputs(references, emit))
 
     # Returns None to keep going, or why we should stop: "cancel" / "supersede".
     def stop_reason():

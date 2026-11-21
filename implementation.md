@@ -184,8 +184,7 @@ inside the base-reinstall branch (`install.py:561-562`).
   disk holds one copy, not cache+copy (install.py:747-760). Idempotent and selective: `base_ok`
   skips the base re-download when the registry already records the pinned revision, and only
   missing LoRAs are fetched (install.py:533-546) — installing `-lightning` over an existing base
-  pulls just the LoRA. A folder the engine's `allow_patterns` gained since (minimax-h3's
-  `transformer_ref/`) is fetched alone into the present base.
+  pulls just the LoRA.
 - **Comfy install** (`_install_comfy`, install.py:237-324): reuse each COMFY component already
   under the ComfyUI install's `models/`, `hf_hub_download` only the missing ones *into that
   tree*, fetch the tiny SCAFFOLD (configs/tokenizer/scheduler, no weights) into `engine/<id>`,
@@ -303,6 +302,8 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `weights(model_dir)` | an upscaler compute engine's model file (`esrgan-upscale`, `comfy-esrgan-upscale`), for its `run()` |
 | `UPSCALE` | `True` on an upscaler (image-to-image to the output size, from its first input): `check --modes` tags it, and on the diffusion path core puts its first input's alpha back on the result |
 | `CRF` | a video engine's H.264 quality (`runner/video.py`), 18 when it declares none, SaveVideo's default; `comfy-minimax-h3-hq` sets the experiment's 12 |
+| `OPTIONS` | a video engine's options, `{name: (values...)}`, which core checks before loading; none when it declares none |
+| `check` | `check(params)`, an engine's own limits on a request, raising ValueError before anything loads (minimax-h3: references alone, no audio guide) |
 
 **Inheritance** (`engine/_inherit.py`, design in `doc/engine-inheritance-plan.md`): a variant
 declares `BASE = "<base id>"` and writes only its delta. `resolve()` folds each BASE chain once
@@ -489,9 +490,12 @@ patches use >1 and negative, matching ComfyUI).
    `guide=<audio>@<seconds>`. `_video_inputs` opens the images and hands the pipeline
    `image=[first, last]`, `references=[image or audio path]` and `guide=(path, seconds)`; an
    engine whose references run on another transformer folds their presence into `extra_key`.
-   A video takes the options of `core.VIDEO_OPTIONS`, `attention=cudnn`,
-   `scheduler=simple|beta` and `crop=none|center` (core refuses any other), passed to the
-   pipeline by name; minimax-h3 refuses them. `scheduler` and `crop` replace the engine's for
+   A video takes the options its engine declares (`OPTIONS`, each name and its values; the
+   comfy-minimax-h3 engines' `attention=cudnn`, `scheduler=simple|beta`, `crop=none|center`,
+   minimax-h3 none), checked before anything loads with the references (a third frame or a
+   guide without its seconds refused) and the engine's own limits (`check(params)`,
+   minimax-h3's: references alone, no guide), then passed to the pipeline by name.
+   `scheduler` and `crop` replace the engine's for
    the generation (simple, or beta for comfy-minimax-h3-hq's references; none, or center for
    comfy-minimax-h3-hq's frames). `attention`: the pipes run it inside
    `MiniMaxH3.attention(kind)`, cuDNN SDPA ahead of flash and ComfyUI's priority restored after

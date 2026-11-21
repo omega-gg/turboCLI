@@ -33,8 +33,8 @@
 # are not in this set and are never copied.
 _INHERITED = (
     "TYPE", "PIPELINE", "TRANSFORMER", "MODES", "CFG", "INFERENCE",
-    "MODEL", "COMFY", "SCAFFOLD", "LORAS", "UPSCALE", "CRF",
-    "load", "loras", "extra_key", "run",
+    "MODEL", "COMFY", "SCAFFOLD", "LORAS", "UPSCALE", "CRF", "OPTIONS",
+    "load", "loras", "extra_key", "check", "run",
 )
 
 
