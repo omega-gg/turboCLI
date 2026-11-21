@@ -13,6 +13,7 @@ turboCLI is a good baseline for client based applications like [turbopixel](http
 That's the original motivation for it. However, licensing this under LGPL sounds like the right
 thing to do.
 
+- [Features](feature.md) - what turboCLI does, and when to use it or Comfy CLI
 - [Manual](MANUAL.md)
 - [Bash scripts](bash/README.md)
 - [Dummy](dummy.md) - plain-English introduction, no diffusion background required
@@ -37,6 +38,7 @@ PR(s) are welcomed
 - MOSS-Image
 - MiniMax-H3-Image
 - Masking / matting: diff & region masks, BiRefNet / Lucida / InSPyReNet mattes
+- Upscaling: Real-ESRGAN, SeedVR2
 
 See [engine.md](engine.md) for a comprehensive list of engines and their requirements.
 

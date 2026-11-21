@@ -15,7 +15,10 @@ To use turboCLI rather than read about it, see `MANUAL.md`.
 **This document is updated with each turboCLI iteration.** It details the implementation so an
 experienced developer (or an LLM) can dig into specifics quickly. For the offload backend's own
 internals read `turbo-offloader`'s `implementation.md`; its `dummy.md` explains diffusion and
-offloading in plain English.
+offloading in plain English. A change to what turboCLI offers (an engine, a capability, a new
+benchmark) updates `feature.md` too: its top features, strongest first, and when to use turboCLI
+or Comfy CLI. Each claim there is one this document or a measure backs, and ComfyUI is described
+as fairly as turboCLI.
 
 ## Layout
 
@@ -328,7 +331,7 @@ inputs: comfy-minimax-h3-image runs a short loop of its own, since diffusers' H3
 packed rows and position ids and ComfyUI's packs them itself.
 
 **Adding an engine — keep the hand-maintained satellites in sync.** Discovery itself is automatic
-(drop the module in `engine/`), but four things are written by hand and rot silently otherwise:
+(drop the module in `engine/`), but five things are written by hand and rot silently otherwise:
 
 - **`turboCLI.pro`** lists every runner file in `OTHER_FILES`, and `bash/*.pri` lists the scripts —
   a new module missing there ships in no package. Keep the deployed copy in step too.
@@ -338,6 +341,8 @@ packed rows and position ids and ComfyUI's packs them itself.
   they drift.
 - **This table**, below, and **[engine.md](engine.md)**, the user-facing list: the engine's
   line under each task it does, with its size, steps and requirements.
+- **[feature.md](feature.md)**: the engine count and the models it names, and turbopixel's
+  `feature.md` in Sky-pro when the engine shows there.
 
 `check-model.sh` and `remove.sh` deliberately carry *no* list: `runner.check` with no `--engine`
 enumerates the registry, so they point at it instead and cannot go stale. Prefer that whenever the

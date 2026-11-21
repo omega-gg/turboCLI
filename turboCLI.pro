@@ -6,6 +6,7 @@ OTHER_FILES += README.md  \
                LICENSE.md \
                implementation.md \
                engine.md \
+               feature.md \
                MANUAL.md \
                dummy.md \
                update.sh \
