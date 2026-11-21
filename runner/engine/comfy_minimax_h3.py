@@ -56,9 +56,8 @@ CFG   = ("guidance_scale", 1.0)              # BasicGuider: no CFG (the pipe ign
 INFERENCE = 20
 
 # The options a video takes (core checks them), each in place of the engine's for that video:
-# cuDNN SDPA first, as the experimental H3 ran ComfyUI, the scheduler, and the keyframes' fit
-# (an ImageScale with center crop before the node, or none).
-OPTIONS = {"attention": ("cudnn",), "scheduler": ("simple", "beta"), "crop": ("none", "center")}
+# cuDNN SDPA first, as the experimental H3 ran ComfyUI, and the scheduler.
+OPTIONS = {"attention": ("cudnn",), "scheduler": ("simple", "beta")}
 
 # ComfyUI's files as its templates name them, at the root of Comfy-Org's repo (no split_files/).
 COMFY = {
@@ -110,12 +109,10 @@ def _scale(image, width, height, crop):
     return image.resize((width, height), Image.Resampling.LANCZOS)
 
 
-def _pipeline_class(default_crop="none"):
+def _pipeline_class():
     """ComfyH3VideoPipe: MiniMaxH3ImageToVideo, SamplerCustomAdvanced, VAEDecode and
-    VAEDecodeAudio, as the templates chain them, behind the classic pipeline face.
-    `default_crop` is the engine's keyframe fit, which crop= overrides: "center" first fits each
-    keyframe to the canvas as an ImageScale with center crop would (comfy-minimax-h3-quality),
-    "none" leaves them to the node. Built here so diffusers stays out of engine discovery."""
+    VAEDecodeAudio, as the templates chain them, behind the classic pipeline face. Built here
+    so diffusers stays out of engine discovery."""
     from types import SimpleNamespace
 
     import numpy as np
@@ -142,14 +139,11 @@ def _pipeline_class(default_crop="none"):
 
             return context.to(device or self._execution_device), tags
 
-        def _keyframe(self, image, width, height, node_crop, crop):
+        def _keyframe(self, image, width, height, crop):
             """A keyframe as MiniMaxH3ImageToVideo sizes it (nodes_minimax_h3.py:80-84, 159-170),
             as an IMAGE [1, H, W, 3] in [0, 1]: stretched for the first frame, cover-cropped for
-            the last, after the ImageScale with center crop that `crop` "center" asks for."""
-            if crop == "center":
-                image = _scale(image, width, height, "center")
-
-            image = _scale(image, width, height, node_crop)
+            the last."""
+            image = _scale(image, width, height, crop)
 
             return torch.from_numpy(np.asarray(image).astype(np.float32) / 255.0)[None]
 
@@ -171,9 +165,8 @@ def _pipeline_class(default_crop="none"):
         @torch.no_grad()
         def _generate(self, prompt, image=None, height=768, width=1344, duration=5.0,
                      num_inference_steps=INFERENCE, generator=None, callback_on_step_end=None,
-                     references=(), guide=None, crop=default_crop, scheduler=None, **_):
-            # NOTE: The scheduler and crop options replace the engine's for this generation:
-            #       scheduler=simple|beta, crop=none|center (the keyframes' fit).
+                     references=(), guide=None, scheduler=None, **_):
+            # NOTE: The scheduler option replaces the engine's for this generation.
             if width % GRID or height % GRID:
                 raise ValueError("MiniMax H3 renders sizes on the %d pixel grid" % GRID)
 
@@ -208,9 +201,9 @@ def _pipeline_class(default_crop="none"):
                 # MiniMaxH3ImageToVideo (nodes_minimax_h3.py:150-179): the keyframes, the prompt
                 # with them, then each keyframe's latent through the video VAE (one frame).
                 keyframes = [{"resolved_frame_index": index,
-                              "image": self._keyframe(source, width, height, node_crop, crop)}
-                             for source, index, node_crop in zip(pinned, (0, frame_count - 1),
-                                                                 ("disabled", "center"))
+                              "image": self._keyframe(source, width, height, crop)}
+                             for source, index, crop in zip(pinned, (0, frame_count - 1),
+                                                            ("disabled", "center"))
                              if source is not None]
 
                 context, tags = self.encode_prompt(prompt, [kf["image"] for kf in keyframes],
@@ -275,7 +268,7 @@ def _pipeline_class(default_crop="none"):
     return ComfyH3VideoPipe
 
 
-def load(ctx, params, crop="none", text_dtype=None, ref_scheduler="simple"):
+def load(ctx, params, text_dtype=None, ref_scheduler="simple"):
     """Assemble the pipeline of _pipeline_class from ComfyUI's single files via the offloader:
     the ref2va transformer and `ref_scheduler` for a request with references. `text_dtype` (a
     torch dtype's name) runs the text encoder in it, as ComfyUI's --bf16-text-enc does.
@@ -297,7 +290,7 @@ def load(ctx, params, crop="none", text_dtype=None, ref_scheduler="simple"):
         text_encoder["dtype"] = getattr(torch, text_dtype)
 
     return ctx.backend.load_pipe_comfy(
-        _pipeline_class(crop),
+        _pipeline_class(),
         {"model": "minimax_h3", "file": transformer, "config": {}},
         text_encoder,
         {"scheduler": ctx.backend.comfy_sampler("minimax_h3", "res_multistep",

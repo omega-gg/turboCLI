@@ -125,8 +125,9 @@ vendors, on turboCLI's torch, with the Krea 2 edit node pack), its models the Vo
 keeps the CPU path honest; it is slow, so a small size and a few engines, now and then.
 `modal.sh exec <command>` runs a command in the same setup on CPU, for a look around, and
 `modal.sh exec --gpu <command>` on an L40S, `modal.sh exec --b200 <command>` on a B200 (180 GB,
-MiniMax H3's bf16 files resident; turboCLI there without ComfyUI's pinned copy of the weights,
-`OFFLOADER_DISABLE_PINNED_MEMORY=1`, in a 104 GiB container). A run's logs and images come back
+MiniMax H3's bf16 files resident; turboCLI and ComfyUI there without ComfyUI's pinned copy of
+the weights, `OFFLOADER_DISABLE_PINNED_MEMORY=1` and `--disable-pinned-memory`, in a 104 GiB
+container). A run's logs and images come back
 into `results/modal/`, and what an `exec` writes to `out/` into `results/modal/exec/`.
 
 The L40S containers have 64 GiB of RAM. A model past that, MiniMax-H3-Image (ComfyUI's 49.5 GB

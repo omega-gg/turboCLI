@@ -187,8 +187,10 @@ sh image-to-video.sh comfy-minimax-h3-quality cuda first=fedora.png,audio=voice.
 
 The three engines are one model: `minimax-h3` is MiniMax's release (50 steps, 5 to 15 seconds),
 `comfy-minimax-h3` the files of ComfyUI's template (20 steps, much lighter), and
-`comfy-minimax-h3-quality` ComfyUI's highest precision files, its text encoder in bf16, each frame
-center-cropped, the beta scheduler with references and the video at crf 12 (finer than 18).
+`comfy-minimax-h3-quality` ComfyUI's highest precision files, its text encoder in bf16, the beta
+scheduler with references and the video at crf 12 (finer than 18). A frame of other proportions
+than the video's is stretched to it (the first) or cropped (the last), as ComfyUI's node does,
+and center-cropped with references: crop it to the video's proportions first to keep it whole.
 `minimax-h3` takes references alone, as diffusers runs them: no frame and no guide beside them,
 and never an audio reference on its own.
 
@@ -198,7 +200,6 @@ The video scripts take these options for the `comfy-minimax-h3` engines, comma s
 | --- | --- |
 | `attention=cudnn` | cuDNN attention ahead of flash: about twice as fast on a B200 (2.3 s a step against 4.6 at 1376x576), the same quality but not the same bits. |
 | `scheduler=beta` | The beta scheduler in place of the engine's: more steps where the noise is high and where it is low, fewer between. `comfy-minimax-h3-quality` already uses it with references; `scheduler=simple` gives it the templates' instead. |
-| `crop=center` | Each frame first fitted to the video by a center crop, as `comfy-minimax-h3-quality` does; `crop=none` leaves the frames to ComfyUI's node, as the templates do (the first frame stretched, the last cropped). With references, the frames are always center-cropped. |
 
 ## Masks and mattes
 

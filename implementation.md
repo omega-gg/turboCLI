@@ -381,7 +381,7 @@ answer is derivable.
 | `comfy-minimax-h3-image` | MiniMax-H3-Image as ComfyUI's two templates run it, file for file: int8 ConvRot DiT + Qwen3-VL 32B int8 ConvRot TE (both ComfyUI's own models on the offloader, `{model: "minimax_h3_image", ...}`) + the fp16 image VAE, ComfyUI's own too (`comfy_vae`), ~49 GB, ungated. Its pipeline, `ComfyH3Pipe`, is a short loop of its own (MiniMaxH3ImageConditioning, KSampler, VAEDecode): 6 steps, CFG 1 (one pass), euler + simple on the PDD grid the file's metadata declares (`comfy_sampler` reads it off the transformer's file), the schedule passed to the transformer for its heads. An edit's source, at 4 MP on the 32 grid as the edit template sizes it, is `<Picture 1>`: the text encoder sees it at a 1024 short edge, the VAE at a 1024 to 2048 short edge, after the text encoder and before sampling (sized once by the transformer's `edit`, encoded in its `extra_conds`: the H3 VAE sizes its tiles to the free VRAM, and this order gives ComfyUI's images exactly). No prompt expander; an edit renders at the requested size (the template takes the scaled source's). Tested on Modal only, on the 224 GiB container (`modal.sh run --big`). MiniMax-H3-Image Community License. Against ComfyUI on the L40S (224 GiB container), images identical at every size, sampling 5.22 s (5.19 s) at 1024², 8.07 s (8.11 s) at 2048², 19.30 s (19.32 s) at 4096²; edits 8.81 (8.76), 12.29 (12.32), 25.94 (26.53). Offloader-only (`doc/minimax-h3-image-plan.md`) |
 | `minimax-h3` | TYPE `minimax-h3`, MiniMax H3 (33B audio-video DiT, Qwen3-VL 32B TE, video and audio VAEs; no CFG) from MiniMaxAI/MiniMax-H3's diffusers layout, the t2va/fl2va half (`transformer/`, not `transformer_ref/`), ~143 GB, text-to-video + image-to-video: diffusers' modular `MiniMaxH3Blocks` behind `H3VideoPipe` (as minimax-h3-image's H3Pipe: the text encoder split out behind `encode_prompt`, the denoise bar rerouted), its defaults and limits (50 steps, 5 to 15 s at 24 fps, the first input stretched as the first frame, a second cover-cropped as the last); the frames to 8 bits as ComfyUI's save_to does |
 | `comfy-minimax-h3` | MiniMax H3 as ComfyUI's templates run it (`video_minimax_h3_t2v` / `_i2v`, the Turbo LoRA off), file for file: int8 ConvRot fl2va DiT + Qwen3-VL 32B NVFP4 TE + int8 ConvRot video VAE + fp32 audio VAE (~40 GB), ComfyUI's own models on the offloader (its `minimax_h3` model, two `comfy_vae`, `comfy_sampler` res_multistep/simple at shift 12): MiniMaxH3ImageToVideo (the duration snapped to the 17k+5 grid, the keyframes sized by the node and encoded by the video VAE), RandomNoise, 20 steps on the flat pack of the video and audio latents, VAEDecode + VAEDecodeAudio (its loudness cap), crf 18; with references `video_minimax_h3_r2v`: the int8 ref2va transformer (`transformer_ref`, ~61 GB in all), MiniMaxH3ReferenceToVideo (`MiniMaxH3.reference_to_video`), the frames and an audio guide pinned by MiniMaxH3AddGuide (`add_guide`). Against ComfyUI on the L40S at 512², 5 s: identical, sampling −1% (t2v) and +0% (i2v) (`doc/minimax-h3-video-plan.md`) |
-| `comfy-minimax-h3-quality` | BASE = comfy-minimax-h3; delta: Comfy-Org's highest precision files (bf16 DiT and TE, fp16 video VAE, ~98 GB), the TE in bf16 (`--bf16-text-enc`), each keyframe first fitted by an ImageScale with center crop, crf 12; with references the bf16 ref2va file and the beta scheduler (its `crop` and scheduler the defaults `crop=` and `scheduler=` override): the base and Ref2VA graphs of the experimental H3 (`msvc/experimental/h3`, `remote/gen.py`); identical with that graph in ComfyUI |
+| `comfy-minimax-h3-quality` | BASE = comfy-minimax-h3; delta: Comfy-Org's highest precision files (bf16 DiT and TE, fp16 video VAE, ~98 GB), the TE in bf16 (`--bf16-text-enc`), crf 12; with references the bf16 ref2va file and the beta scheduler (the default `scheduler=` overrides): the base and Ref2VA graphs of the experimental H3 (`msvc/experimental/h3`, `remote/gen.py`), the keyframes as given (gen.py's ImageScale center crop left to the source); identical with that graph in ComfyUI |
 | `mask` | **compute engine** (declares `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box mask (options `mode=default\|region`); register-only install; options `cutoff=N` (0-255), `glow=N` (pixels, `default` only: the mask grows by about N, graded, which covers the outline a removal leaves where `region` would have boxed the whole footprint. It does not replace `region`, see `doc/mask-glow-plan.md`) and `fade=<l>:<t>:<r>:<b>` (pixels per border, either mode: the borders of a crop ramp to 0 over that many pixels, never more than a quarter of a side, since a grown box fills a crop to its edge, or a change runs off it, and the caller pads it back into a seam. 0 keeps a border hard and the caller owns the distance, see `doc/mask-fade-plan.md`). Both are off unless sent |
 | `mask-birefnet` / `mask-lucida` / `mask-inspyrenet` | compute matte engines, mode `image-to-mask`; MODEL `kind` snapshot (birefnet/lucida) or url (inspyrenet); `mask-lucida` BASE = `mask-birefnet`; optional plate keeps the cast shadow; options `cutoff=N` (shadow floor) |
 | `esrgan-upscale` / `comfy-esrgan-upscale` | compute upscalers, mode `image-to-image` on the first input (`esrgan_upscale.py`): spandrel loads Real-ESRGAN x4plus (url xinntao release `v0.1.0` / one COMFY component, no scaffold), the model stays resident (one, keyed by file and device), runs fp16 `channels_last` on a GPU (54 dB from fp32, 3.3x faster on an A1000) in 512 tiles overlapping by 32 with ramp blending (halved on out of memory down to 128: ComfyUI's numbers), then lanczos to the output size. An alpha channel follows at the same size |
@@ -491,16 +491,15 @@ patches use >1 and negative, matching ComfyUI).
    `image=[first, last]`, `references=[image or audio path]` and `guide=(path, seconds)`; an
    engine whose references run on another transformer folds their presence into `extra_key`.
    A video takes the options its engine declares (`OPTIONS`, each name and its values; the
-   comfy-minimax-h3 engines' `attention=cudnn`, `scheduler=simple|beta`, `crop=none|center`,
-   minimax-h3 none), checked before anything loads with the references (a third frame or a
+   comfy-minimax-h3 engines' `attention=cudnn` and `scheduler=simple|beta`, minimax-h3 none), checked before anything loads with the references (a third frame or a
    guide without its seconds refused) and the engine's own limits (`check(params)`,
    minimax-h3's: references alone, no guide), then passed to the pipeline by name.
-   `scheduler` and `crop` replace the engine's for
-   the generation (simple, or beta for comfy-minimax-h3-quality's references; none, or center for
-   comfy-minimax-h3-quality's frames). `attention`: the pipes run it inside
-   `MiniMaxH3.attention(kind)`, cuDNN SDPA ahead of flash and ComfyUI's priority restored after
-   (the experiment's cudnn_attention.py node). On a B200 at 1376x576,
-   2.3 s a step against 4.6, 45.2 dB from the experiment's B200 take against 37.3.
+   `scheduler` replaces the engine's for the generation (simple, or beta for
+   comfy-minimax-h3-quality's references).
+   `attention`: the pipes run it inside the transformer's `attention(kind)` (`adapter.BaseModel`),
+   cuDNN SDPA ahead of flash and ComfyUI's priority restored after (the experiment's
+   cudnn_attention.py node). On a B200 at 1376x576, 2.3 s a step against 4.6, 45.2 dB from the
+   experiment's B200 take against 37.3.
 9. A video mode passes the pipeline its `duration` (seconds; the engine snaps it to its frame
    grid) and gets back its frames, soundtrack and frame rate (`.videos`, `.audio`, `.fps`):
    `_save_video` writes them with `runner/video.py`, ComfyUI's CreateVideo and SaveVideo
@@ -586,11 +585,13 @@ B200 containers (`gpu_b200`), and a plain run stays on the image engines.
 template graph, its files from the engine's `COMFY` declaration), alternating with turbo, each
 repeat swapping which goes first, so neither always reads the files cold. ComfyUI's time runs from
 its server's launch to the image it returns, started with the flags its engine's graph asks for
-(`comfy.py args`: `--bf16-text-enc` for comfy-minimax-h3-quality). It compares the two, a video's
-frames and sound decoded (its metadata differs); `--comfy-only <dir>` runs ComfyUI alone, for a
-re-sync of the vendored ComfyUI. ComfyUI's progress bar shifts its start after the second step
-(`model_trange`), so its sampling is timed by the same stamps, from the bar's `0/N` to its `N/N`.
-`test/README.md` has the usage and `doc/test-suite-plan.md` the design.
+(`comfy.py args`: `--bf16-text-enc` for comfy-minimax-h3-quality), and `--disable-pinned-memory`
+when turbo runs without the pinned copy (`OFFLOADER_DISABLE_PINNED_MEMORY=1`, the B200 containers).
+It compares the two, a video's frames and sound decoded (its metadata differs);
+`--comfy-only <dir>` runs ComfyUI alone, for a re-sync of the vendored ComfyUI. ComfyUI's progress
+bar shifts its start after the second step (`model_trange`), so its sampling is timed by the same
+stamps, from the bar's `0/N` to its `N/N`. `test/README.md` has the usage and
+`doc/test-suite-plan.md` the design.
 
 `test/modal.sh` runs it on Modal L40S GPUs, one container per engine at once. Its results,
 turbo against ComfyUI engine by engine, are in turbo-offloader's `implementation.md`

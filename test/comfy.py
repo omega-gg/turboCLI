@@ -292,8 +292,8 @@ def h3_image(engine, f, prompt, seed, width, height, image):
 
 def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False):
     # video_minimax_h3_t2v.json and _i2v.json, the Turbo LoRA off (comfy-minimax-h3), or the base
-    # graph of the experimental H3, remote/gen.py (comfy-minimax-h3-quality, its keyframe fitted by
-    # an ImageScale with center crop first, SaveVideo at its crf): MiniMaxH3ImageToVideo, then
+    # graph of the experimental H3, remote/gen.py (comfy-minimax-h3-quality, SaveVideo at its crf,
+    # without gen.py's ImageScale, left to the source): MiniMaxH3ImageToVideo, then
     # SamplerCustomAdvanced (res_multistep, simple, BasicGuider), VAEDecode and VAEDecodeAudio,
     # CreateVideo at 24 fps, SaveVideo. The video at node "99". With `ref`, the image is a picture
     # reference: video_minimax_h3_r2v.json's MiniMaxH3ReferenceToVideo on the ref2va transformer
@@ -334,10 +334,6 @@ def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False)
     elif image:
         graph["13"] = ("LoadImage", {"image": image})
         conditioning["first_frame"] = ["13", 0]
-        if experiment:
-            graph["14"] = ("ImageScale", {"image": ["13", 0], "upscale_method": "lanczos",
-                                          "width": width, "height": height, "crop": "center"})
-            conditioning["first_frame"] = ["14", 0]
 
     save = {"video": ["16", 0], "filename_prefix": "turbotest/" + engine, "format": "auto",
             "format.codec": "auto"}

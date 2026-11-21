@@ -132,8 +132,8 @@ torch in engines. Commits on request only, no Claude attribution.
 
 - As planned: `<input references>` in image-to-video, the Ref2VA workflow on each H3 engine,
   the audio guide. `comfy-minimax-h3-quality` (first `comfy-minimax-h3-bf16`, the name this plan
-  was written with): past its bf16 files it sets the bf16 text encoder, the center crop, beta
-  with references and crf 12.
+  was written with): past its bf16 files it sets the bf16 text encoder, beta with references
+  and crf 12.
 - **Identity (step 3)**: comfy-minimax-h3 against the r2v template with the knight as
   reference, and comfy-minimax-h3-quality against gen.py's Ref2VA graph (the knight as first frame,
   a voice reference, an audio guide): both identical. Loading, resampling and the beta schedule
@@ -144,8 +144,13 @@ torch in engines. Commits on request only, no Claude attribution.
   experiment's original B200 clip, the picture 45.2 dB from it (37.3 dB with flash, the sound
   differing). The gap is after sampling (ComfyUI v0.38.0 against v0.45.4): `--highvram`, as
   the experiment launched ComfyUI, gives 45.1 dB.
-- **Options**: `attention=cudnn`, `scheduler=simple|beta` and `crop=none|center` for the
-  comfy engines, each in place of the engine's for one video; minimax-h3 refuses them.
+- **Options**: `attention=cudnn` and `scheduler=simple|beta` for the comfy engines, each in
+  place of the engine's for one video; minimax-h3 refuses them. A `crop=none|center` option
+  and comfy-minimax-h3-quality's center crop were removed: both engines give the node the
+  frames as they are, a frame cropped to the video's proportions beforehand if need be.
+  The Indy take from a pre-cropped frame (2912x1220, rows 206 to 1426) is the same file as
+  from in_fedora.png: AddGuide center-crops it again, 1 row off each edge, onto the region
+  it cut from the original (rows 207 to 1425; a 2912x1218 file would lose a column a side).
 - **Cost on a B200** (Indy, cuDNN): 138 s for the first video in a process, 52.5 s for the
   next, the RAM at 189 GiB (the weights mapped and comfy-aimdo's pinned copy of them).
   `--disable-pinned-memory` (`OFFLOADER_DISABLE_PINNED_MEMORY=1`): 94 s and 51 s, 100 GiB,

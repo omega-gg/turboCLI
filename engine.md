@@ -87,7 +87,7 @@ The sizes count both of MiniMax H3's transformers, the frames' and the reference
 |---|---|---|---|---|
 | `minimax-h3` | MiniMax H3 from a first and a last frame, or from references alone (no audio guide), 5 to 15 s at 24 fps (MiniMax's weights) | 209 GB | 50 | MiniMax H3 license |
 | `comfy-minimax-h3` | MiniMax H3 as ComfyUI's templates run it (i2v, r2v), the first frame stretched to the canvas | 61 GB | 20 | offloader, MiniMax H3 license |
-| `comfy-minimax-h3-quality` | MiniMax H3 from ComfyUI's bf16 files, each frame center cropped to the canvas, the beta scheduler with references | 138 GB | 20 | offloader, MiniMax H3 license |
+| `comfy-minimax-h3-quality` | MiniMax H3 from ComfyUI's bf16 files, the beta scheduler with references | 138 GB | 20 | offloader, MiniMax H3 license |
 
 ## Masking and matting
 

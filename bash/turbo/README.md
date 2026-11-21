@@ -338,8 +338,6 @@ options (comfy-minimax-h3 engines), comma separated:
          on a B200
          scheduler=simple|beta in place of the engine's: simple, or beta with
          references on comfy-minimax-h3-quality
-         crop=none|center: center first fits each frame to the video by a center
-         crop, as comfy-minimax-h3-quality does (references: always center)
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 

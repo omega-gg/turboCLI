@@ -160,8 +160,6 @@ if [ $# -lt 4 -o $# -gt 15 ] \
     echo "         on a B200"
     echo "         scheduler=simple|beta in place of the engine's: simple, or beta with"
     echo "         references on comfy-minimax-h3-quality"
-    echo "         crop=none|center: center first fits each frame to the video by a center"
-    echo "         crop, as comfy-minimax-h3-quality does (references: always center)"
     echo ""
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""

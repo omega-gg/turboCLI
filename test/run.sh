@@ -384,6 +384,9 @@ run_comfy()
 
     if [ "$renderer" = "cpu" ]; then flag="--cpu"; fi
 
+    # Without the pinned copy of the weights when turbo runs without it (the same videos).
+    if [ "$OFFLOADER_DISABLE_PINNED_MEMORY" = 1 ]; then flag="$flag --disable-pinned-memory"; fi
+
     # A fresh server per run, as a turbo run starts fresh, timed from its launch as turbo's is.
     start="$(now)"
 

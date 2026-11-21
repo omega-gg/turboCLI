@@ -23,9 +23,9 @@
 # comfy-minimax-h3-quality engine: comfy-minimax-h3 on Comfy-Org's highest precision files, the
 # bf16 transformer and text encoder and the fp16 video VAE, as the base graph of the experimental
 # H3 runs them (msvc/experimental/h3, remote/gen.py): the text encoder in bf16 (ComfyUI with
-# --bf16-text-enc), each keyframe first fitted to the canvas by an ImageScale (lanczos, center
-# crop), SaveVideo at crf 12. With references, its Ref2VA graph: the bf16 ref2va transformer and
-# the beta scheduler, the frames pinned by MiniMaxH3AddGuide.
+# --bf16-text-enc), SaveVideo at crf 12. With references, its Ref2VA graph: the bf16 ref2va
+# transformer and the beta scheduler, the frames pinned by MiniMaxH3AddGuide. Its keyframes go to
+# the node as given, as the template's do: gen.py's ImageScale center crop is left to the source.
 
 from . import comfy_minimax_h3 as base  # cheap: no torch at top level
 
@@ -45,4 +45,4 @@ CRF = 12.0  # SaveVideo's crf input, a float
 
 
 def load(ctx, params):
-    return base.load(ctx, params, crop="center", text_dtype="bfloat16", ref_scheduler="beta")
+    return base.load(ctx, params, text_dtype="bfloat16", ref_scheduler="beta")

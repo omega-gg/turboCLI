@@ -235,6 +235,8 @@ checked first.
 - **runner/video.py** writes the same bytes as ComfyUI's `VideoFromComponents.save_to` for the same
   frames and sound (crf 18 and 12, PyAV 19.0.1); res_multistep and the shift-12 schedule match
   ComfyUI's code bit for bit; the keyframe sizing matches `common_upscale` pixel for pixel.
+- Later, comfy-minimax-h3-quality's center crop was removed (the frames go to the node as
+  given, cropped beforehand if need be), and with it gen.py's ImageScale in `test/comfy.py`.
 - Two fixes on the way: the offloader places the audio VAE beside the VAE (`_finalize_pipe`), and
   `test/comfy.py` reads a variant's frames and steps off its BASE.
 - The installs are 40 GB (the template's files), 98 GB (bf16) and 143 GB (MiniMax's diffusers
