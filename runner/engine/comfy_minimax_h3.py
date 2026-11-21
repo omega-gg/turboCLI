@@ -114,7 +114,7 @@ def _pipeline_class(default_crop="none"):
     """ComfyH3VideoPipe: MiniMaxH3ImageToVideo, SamplerCustomAdvanced, VAEDecode and
     VAEDecodeAudio, as the templates chain them, behind the classic pipeline face.
     `default_crop` is the engine's keyframe fit, which crop= overrides: "center" first fits each
-    keyframe to the canvas as an ImageScale with center crop would (comfy-minimax-h3-hq),
+    keyframe to the canvas as an ImageScale with center crop would (comfy-minimax-h3-quality),
     "none" leaves them to the node. Built here so diffusers stays out of engine discovery."""
     from types import SimpleNamespace
 

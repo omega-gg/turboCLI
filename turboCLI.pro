@@ -79,7 +79,7 @@ OTHER_FILES += runner/__init__.py \
                runner/engine/comfy_krea2_turbo_edit_identity.py \
                runner/engine/comfy_minimax_h3_image.py \
                runner/engine/comfy_minimax_h3.py \
-               runner/engine/comfy_minimax_h3_hq.py \
+               runner/engine/comfy_minimax_h3_quality.py \
                runner/engine/comfy_moss_image.py \
                runner/engine/comfy_qwen_image_2_1.py \
                runner/engine/comfy_qwen_image_2_1_turbo.py \

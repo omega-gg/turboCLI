@@ -133,7 +133,7 @@ if [ $# -lt 4 -o $# -gt 15 ] \
     echo ""
     echo "engine: minimax-h3"
     echo "        comfy-minimax-h3"
-    echo "        comfy-minimax-h3-hq"
+    echo "        comfy-minimax-h3-quality"
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""
@@ -159,16 +159,16 @@ if [ $# -lt 4 -o $# -gt 15 ] \
     echo "         attention=cudnn puts cuDNN attention ahead of flash: about twice as fast"
     echo "         on a B200"
     echo "         scheduler=simple|beta in place of the engine's: simple, or beta with"
-    echo "         references on comfy-minimax-h3-hq"
+    echo "         references on comfy-minimax-h3-quality"
     echo "         crop=none|center: center first fits each frame to the video by a center"
-    echo "         crop, as comfy-minimax-h3-hq does (references: always center)"
+    echo "         crop, as comfy-minimax-h3-quality does (references: always center)"
     echo ""
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
     echo "examples:"
     echo "    image-to-video comfy-minimax-h3 cuda frame.png output.mp4 \"the camera pushes in\""
     echo "    image-to-video comfy-minimax-h3 cuda first.png,last.png output.mp4 \"the camera pushes in\" 10 1344 768"
-    echo "    image-to-video comfy-minimax-h3-hq cuda first=fedora.png,audio=voice.wav output.mp4 \"he speaks in the voice of <Audio 1>\" 5 1376 576"
+    echo "    image-to-video comfy-minimax-h3-quality cuda first=fedora.png,audio=voice.wav output.mp4 \"he speaks in the voice of <Audio 1>\" 5 1376 576"
 
     exit 1
 fi

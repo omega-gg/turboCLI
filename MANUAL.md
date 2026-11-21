@@ -164,8 +164,8 @@ frames, so 5 seconds is 124 frames. The video comes out as an mp4 (H.264) with i
 and height are multiples of 32.
 
 MiniMax H3 is large, and fastest on a card that holds it whole: `comfy-minimax-h3`'s files take
-40 GB, `comfy-minimax-h3-hq`'s 98 GB, `minimax-h3`'s 143 GB. A smaller card works, the weights
-streaming to it every step, but much slower: `comfy-minimax-h3-hq` takes 13.7 s a step on a
+40 GB, `comfy-minimax-h3-quality`'s 98 GB, `minimax-h3`'s 143 GB. A smaller card works, the weights
+streaming to it every step, but much slower: `comfy-minimax-h3-quality` takes 13.7 s a step on a
 48 GB L40S, 4.6 on a 180 GB B200 (2.2 with `attention=cudnn`, below), at 1376x576.
 
 `image-to-video` takes input references, separated by commas, each tagged by its role:
@@ -181,13 +181,13 @@ With a picture or audio reference the engine switches to MiniMax H3's reference 
 and the guide go with either:
 
 ```sh
-sh image-to-video.sh comfy-minimax-h3-hq cuda first=fedora.png,audio=voice.wav take.mp4 \
+sh image-to-video.sh comfy-minimax-h3-quality cuda first=fedora.png,audio=voice.wav take.mp4 \
                      "then he says, in the voice of <Audio 1>: ..." 5 1376 576
 ```
 
 The three engines are one model: `minimax-h3` is MiniMax's release (50 steps, 5 to 15 seconds),
 `comfy-minimax-h3` the files of ComfyUI's template (20 steps, much lighter), and
-`comfy-minimax-h3-hq` ComfyUI's highest precision files, its text encoder in bf16, each frame
+`comfy-minimax-h3-quality` ComfyUI's highest precision files, its text encoder in bf16, each frame
 center-cropped, the beta scheduler with references and the video at crf 12 (finer than 18).
 `minimax-h3` takes references alone, as diffusers runs them: no frame and no guide beside them,
 and never an audio reference on its own.
@@ -197,8 +197,8 @@ The video scripts take these options for the `comfy-minimax-h3` engines, comma s
 | Option | What it does |
 | --- | --- |
 | `attention=cudnn` | cuDNN attention ahead of flash: about twice as fast on a B200 (2.3 s a step against 4.6 at 1376x576), the same quality but not the same bits. |
-| `scheduler=beta` | The beta scheduler in place of the engine's: more steps where the noise is high and where it is low, fewer between. `comfy-minimax-h3-hq` already uses it with references; `scheduler=simple` gives it the templates' instead. |
-| `crop=center` | Each frame first fitted to the video by a center crop, as `comfy-minimax-h3-hq` does; `crop=none` leaves the frames to ComfyUI's node, as the templates do (the first frame stretched, the last cropped). With references, the frames are always center-cropped. |
+| `scheduler=beta` | The beta scheduler in place of the engine's: more steps where the noise is high and where it is low, fewer between. `comfy-minimax-h3-quality` already uses it with references; `scheduler=simple` gives it the templates' instead. |
+| `crop=center` | Each frame first fitted to the video by a center crop, as `comfy-minimax-h3-quality` does; `crop=none` leaves the frames to ComfyUI's node, as the templates do (the first frame stretched, the last cropped). With references, the frames are always center-cropped. |
 
 ## Masks and mattes
 
@@ -325,7 +325,7 @@ On a card that holds the whole model, an H200 or a B200 for MiniMax H3, start th
 script with `OFFLOADER_DISABLE_PINNED_MEMORY=1` (or pass `--disable-pinned-memory` to
 `runner.server` or `runner.cli`): the offloader then keeps no pinned copy of the weights in RAM,
 as ComfyUI's flag of that name does. The same images and videos with half the RAM, and a faster
-first load: on a B200, `comfy-minimax-h3-hq` peaks at 100 GiB instead of 190 and takes 94
+first load: on a B200, `comfy-minimax-h3-quality` peaks at 100 GiB instead of 190 and takes 94
 seconds instead of 138 for its first video. Leave it off on a smaller card, where the weights
 stream to it every step.
 

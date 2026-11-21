@@ -8,15 +8,16 @@ experiment's Indy take, `msvc/experimental/h3/out/20261005-195354-scope1376-nati
 transformer, a voice reference read as `<Audio 1>` (`neutral_30s_10s_clean.wav`, 44.1 kHz),
 `MiniMaxH3ReferenceToVideo` (ref_image_size match), the first frame pinned by `MiniMaxH3AddGuide`,
 the `beta` scheduler, 20 steps, 1376x576, 5 s, seed 1791222669. Goal: reproduce it with
-comfy-minimax-h3-hq, identical to that graph in ComfyUI on the same GPU, faithful to ComfyUI and
-the codebase, lean on Modal.
+comfy-minimax-h3-quality, identical to that graph in ComfyUI on the same GPU, faithful to ComfyUI
+and the codebase, lean on Modal.
 
 Decisions (asked):
 - **No new mode: image-to-video's input images become input references**, each tagged by its
   role (`first=toto.png,last=titi.png,audio=audio.mp3`). A reference (`image=`, `audio=`) switches
   the engine to its Ref2VA workflow, as gen.py does on `--ref`.
 - **Every H3 engine gets it**: comfy-minimax-h3 (ComfyUI's `video_minimax_h3_r2v` template),
-  comfy-minimax-h3-hq (the experiment's Ref2VA graph), minimax-h3 (diffusers' `ref2va` workflow).
+  comfy-minimax-h3-quality (the experiment's Ref2VA graph), minimax-h3 (diffusers' `ref2va`
+  workflow).
 - **The audio guide is included**: an exact recording pinned at a time of the soundtrack
   (`MiniMaxH3AddGuide`'s audio), for lip sync.
 
@@ -47,7 +48,7 @@ What ComfyUI runs (v0.45.4, `comfy_extras/nodes_minimax_h3.py`):
   - `guide=<audio>@<seconds>`: an exact recording pinned at that time of the soundtrack;
   - an untagged path is a frame, as today: the first, then the last.
 - With an `image=` or `audio=` the engine runs its Ref2VA workflow, else its FL2VA one; the frames
-  and the guide go with either. The Indy take: `image-to-video.sh comfy-minimax-h3-hq cuda
+  and the guide go with either. The Indy take: `image-to-video.sh comfy-minimax-h3-quality cuda
   first=in_fedora.png,audio=voice.wav out.mp4 "..." 5 1376 576 1791222669`.
 - The wrapper converts each path as it does the LoRAs' (keeping the `role=` and `@seconds`);
   usage, README and MANUAL say "input references". No new script, no new mode; text-to-video
@@ -84,7 +85,7 @@ What ComfyUI runs (v0.45.4, `comfy_extras/nodes_minimax_h3.py`):
   branch: `transformer.references(...)` then the same sampling and decodes as FL2VA; an audio
   guide through AddGuide in either workflow. The pipe also skips a None keyframe (a last frame
   alone).
-- **comfy-minimax-h3-hq**: `transformer_ref` = `minimax_h3_ref2va_pruned_bf16` (+40 GB), the
+- **comfy-minimax-h3-quality**: `transformer_ref` = `minimax_h3_ref2va_pruned_bf16` (+40 GB), the
   scheduler `beta` with references (gen.py), the frames pinned through AddGuide there.
 - **minimax-h3**: `"transformer_ref/*"` in `allow_patterns` (+66 GB); a ref2va pipe class
   (`transformer_folder = "transformer_ref"`, `update_components(transformer_ref=...)`), the
@@ -99,7 +100,7 @@ What ComfyUI runs (v0.45.4, `comfy_extras/nodes_minimax_h3.py`):
   is a second case of image-adjust), `image=knight.png` as `<Picture 1>` (no audio asset in the
   suite).
 - `test/comfy.py`: the r2v graph for that case, the template's for comfy-minimax-h3
-  (ReferenceToVideo, simple) and gen.py's Ref2VA for comfy-minimax-h3-hq (beta, AddGuide).
+  (ReferenceToVideo, simple) and gen.py's Ref2VA for comfy-minimax-h3-quality (beta, AddGuide).
 
 ## Docs
 
@@ -118,9 +119,9 @@ torch in engines. Commits on request only, no Claude attribution.
    wrapper and core parsing of `<inputs>` with a fake engine.
 2. **Install** the three ref2va files on Modal (`test/modal.sh install`, CPU, +127 GB).
 3. **Identity at 512x512, 5 s**, one run per side: comfy-minimax-h3 against the r2v template with
-   the knight as reference; comfy-minimax-h3-hq against gen.py's Ref2VA graph with the knight as
-   first frame, a short voice reference and an audio guide. Both `identical`.
-4. **The Indy take** with comfy-minimax-h3-hq at its own settings (1376x576, 5 s, seed
+   the knight as reference; comfy-minimax-h3-quality against gen.py's Ref2VA graph with the knight
+   as first frame, a short voice reference and an audio guide. Both `identical`.
+4. **The Indy take** with comfy-minimax-h3-quality at its own settings (1376x576, 5 s, seed
    1791222669, `first=in_fedora.png,audio=neutral_30s_10s_clean.wav`): turbo once, next to the
    original B200 clip (same scene and voice, not the same bits: B200, v0.38.0, cuDNN attention).
    Copied to Desktop\image\minimax-h3-video.
@@ -130,10 +131,11 @@ torch in engines. Commits on request only, no Claude attribution.
 ## As built
 
 - As planned: `<input references>` in image-to-video, the Ref2VA workflow on each H3 engine,
-  the audio guide. `comfy-minimax-h3-bf16` is now `comfy-minimax-h3-hq`: past its bf16 files it
-  sets the bf16 text encoder, the center crop, beta with references and crf 12.
+  the audio guide. `comfy-minimax-h3-quality` (first `comfy-minimax-h3-bf16`, the name this plan
+  was written with): past its bf16 files it sets the bf16 text encoder, the center crop, beta
+  with references and crf 12.
 - **Identity (step 3)**: comfy-minimax-h3 against the r2v template with the knight as
-  reference, and comfy-minimax-h3-hq against gen.py's Ref2VA graph (the knight as first frame,
+  reference, and comfy-minimax-h3-quality against gen.py's Ref2VA graph (the knight as first frame,
   a voice reference, an audio guide): both identical. Loading, resampling and the beta schedule
   are bit for bit ComfyUI's on the Indy voice (step 1).
 - **The Indy take (step 4)**: 13.7 s a step on the L40S, 4.6 on a B200. The experiment loaded

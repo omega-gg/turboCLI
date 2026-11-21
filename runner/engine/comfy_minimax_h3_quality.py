@@ -20,16 +20,16 @@
 #
 #==================================================================================================
 
-# comfy-minimax-h3-hq engine: comfy-minimax-h3 on Comfy-Org's highest precision files, the bf16
-# transformer and text encoder and the fp16 video VAE, as the base graph of the experimental H3
-# runs them (msvc/experimental/h3, remote/gen.py): the text encoder in bf16 (ComfyUI with
+# comfy-minimax-h3-quality engine: comfy-minimax-h3 on Comfy-Org's highest precision files, the
+# bf16 transformer and text encoder and the fp16 video VAE, as the base graph of the experimental
+# H3 runs them (msvc/experimental/h3, remote/gen.py): the text encoder in bf16 (ComfyUI with
 # --bf16-text-enc), each keyframe first fitted to the canvas by an ImageScale (lanczos, center
 # crop), SaveVideo at crf 12. With references, its Ref2VA graph: the bf16 ref2va transformer and
 # the beta scheduler, the frames pinned by MiniMaxH3AddGuide.
 
 from . import comfy_minimax_h3 as base  # cheap: no torch at top level
 
-ID   = "comfy-minimax-h3-hq"
+ID   = "comfy-minimax-h3-quality"
 BASE = base.ID
 
 COMFY = dict(base.COMFY, components=[

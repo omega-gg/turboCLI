@@ -5,7 +5,7 @@
 turboCLI makes images only. Video is the next step: two new modes, `text-to-video` and
 `image-to-video`, with MiniMax H3 as their first engines. The model has already been run through
 ComfyUI in `msvc/experimental/h3`, and its `remote/gen.py` "base" graph is the reference.
-`comfy-minimax-h3-hq` must give the same video as that graph for the same seed. Every comfy
+`comfy-minimax-h3-quality` must give the same video as that graph for the same seed. Every comfy
 engine must match its ComfyUI graph and be as fast as ComfyUI. Upscaling comes later. Measured on
 Modal, keeping the spend low.
 
@@ -19,8 +19,8 @@ Decisions (asked). Each engine defaults to its official source:
   `minimax_h3_video_vae_int8_convrot` and `minimax_h3_audio_vae_fp32`. Template settings: 20 steps
   with the Turbo LoRA off, res_multistep, simple, the first frame given straight to the node,
   SaveVideo's default quality (crf 18). Identical to ComfyUI running that template.
-- **`comfy-minimax-h3-hq`:** the experiment's setup. `BASE comfy-minimax-h3` with the bf16 files
-  (`minimax_h3_fl2va_pruned_bf16` ~40 GB, `qwen3vl_32b_minimax_h3_bf16` 51 GB,
+- **`comfy-minimax-h3-quality`:** the experiment's setup. `BASE comfy-minimax-h3` with the bf16
+  files (`minimax_h3_fl2va_pruned_bf16` ~40 GB, `qwen3vl_32b_minimax_h3_bf16` 51 GB,
   `minimax_h3_video_vae_fp16` 5.2 GB, audio fp32), crf 12, and the keyframes centre-cropped first,
   as gen.py does. Identical to ComfyUI running the experiment's base graph.
 - **Identity:** same graph, same GPU. Each comfy engine against its ComfyUI graph, re-run in
@@ -71,7 +71,7 @@ What the experiment's base graph runs (FL2VA, no references, no hires), and what
   (`comfy_api/latest/_input_impl/video_types.py:283-415`) with PyAV:
   - mp4 with `movflags use_metadata_tags+faststart`; h264 at rate 24, `yuv420p`, at the engine's
     `CRF`. That is an optional engine symbol, inherited, defaulting to 18 (SaveVideo's h264
-    default in v0.45.4); comfy-minimax-h3-hq sets 12, the experiment's.
+    default in v0.45.4); comfy-minimax-h3-quality sets 12, the experiment's.
   - BT709 primaries and colorspace, IEC61966-2-1 transfer, limited range; frames reformatted
     rgb24 → yuv420p with BT709.
   - AAC at the source rate, stereo, trimmed to `ceil(rate/24 * frames)` samples, then flushed.
@@ -140,7 +140,7 @@ encoder (`text_encoders/minimax.py`) are already vendored, byte-identical to v0.
   "res_multistep", "simple"), "vae": comfy_vae(video), "audio_vae": comfy_vae(audio)})`. It raises
   without a backend, as the other comfy engines do.
 
-**`runner/engine/comfy_minimax_h3_hq.py`** (the experiment):
+**`runner/engine/comfy_minimax_h3_quality.py`** (the experiment):
 - `BASE comfy-minimax-h3`, its own `COMFY` (the bf16 transformer and text encoder, the fp16 video
   VAE, the same audio VAE) and `CRF 12`.
 - `load(ctx, params)`: `base.load(ctx, params, crop="center")`.
@@ -170,7 +170,7 @@ encoder (`text_encoders/minimax.py`) are already vendored, byte-identical to v0.
   - Timings come from the same lines.
 - **`comfy.py`:**
   - A `h3_video` graph, keyed for both modes. For comfy-minimax-h3 it is the template's nodes
-    (the first frame straight to the node, SaveVideo crf 18). For comfy-minimax-h3-hq it is
+    (the first frame straight to the node, SaveVideo crf 18). For comfy-minimax-h3-quality it is
     gen.py's base graph node for node (ImageScale centre crop, SaveVideo crf 12).
   - `compare()` decodes both mp4s with PyAV and reports `identical` when every frame and audio
     sample match, else the frames' PSNR.
@@ -199,7 +199,7 @@ checked first.
 1. **Locally:** pyflakes, the offloader's import smoke test, and `runner/video.py` writing a
    synthetic clip with audio that PyAV reads back (frames, rate, samples).
 2. **Install on Modal** (CPU container): `test/modal.sh install comfy-minimax-h3
-   comfy-minimax-h3-hq minimax-h3` into the `turbo-models` Volume. That is about 43 GB for the
+   comfy-minimax-h3-quality minimax-h3` into the `turbo-models` Volume. That is about 43 GB for the
    template's files, 97 GB for bf16 and 135 GB for MiniMax's release. Revisions are pinned from
    the HF API there, since Hugging Face is blocked on this machine.
 3. **Identity and speed, comfy-minimax-h3**, on the big L40S container (224 GiB):
@@ -209,7 +209,7 @@ checked first.
    - Then once with `--warmup --repeat 2 --record` for the references.
    - Spend is reported after each run (`modal billing report`); `modal app list` is empty at the
      end.
-4. **comfy-minimax-h3-hq:** the same first run, one per side per mode. It must report
+4. **comfy-minimax-h3-quality:** the same first run, one per side per mode. It must report
    `identical` against ComfyUI running the experiment's base graph.
 5. **minimax-h3:** one `test/modal.sh exec --big` run per mode at 512, 5 s, at its 50 steps. It
    must write a playable mp4 with sound and print `Saved:`.
@@ -226,7 +226,7 @@ checked first.
   against 61.6 s and 64.8 s against 64.8 s. The first single run read +12% for text to video:
   turbo goes first and its first step read the weights off the Volume (10.9 s, then 1.75 s per
   step). Its L40S reference was dropped later: H3 is the `--video` suite's, on a B200.
-- **comfy-minimax-h3-hq against the experimental H3's base graph in ComfyUI** (gen.py's nodes,
+- **comfy-minimax-h3-quality against the experimental H3's base graph in ComfyUI** (gen.py's nodes,
   `--bf16-text-enc`, the first frame center cropped, crf 12): identical in both modes. Sampling
   75.9 s and 71.9 s, ComfyUI's 84.7 s and 94.1 s, in separate containers: not a speed comparison.
 - **minimax-h3** (diffusers, MiniMax's weights): an mp4 with its soundtrack in both modes, 49

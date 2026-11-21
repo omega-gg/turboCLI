@@ -292,7 +292,7 @@ def h3_image(engine, f, prompt, seed, width, height, image):
 
 def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False):
     # video_minimax_h3_t2v.json and _i2v.json, the Turbo LoRA off (comfy-minimax-h3), or the base
-    # graph of the experimental H3, remote/gen.py (comfy-minimax-h3-hq, its keyframe fitted by
+    # graph of the experimental H3, remote/gen.py (comfy-minimax-h3-quality, its keyframe fitted by
     # an ImageScale with center crop first, SaveVideo at its crf): MiniMaxH3ImageToVideo, then
     # SamplerCustomAdvanced (res_multistep, simple, BasicGuider), VAEDecode and VAEDecodeAudio,
     # CreateVideo at 24 fps, SaveVideo. The video at node "99". With `ref`, the image is a picture
@@ -300,7 +300,7 @@ def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False)
     # (simple), or gen.py's Ref2VA (beta).
     module = declaration(engine)
     base = declaration(module.BASE) if hasattr(module, "BASE") else module  # frames, INFERENCE
-    experiment = engine.endswith("-hq")
+    experiment = engine.endswith("-quality")
 
     conditioning = {"clip": ["2", 0], "vae": ["3", 0], "prompt": prompt, "width": width,
                     "height": height, "length": base.frames(duration)}
@@ -369,16 +369,16 @@ GRAPHS = {
     ("comfy-minimax-h3-image", "image-to-image"): h3_image,
     ("comfy-minimax-h3", "text-to-video"): h3_video,
     ("comfy-minimax-h3", "image-to-video"): h3_video,
-    ("comfy-minimax-h3-hq", "text-to-video"): h3_video,
-    ("comfy-minimax-h3-hq", "image-to-video"): h3_video,
+    ("comfy-minimax-h3-quality", "text-to-video"): h3_video,
+    ("comfy-minimax-h3-quality", "image-to-video"): h3_video,
     ("comfy-minimax-h3", "image-to-video-ref"): functools.partial(h3_video, ref=True),
-    ("comfy-minimax-h3-hq", "image-to-video-ref"): functools.partial(h3_video, ref=True),
+    ("comfy-minimax-h3-quality", "image-to-video-ref"): functools.partial(h3_video, ref=True),
 }
 
 # The flags ComfyUI starts with for an engine's graph: the experiment ran its bf16 text encoder in
 # bf16 (ComfyUI casts it to fp16 otherwise).
 ARGS = {
-    "comfy-minimax-h3-hq": ["--bf16-text-enc"],
+    "comfy-minimax-h3-quality": ["--bf16-text-enc"],
 }
 
 

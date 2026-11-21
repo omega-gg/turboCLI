@@ -54,7 +54,7 @@ engine: flux2-4b
         comfy-seedvr2-7b-upscale (SeedVR2 7B, ComfyUI's files)
         minimax-h3               (video, MiniMax's weights)
         comfy-minimax-h3         (video, ComfyUI's files)
-        comfy-minimax-h3-hq      (video, ComfyUI's bf16 files)
+        comfy-minimax-h3-quality (video, ComfyUI's bf16 files)
 
 renderer: cpu, cuda, mps
 
@@ -271,7 +271,7 @@ Usage: text-to-video <engine> <renderer> <output video>
 
 engine: minimax-h3
         comfy-minimax-h3
-        comfy-minimax-h3-hq
+        comfy-minimax-h3-quality
 
 renderer: cpu, cuda, mps
 
@@ -289,7 +289,7 @@ options (comfy-minimax-h3 engines), comma separated:
          attention=cudnn puts cuDNN attention ahead of flash: about twice as fast
          on a B200
          scheduler=simple|beta in place of the engine's: simple, or beta with
-         references on comfy-minimax-h3-hq
+         references on comfy-minimax-h3-quality
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
@@ -311,7 +311,7 @@ Usage: image-to-video <engine> <renderer> <input references> <output video>
 
 engine: minimax-h3
         comfy-minimax-h3
-        comfy-minimax-h3-hq
+        comfy-minimax-h3-quality
 
 renderer: cpu, cuda, mps
 
@@ -337,16 +337,16 @@ options (comfy-minimax-h3 engines), comma separated:
          attention=cudnn puts cuDNN attention ahead of flash: about twice as fast
          on a B200
          scheduler=simple|beta in place of the engine's: simple, or beta with
-         references on comfy-minimax-h3-hq
+         references on comfy-minimax-h3-quality
          crop=none|center: center first fits each frame to the video by a center
-         crop, as comfy-minimax-h3-hq does (references: always center)
+         crop, as comfy-minimax-h3-quality does (references: always center)
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
 examples:
     image-to-video comfy-minimax-h3 cuda frame.png output.mp4 "the camera pushes in"
     image-to-video comfy-minimax-h3 cuda first.png,last.png output.mp4 "the camera pushes in" 10 1344 768
-    image-to-video comfy-minimax-h3-hq cuda first=fedora.png,audio=voice.wav output.mp4 "he speaks in the voice of <Audio 1>" 5 1376 576
+    image-to-video comfy-minimax-h3-quality cuda first=fedora.png,audio=voice.wav output.mp4 "he speaks in the voice of <Audio 1>" 5 1376 576
 ```
 
 ### [image-to-mask.sh](image-to-mask.sh) - Generate a mask / matte
