@@ -86,6 +86,15 @@ import torch
 
 ENGINES = {}   # name -> engine module
 
+# NOTE: The modes whose result is a video (runner/video.py), the others an image.
+VIDEO_MODES = ("text-to-video", "image-to-video")
+
+# NOTE: A video's options and their values (MiniMax H3's comfy engines), each in place of the
+#       engine's: cuDNN SDPA first, as the experimental H3 ran ComfyUI, the scheduler, and the
+#       keyframes' fit (an ImageScale with center crop before the node, or none).
+VIDEO_OPTIONS = {"attention": ("cudnn",), "scheduler": ("simple", "beta"),
+                 "crop": ("none", "center")}
+
 for _path in sorted(glob.glob(os.path.join(os.path.dirname(__file__), "engine", "*.py"))):
     _file = os.path.basename(_path)
 
@@ -574,13 +583,49 @@ def _save(image, params, steps, emit, reference=None):
     return True
 
 
+def _video_inputs(spec, emit):
+    """image-to-video's input references (engine/_options.parse_references) as the pipeline takes
+    them: the frames and the picture references opened, the audio as their paths, the guide as it
+    is, a (path, seconds) pair."""
+    from PIL import Image
+
+    from .engine._options import parse_references
+
+    references = parse_references(spec)
+
+    def load(path, image=True):
+        emit("loading input: %s" % path)
+
+        return Image.open(path).convert("RGB") if image else path
+
+    return {"image": [path and load(path) for path in references["frames"]],
+            "references": [load(path, role == "image") for role, path in references["references"]],
+            "guide": references["guide"]}
+
+
+def _save_video(result, params, mod, emit):
+    """Write a video engine's result (its frames, soundtrack and frame rate) to the output, at
+    the engine's CRF, see runner/video.py. Returns True, as _save."""
+    from . import video
+
+    audio, rate = result.audio if result.audio is not None else (None, None)
+
+    video.save(params["output"], result.videos[0], result.fps, audio, rate,
+               getattr(mod, "CRF", video.CRF))
+
+    emit("Saved: " + params["output"])
+
+    return True
+
+
 def generate(params, emit, should_stop=None):
-    """Run one generation. Returns True if an image was saved, False otherwise (validation error,
-    cancelled, or superseded). Unexpected errors propagate to the caller (cli/server wraps them).
+    """Run one generation. Returns True if an image or a video was saved, False otherwise
+    (validation error, cancelled, or superseded). Unexpected errors propagate to the caller
+    (cli/server wraps them).
 
     params: the same plain dict the HTTP API builds (engine, mode, prompt, output, images, loras,
-    options, width, height, seed, inference, renderer, offload, slicing). The model folder is not a
-    param -- resolve_model() derives it from the runner's path (default_folder()).
+    options, width, height, duration, seed, inference, renderer, offload, slicing). The model
+    folder is not a param -- resolve_model() derives it from the runner's path (default_folder()).
     emit: a line sink (print for cli, the socket stream for server).
     should_stop: optional callable -> None | "cancel" | "supersede" (server preemption; None for
     cli).
@@ -613,6 +658,19 @@ def generate(params, emit, should_stop=None):
             steps = parse(parse_options(params.get("options", "")))
         except ValueError as error:
             emit("ERROR: %s" % error)
+
+            return False
+
+    video_options = {}
+
+    if mode in VIDEO_MODES:
+        from .engine._options import parse_options
+
+        video_options = parse_options(params.get("options", ""))
+
+        if any(v not in VIDEO_OPTIONS.get(k, ()) for k, v in video_options.items()):
+            emit("ERROR: a video's options are " + ", ".join(
+                "%s=%s" % (k, "|".join(v)) for k, v in VIDEO_OPTIONS.items()))
 
             return False
 
@@ -690,6 +748,10 @@ def generate(params, emit, should_stop=None):
 
     kwargs.update(width=int(params["width"]), height=int(params["height"]))
 
+    # NOTE: The engine turns the duration into frames, on its model's grid.
+    if mode in VIDEO_MODES:
+        kwargs.update(video_options, duration=float(params.get("duration", "5")))
+
     # NOTE: The first input as the pipeline takes it, which the steps adjust the result against,
     #       and its alpha, which an upscaler's result takes back.
     reference = alpha = None
@@ -714,6 +776,9 @@ def generate(params, emit, should_stop=None):
         kwargs["image"] = prompt_images
 
         reference = prompt_images[0]
+
+    elif mode == "image-to-video":
+        kwargs.update(_video_inputs(params.get("images", ""), emit))
 
     # Returns None to keep going, or why we should stop: "cancel" / "supersede".
     def stop_reason():
@@ -838,6 +903,9 @@ def generate(params, emit, should_stop=None):
                 emit("SUPERSEDED: a newer request took over, this one was cancelled")
 
             return False
+
+        if mode in VIDEO_MODES:
+            return _save_video(result, params, mod, emit)
 
         image = result.images[0]
 

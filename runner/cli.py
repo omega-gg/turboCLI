@@ -31,6 +31,7 @@
 # diffusion dir, which the wrapper cd's into so `engine` and `backend` are importable, and so the
 # model folder -- <install>/model, deduced from the runner's path -- resolves).
 
+import os
 import sys
 import argparse
 import traceback
@@ -50,11 +51,15 @@ def main():
     parser.add_argument("--options", default="")
     parser.add_argument("--width", default="512")
     parser.add_argument("--height", default="512")
+    # seconds, for the video modes
+    parser.add_argument("--duration", default="5")
     parser.add_argument("--seed", default="-1")
     parser.add_argument("--inference", default="-1")
     parser.add_argument("--renderer", default="cpu")
     parser.add_argument("--offload", default="offloader")
     parser.add_argument("--slicing", default="none")
+    # ComfyUI's flag: no pinned host copy of the weights (a GPU that holds the whole model)
+    parser.add_argument("--disable-pinned-memory", action="store_true")
 
     args = parser.parse_args()
 
@@ -68,6 +73,7 @@ def main():
         "output": args.output,
         "width": args.width,
         "height": args.height,
+        "duration": args.duration,
         "seed": args.seed,
         "inference": args.inference,
         "renderer": args.renderer,
@@ -80,6 +86,9 @@ def main():
 
     # NOTE: Importing core here (after argv parsing) runs offload-backend discovery before torch
     #       and keeps `--help` instant. core.generate returns True only when the image was saved.
+    if args.disable_pinned_memory:
+        os.environ["OFFLOADER_DISABLE_PINNED_MEMORY"] = "1"
+
     from runner import core
 
     try:

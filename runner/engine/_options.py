@@ -38,3 +38,37 @@ def parse_options(spec):
             out[key.strip()] = value.strip()
 
     return out
+
+
+# NOTE: image-to-video's input references: the roles a path takes, "first=a.png" and so on. An
+#       untagged path is a frame, the first then the last.
+ROLES = ("first", "last", "image", "audio", "guide")
+
+
+def parse_references(spec):
+    """"first=a.png,audio=v.wav,guide=l.wav@3.5" -> {"frames": ["a.png", None], "references":
+    [("audio", "v.wav")], "guide": ("l.wav", 3.5)}: the first and last frames (None where
+    absent), the picture and audio references in order, and the audio guide with its time in
+    seconds (None without one)."""
+    out = {"frames": [None, None], "references": [], "guide": None}
+    untagged = 0
+
+    for item in (i.strip() for i in spec.split(",")):
+        if not item:
+            continue
+
+        role, _, path = item.partition("=")
+
+        if role not in ROLES:  # a path, maybe C:/... : a frame
+            role, path = ("first", "last")[min(untagged, 1)], item
+            untagged += 1
+
+        if role in ("first", "last"):
+            out["frames"][role == "last"] = path
+        elif role == "guide":
+            path, _, at = path.rpartition("@")
+            out["guide"] = (path, float(at))
+        else:
+            out["references"].append((role, path))
+
+    return out

@@ -689,6 +689,19 @@ def main():
         print("The weights keep the dtype they were installed with; remove first to recast.",
               flush=True)
 
+    # A folder the engine's allow_patterns gained since (minimax-h3's transformer_ref/) is fetched
+    # into the base, the rest kept.
+    missing = [p for p in model.get("allow_patterns", ())
+               if p.endswith("/*") and not os.path.isdir(os.path.join(out, p[:-2]))]
+
+    if base_ok and missing:
+        from huggingface_hub import snapshot_download
+
+        print("Adding %s to the base model." % ", ".join(missing), flush=True)
+        snapshot_download(repo_id=model["repository"] + "/" + name, revision=revision,
+                          local_dir=out, allow_patterns=missing)
+        shutil.rmtree(os.path.join(out, ".cache"), ignore_errors=True)
+
     # Fully installed already -> just ensure the registry entry (this is also the migration path:
     # re-running install over a present model writes engine.json without re-downloading).
     if base_ok and loras_present:

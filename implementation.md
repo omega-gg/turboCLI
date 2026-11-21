@@ -32,6 +32,7 @@ turboCLI/
     check.py         install verifier (torch-free)
     align.py         the align fix: an edit's zoom and shift undone (torch-free, cv2)
     color.py         the color fix: an edit's tones matched back (torch-free, numpy)
+    video.py         a video engine's frames and sound written to an mp4 (torch-free, PyAV)
     engine/          one declaration module per engine (+ _*.py helpers, not engines): the mask /
                      mask-apply / mask-birefnet / mask-lucida / mask-inspyrenet, esrgan-upscale and
                      adjust "compute" engines live here too, over the _mask / _apply / _segment /
@@ -39,7 +40,7 @@ turboCLI/
   bash/
     python/          build.sh / check.sh -- bundled standalone CPython + uv
     turbo/           build/install/remove/check/check-model/server/text-to-image/image-to-image/
-                     image-to-mask/image-apply-mask/image-adjust
+                     text-to-video/image-to-video/image-to-mask/image-apply-mask/image-adjust
   backend/           EMPTY in-repo (a .gitignore placeholder); build.sh grafts the offloader here
   doc/               plan docs, kept as records after implementation
   test/
@@ -106,11 +107,11 @@ which is why they are queries of their own rather than more output on the instal
 
 ### `cli.py` — one-shot front-end
 
-Builds a flat string-valued params dict from 13 argv flags (`cli.py:42-73`; defaults: mode
-`text-to-image`, 512x512, seed -1, inference -1, renderer `cpu`, offload `offloader`, slicing
-`none`) and calls `core.generate(params, emit)`. Every input arrives via argv flags — no shell
-interpolation; the wrappers pass `--prompt="$1"` in equals form so a prompt starting with `-` is
-not read as a flag (`cli.py:26-28`). Two deliberate orderings:
+Builds a flat string-valued params dict from 14 argv flags (`cli.py:42-76`; defaults: mode
+`text-to-image`, 512x512, duration 5, seed -1, inference -1, renderer `cpu`, offload
+`offloader`, slicing `none`) and calls `core.generate(params, emit)`. Every input arrives via argv
+flags — no shell interpolation; the wrappers pass `--prompt="$1"` in equals form so a prompt
+starting with `-` is not read as a flag (`cli.py:26-28`). Two deliberate orderings:
 
 - `from runner import core` happens **after** argparse (`cli.py:78-80`): importing core runs
   offload-backend discovery before torch (below), and deferring it keeps `--help` instant.
@@ -124,33 +125,34 @@ are deduced from the runner's own path; the wrappers `cd` there (`cli.py:30-32`)
 
 A long-lived host that caches the model across generations. Owns only the server-specific
 concerns — HTTP, locks, preemption, the idle watcher — and delegates the work to `core.generate`
-(`server.py:23-27`). Importing core (`server.py:41-43`) preserves the pre-torch invariant:
-nothing above it touches torch.
+(`server.py:23-27`). Its flags are parsed first (`server.py:42-56`): `--disable-pinned-memory`
+sets `OFFLOADER_DISABLE_PINNED_MEMORY` for the offloader, as cli.py's does. Importing core
+(`server.py:61`) then preserves the pre-torch invariant: nothing above it touches torch.
 
 | endpoint | behavior |
 |---|---|
-| `GET /health` | `ok` (server.py:123-127) |
-| `POST /generate` | urlencoded body → the SAME params dict cli builds (`parse_qs`, server.py:177-183); streams emit lines as a plain-text body |
-| `POST /cancel` | bumps `latest_id` + `last_was_cancel`; never blocks (server.py:139-149) |
-| `POST /clear` | cancel + acquire `gpu_lock` (30s timeout) + `release_pipe` (server.py:151-170) |
-| `POST /shutdown` | responds, then shuts down on a thread (server.py:132-137) |
+| `GET /health` | `ok` (server.py:130-134) |
+| `POST /generate` | urlencoded body → the SAME params dict cli builds (`parse_qs`, server.py:184-190); streams emit lines as a plain-text body |
+| `POST /cancel` | bumps `latest_id` + `last_was_cancel`; never blocks (server.py:146-156) |
+| `POST /clear` | cancel + acquire `gpu_lock` (30s timeout) + `release_pipe` (server.py:158-177) |
+| `POST /shutdown` | responds, then shuts down on a thread (server.py:139-144) |
 
 - **Always-200 + streamed body**: the status line is sent before generating, so failure cannot be
   an HTTP code — "the client treats a `Saved:` line as success and anything else as failure"
-  (server.py:185-190). TCP_NODELAY is set so each flushed progress line goes out at once
-  (server.py:107-110); emit swallows client-gone write errors so the image still saves
-  (server.py:192-198).
+  (server.py:192-197). TCP_NODELAY is set so each flushed progress line goes out at once
+  (server.py:114-117); emit swallows client-gone write errors so the image still saves
+  (server.py:199-205).
 - **Latest-wins preemption**: requests run in their own threads (`ThreadingHTTPServer`, daemon,
   queue 64) but one generation touches the GPU at a time (`gpu_lock`). Each `/generate` claims
-  `my_id = ++latest_id` (server.py:200-204); the in-flight job's `should_stop()` closure compares
-  ids each step and returns `"cancel"` or `"supersede"` (server.py:221-226); a request that went
-  stale while waiting for the lock emits `SUPERSEDED:` without running (server.py:211-217).
+  `my_id = ++latest_id` (server.py:207-211); the in-flight job's `should_stop()` closure compares
+  ids each step and returns `"cancel"` or `"supersede"` (server.py:228-233); a request that went
+  stale while waiting for the lock emits `SUPERSEDED:` without running (server.py:218-224).
 - **Idle watcher**: a daemon thread ticks every 30s and releases the resident pipe once idle
   longer than `--timeout` (default 600s); it *skips* (non-blocking acquire) when busy
-  (server.py:78-99).
+  (server.py:85-106).
 - **Port scan** (`--scan`): binds the first free port in `[--port, --port + --range - 1]`; the
   probe socket deliberately has no SO_REUSEADDR "so an in-use port reliably fails, including on
-  Windows" (server.py:266-284).
+  Windows" (server.py:273-291).
 
 ### `install.py` — installer and registry
 
@@ -182,7 +184,8 @@ inside the base-reinstall branch (`install.py:561-562`).
   disk holds one copy, not cache+copy (install.py:747-760). Idempotent and selective: `base_ok`
   skips the base re-download when the registry already records the pinned revision, and only
   missing LoRAs are fetched (install.py:533-546) — installing `-lightning` over an existing base
-  pulls just the LoRA.
+  pulls just the LoRA. A folder the engine's `allow_patterns` gained since (minimax-h3's
+  `transformer_ref/`) is fetched alone into the present base.
 - **Comfy install** (`_install_comfy`, install.py:237-324): reuse each COMFY component already
   under the ComfyUI install's `models/`, `hf_hub_download` only the missing ones *into that
   tree*, fetch the tiny SCAFFOLD (configs/tokenizer/scheduler, no weights) into `engine/<id>`,
@@ -285,7 +288,7 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `BASE` | base engine ID to inherit from (below) |
 | `PIPELINE` | `"diffusers:XxxPipeline"` string, resolved lazily |
 | `TRANSFORMER` | `"diffusers:XxxTransformer2DModel"`; **presence = offload-wired** (core.py:553-558) |
-| `MODES` | wire modes tuple: `"text-to-image"` / `"image-to-image"` / `"image-to-mask"` / `"image-apply-mask"` / `"image-adjust"` |
+| `MODES` | wire modes tuple: `"text-to-image"` / `"image-to-image"` / `"text-to-video"` / `"image-to-video"` / `"image-to-mask"` / `"image-apply-mask"` / `"image-adjust"` |
 | `CFG` | one `(kwarg, value)` pair injected into the pipe call (core.py:599-600); the value may be a dict, one per mode (`by_mode`: comfy-moss-image's templates differ) |
 | `INFERENCE` | default step count when the caller passes `-1` (fallback 4, core.py:586-587); a dict too, one per mode |
 | `MODEL` | install spec `{repository, model, revision}` (stock); optional `kind` = `snapshot`\|`url` picks a non-diffusers install (verbatim HF repo / raw asset); optional `allow_patterns` narrows the diffusers snapshot (default `model_index.json` + every folder; `flux3-6b` takes its components and `modular_model_index.json` only); it only *renames* the folder: omitted, `resolve_model` falls back to `ID` (core.py:173), which is why COMFY engines declare none |
@@ -299,6 +302,7 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `run(ctx, params, emit)` | **compute engine**: owns generation, returns a PIL image; short-circuits before the offload ladder / pipeline (core.py:537-549) — mask / matte / apply engines |
 | `weights(model_dir)` | an upscaler compute engine's model file (`esrgan-upscale`, `comfy-esrgan-upscale`), for its `run()` |
 | `UPSCALE` | `True` on an upscaler (image-to-image to the output size, from its first input): `check --modes` tags it, and on the diffusion path core puts its first input's alpha back on the result |
+| `CRF` | a video engine's H.264 quality (`runner/video.py`), 18 when it declares none, SaveVideo's default; `comfy-minimax-h3-hq` sets the experiment's 12 |
 
 **Inheritance** (`engine/_inherit.py`, design in `doc/engine-inheritance-plan.md`): a variant
 declares `BASE = "<base id>"` and writes only its delta. `resolve()` folds each BASE chain once
@@ -336,7 +340,8 @@ packed rows and position ids and ComfyUI's packs them itself.
 - **`turboCLI.pro`** lists every runner file in `OTHER_FILES`, and `bash/*.pri` lists the scripts —
   a new module missing there ships in no package. Keep the deployed copy in step too.
 - **The usage engine lists** in `bash/turbo/install.sh` (everything installable) and the mode
-  wrappers `text-to-image.sh` / `image-to-image.sh` / `image-to-mask.sh` (each mode-filtered).
+  wrappers `text-to-image.sh` / `image-to-image.sh` / `text-to-video.sh` / `image-to-video.sh` /
+  `image-to-mask.sh` (each mode-filtered).
 - **`bash/turbo/README.md`**, which mirrors each script's usage block verbatim — update both or
   they drift.
 - **This table**, below, and **[engine.md](engine.md)**, the user-facing list: the engine's
@@ -373,6 +378,9 @@ answer is derivable.
 | `comfy-qwen-image-2-1-turbo` | BASE = the above on Qwen-Image-2.1-Turbo, Qwen's 8-step distillation (CFG 1); entire delta = the transformer component swapped for Comfy-Org's int8 ConvRot Turbo file (same repo, revision-pinned) + `INFERENCE = 8`. TE, VAE and scaffold are the base's (Turbo's transformer config is identical); the schedule is Turbo's own: `load()` wraps the base's and samples `SAMPLE_SIGMAS` unshifted, as Qwen's Turbo `model_index.json` and scheduler config set it and ComfyUI's Turbo templates pass it (`ManualSigmas`), so it always runs those 8 steps (diffusers ignores a requested step count once `sample_sigmas` is set). The base's shifted "simple" schedule left grain: fine-grain energy 11.7 against ComfyUI's 8.8, now 8.8 and 33.4 dB from ComfyUI's render. Its file sets ComfyUI's int8 attention on blocks 1-31, which ComfyUI's own model honors |
 | `comfy-moss-image` | MOSS-Image SFT as ComfyUI's two templates run it, file for file: int8 ConvRot DiT + Qwen3.5 9B w4a8 TE (both ComfyUI's own models on the offloader, `{model: "moss_image", ...}`) + the FLUX.2 small VAE, ComfyUI's own too (`comfy_vae`, fp16 where ComfyUI picks it), and Comfy-Org's edit LoRA for image-to-image, ~13.3 GB, ungated. Its pipeline is moss-image's `MOSSPipe`, encoding and decoding through ComfyUI's models, sampled by ComfyUI's own sampler (the offloader's `comfy_sampler`, bit-identical to ComfyUI's on CUDA). An edit is chaotic: a 1% difference in its first step's inputs (diffusers' VAE in bf16 against ComfyUI's in fp16) became another picture after 30 steps, ComfyUI's own included, so the reference is ComfyUI's encode exactly; its keys and values are computed before sampling, as `extra_conds` does (`_before_sampling`). Each mode is its template: t2i 25 steps, CFG 2.5, er_sde + simple, block 22 skipped for the first half; i2i 30 steps, CFG 4, euler + normal, block 22 skipped throughout, a fixed negative prompt, the source at ~1 MP as the reference (its keys and values computed once, the transformer's `edit`), the LoRA. `INFERENCE` and `CFG` are per mode, `extra_key` reloads the pipe when the mode changes (only edits carry the LoRA). No prompt upsampler. By design, CFG combines the velocities as the official loop does (ComfyUI the denoised, equal but for rounding), and an edit renders at the requested size (the template's latent takes the scaled source's). Against ComfyUI on the L40S at 1024² (seed 42): t2i 40.4 dB, sampling 9.17 s (9.28 s); i2i 30.8 dB, 11.17 s (11.13 s). Offloader-only (`doc/moss-image-plan.md`) |
 | `comfy-minimax-h3-image` | MiniMax-H3-Image as ComfyUI's two templates run it, file for file: int8 ConvRot DiT + Qwen3-VL 32B int8 ConvRot TE (both ComfyUI's own models on the offloader, `{model: "minimax_h3_image", ...}`) + the fp16 image VAE, ComfyUI's own too (`comfy_vae`), ~49 GB, ungated. Its pipeline, `ComfyH3Pipe`, is a short loop of its own (MiniMaxH3ImageConditioning, KSampler, VAEDecode): 6 steps, CFG 1 (one pass), euler + simple on the PDD grid the file's metadata declares (`comfy_sampler` reads it off the transformer's file), the schedule passed to the transformer for its heads. An edit's source, at 4 MP on the 32 grid as the edit template sizes it, is `<Picture 1>`: the text encoder sees it at a 1024 short edge, the VAE at a 1024 to 2048 short edge, after the text encoder and before sampling (sized once by the transformer's `edit`, encoded in its `extra_conds`: the H3 VAE sizes its tiles to the free VRAM, and this order gives ComfyUI's images exactly). No prompt expander; an edit renders at the requested size (the template takes the scaled source's). Tested on Modal only, on the 224 GiB container (`modal.sh run --big`). MiniMax-H3-Image Community License. Against ComfyUI on the L40S (224 GiB container), images identical at every size, sampling 5.22 s (5.19 s) at 1024², 8.07 s (8.11 s) at 2048², 19.30 s (19.32 s) at 4096²; edits 8.81 (8.76), 12.29 (12.32), 25.94 (26.53). Offloader-only (`doc/minimax-h3-image-plan.md`) |
+| `minimax-h3` | TYPE `minimax-h3`, MiniMax H3 (33B audio-video DiT, Qwen3-VL 32B TE, video and audio VAEs; no CFG) from MiniMaxAI/MiniMax-H3's diffusers layout, the t2va/fl2va half (`transformer/`, not `transformer_ref/`), ~143 GB, text-to-video + image-to-video: diffusers' modular `MiniMaxH3Blocks` behind `H3VideoPipe` (as minimax-h3-image's H3Pipe: the text encoder split out behind `encode_prompt`, the denoise bar rerouted), its defaults and limits (50 steps, 5 to 15 s at 24 fps, the first input stretched as the first frame, a second cover-cropped as the last); the frames to 8 bits as ComfyUI's save_to does |
+| `comfy-minimax-h3` | MiniMax H3 as ComfyUI's templates run it (`video_minimax_h3_t2v` / `_i2v`, the Turbo LoRA off), file for file: int8 ConvRot fl2va DiT + Qwen3-VL 32B NVFP4 TE + int8 ConvRot video VAE + fp32 audio VAE (~40 GB), ComfyUI's own models on the offloader (its `minimax_h3` model, two `comfy_vae`, `comfy_sampler` res_multistep/simple at shift 12): MiniMaxH3ImageToVideo (the duration snapped to the 17k+5 grid, the keyframes sized by the node and encoded by the video VAE), RandomNoise, 20 steps on the flat pack of the video and audio latents, VAEDecode + VAEDecodeAudio (its loudness cap), crf 18; with references `video_minimax_h3_r2v`: the int8 ref2va transformer (`transformer_ref`, ~61 GB in all), MiniMaxH3ReferenceToVideo (`MiniMaxH3.reference_to_video`), the frames and an audio guide pinned by MiniMaxH3AddGuide (`add_guide`). Against ComfyUI on the L40S at 512², 5 s: identical, sampling −1% (t2v) and +0% (i2v) (`doc/minimax-h3-video-plan.md`) |
+| `comfy-minimax-h3-hq` | BASE = comfy-minimax-h3; delta: Comfy-Org's highest precision files (bf16 DiT and TE, fp16 video VAE, ~98 GB), the TE in bf16 (`--bf16-text-enc`), each keyframe first fitted by an ImageScale with center crop, crf 12; with references the bf16 ref2va file and the beta scheduler (its `crop` and scheduler the defaults `crop=` and `scheduler=` override): the base and Ref2VA graphs of the experimental H3 (`msvc/experimental/h3`, `remote/gen.py`); identical with that graph in ComfyUI |
 | `mask` | **compute engine** (declares `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box mask (options `mode=default\|region`); register-only install; options `cutoff=N` (0-255), `glow=N` (pixels, `default` only: the mask grows by about N, graded, which covers the outline a removal leaves where `region` would have boxed the whole footprint. It does not replace `region`, see `doc/mask-glow-plan.md`) and `fade=<l>:<t>:<r>:<b>` (pixels per border, either mode: the borders of a crop ramp to 0 over that many pixels, never more than a quarter of a side, since a grown box fills a crop to its edge, or a change runs off it, and the caller pads it back into a seam. 0 keeps a border hard and the caller owns the distance, see `doc/mask-fade-plan.md`). Both are off unless sent |
 | `mask-birefnet` / `mask-lucida` / `mask-inspyrenet` | compute matte engines, mode `image-to-mask`; MODEL `kind` snapshot (birefnet/lucida) or url (inspyrenet); `mask-lucida` BASE = `mask-birefnet`; optional plate keeps the cast shadow; options `cutoff=N` (shadow floor) |
 | `esrgan-upscale` / `comfy-esrgan-upscale` | compute upscalers, mode `image-to-image` on the first input (`esrgan_upscale.py`): spandrel loads Real-ESRGAN x4plus (url xinntao release `v0.1.0` / one COMFY component, no scaffold), the model stays resident (one, keyed by file and device), runs fp16 `channels_last` on a GPU (54 dB from fp32, 3.3x faster on an A1000) in 512 tiles overlapping by 32 with ramp blending (halved on out of memory down to 128: ComfyUI's numbers), then lanczos to the output size. An alpha channel follows at the same size |
@@ -418,16 +426,16 @@ answer is derivable.
 
 The **params dict** is flat and string-valued, and identical for CLI and HTTP (the server's
 urlencoded fields decode to exactly the dict cli builds): `engine, mode, prompt, images, loras,
-options, output, width, height, seed, inference, renderer, offload, slicing`. The model folder is
-deliberately NOT a param — `resolve_model()` derives it from the runner's own path
-(core.py:515-517); nothing is path-passed, everything is path-deduced. `loras` is
-comma-separated `<path>@<weight>` entries; `parse_loras` accepts any finite float (no `[0,1]`
-clamp — diff-style patches use >1 and negative, matching ComfyUI).
+options, output, width, height, duration, seed, inference, renderer, offload, slicing`. The model
+folder is deliberately NOT a param — `resolve_model()` derives it from the runner's own path
+(core.py:515-517); nothing is path-passed, everything is path-deduced. `loras` is comma-separated
+`<path>@<weight>` entries; `parse_loras` accepts any finite float (no `[0,1]` clamp — diff-style
+patches use >1 and negative, matching ComfyUI).
 
 1. Validate engine + mode, then the offload ladder above (core.py:525-567). An image-to-image
    run's `align[=<percent>]` and `color[=<levels>]` options, a limit given or the default,
    must be positive numbers (`engine/adjust.parse`), checked before any model loads, a compute
-   engine's (`esrgan-upscale`) included.
+   engine's (`esrgan-upscale`) included. image-to-video takes no option yet: one is refused.
 2. `get_pipe` (core.py:447): compare `_engine_key` to the resident key — `(ID, model dir,
    renderer, offload, slicing) + extra_key(params) + (user loras,)` (core.py:297-308); reuse on
    match, else `release_pipe("config changed")` and reload via the engine's `load()` or
@@ -435,10 +443,10 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
    (core.py:492-496). The safety checker is stubbed out (core.py:489-490).
 3. **Seed** (core.py:573-578): `-1` → nondeterministic; else `torch.Generator(device="cpu")` —
    a CPU generator regardless of renderer, for device-independent determinism.
-4. **image-to-image** (core.py:638-651): lazy PIL import; each input image goes to the
-   pipeline as it is, which sizes it its own way (Qwen and Flux2 to ~1 MP, Flux3 only past
-   4096²). An upscaler (`UPSCALE`) has its first input's alpha put back on its result,
-   resized by lanczos, as ESRGAN's run and ComfyUI's SeedVR2 template do.
+4. **image-to-image** and **image-to-video** (core.py:638-651): lazy PIL import; each input
+   image goes to the pipeline as it is, which sizes it its own way (Qwen and Flux2 to ~1 MP,
+   Flux3 only past 4096²). An upscaler (`UPSCALE`) has its first input's alpha put back on its
+   result, resized by lanczos, as ESRGAN's run and ComfyUI's SeedVR2 template do.
 5. **Progress** (core.py:661-725): diffusers' tqdm bar is kept fully alive but rendered into a
    sink ("a disabled bar computes no stats"), and `progress_bar` is hooked per generation: a
    heartbeat `  0%|step 0/N (00:00)` at bar creation (real loop start, after text-encoding, so
@@ -476,7 +484,27 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
    is. One `color:` line gives the mean move of each channel. Each step (`engine/adjust.step`)
    has its own `try`: a failure logs, says `<step>: failed, left as is`, and the next step still
    runs (`doc/image-adjust-plan.md`).
-9. Save (PNG at ComfyUI's SaveImage `compress_level=4`, lossless), then emit
+   image-to-video's inputs are references tagged by role (`engine/_options.parse_references`):
+   `first=` / `last=` frames (an untagged image a frame), `image=` and `audio=` references,
+   `guide=<audio>@<seconds>`. `_video_inputs` opens the images and hands the pipeline
+   `image=[first, last]`, `references=[image or audio path]` and `guide=(path, seconds)`; an
+   engine whose references run on another transformer folds their presence into `extra_key`.
+   A video takes the options of `core.VIDEO_OPTIONS`, `attention=cudnn`,
+   `scheduler=simple|beta` and `crop=none|center` (core refuses any other), passed to the
+   pipeline by name; minimax-h3 refuses them. `scheduler` and `crop` replace the engine's for
+   the generation (simple, or beta for comfy-minimax-h3-hq's references; none, or center for
+   comfy-minimax-h3-hq's frames). `attention`: the pipes run it inside
+   `MiniMaxH3.attention(kind)`, cuDNN SDPA ahead of flash and ComfyUI's priority restored after
+   (the experiment's cudnn_attention.py node). On a B200 at 1376x576,
+   2.3 s a step against 4.6, 45.2 dB from the experiment's B200 take against 37.3.
+9. A video mode passes the pipeline its `duration` (seconds; the engine snaps it to its frame
+   grid) and gets back its frames, soundtrack and frame rate (`.videos`, `.audio`, `.fps`):
+   `_save_video` writes them with `runner/video.py`, ComfyUI's CreateVideo and SaveVideo
+   (`VideoFromComponents.save_to`): an mp4, H.264 yuv420p tagged sRGB on BT.709, at the
+   engine's `CRF`, the sound in AAC at its rate, no metadata. Byte-identical with ComfyUI's
+   for the same frames and sound (PyAV 19.0.1, pinned in build.sh and test/comfyui.sh). Then
+   `Saved:`, as below; the align and color steps are an image's.
+10. An image: save (PNG at ComfyUI's SaveImage `compress_level=4`, lossless), then emit
    `Saved: <output>` immediately "so the client gets the result as early as possible".
    Steps 8 and 9 are `_save`, which a compute engine's result goes through too, so the steps
    reach `esrgan-upscale`. They take the first input as the pipeline decoded it; a compute
@@ -487,7 +515,7 @@ clamp — diff-style patches use >1 and negative, matching ComfyUI).
 ```
 loading <id> model (<renderer> / <offload>)...   informational
 model ready
-loading input: <path>                            i2i only
+loading input: <path>                            i2i and i2v only
 generating "<prompt≤60>" (<N> steps)...
   0%|step 0/N (00:00)                            heartbeat
  42%|step 5/12 (00:31, 3.50s/it)                 one line per step, tqdm-native figures
@@ -501,7 +529,7 @@ SUPERSEDED: a newer request took over, this one was cancelled
 
 Error-handling split: expected/validation failures emit `ERROR:` and return False; unexpected
 exceptions propagate — cli prints the traceback and exits 1, the server logs it and streams it
-into the body (cli.py:82-89, server.py:237-246).
+into the body (cli.py:82-89, server.py:244-253).
 
 ## Caches
 
@@ -533,27 +561,32 @@ into the body (cli.py:82-89, server.py:237-246).
 
 `test/run.sh` turns that determinism into a check for every update of turboCLI or
 turbo-offloader. It runs each installed engine, stock and comfy, in each of its modes at seed 42,
-and compares the image md5 and the sampling time with this machine's reference
-(`test/reference/<renderer>-<device>-<size>.txt`, committed, `--record` to write it). Images are
-only identical within one machine and stack, hence a reference per machine. Timings come from the
-runner's own lines (`model ready`, `generating`, `step 0/N`, `step N/N`, `Saved:`), each stamped
-on arrival to the millisecond by perl: load, encode, sampling and decode, sampling deciding (a
-mask engine has no steps; its time, mostly start-up, is shown, not judged). Each run also prints
-its time from launch to `Saved:`, where a client takes the image, not to the process's exit.
-`--cool` and `--repeat` keep a throttling laptop from failing a run that is not slower.
-The `adjust` engine has two cases on the knight, a drift and a night (`image-adjust`,
+and compares the output's md5 and the sampling time with
+this machine's reference (`test/reference/<renderer>-<device>-<size>.txt`, committed, `--record` to
+write it). Images are only identical within one machine and stack, hence a reference per machine.
+Timings come from the runner's own lines (`model ready`, `generating`, `step 0/N`, `step N/N`,
+`Saved:`), each stamped on arrival to the millisecond by perl: load, encode, sampling and decode,
+sampling deciding (a mask engine has no steps; its time, mostly start-up, is shown, not judged).
+Each run also prints its time from launch to `Saved:`, where a client takes the image, not to the
+process's exit. `--cool` and `--repeat` keep a throttling laptop from failing a run that is not
+slower. The `adjust` engine has two cases on the knight, a drift and a night (`image-adjust`,
 `image-adjust-night`): besides its md5, each must print the line of each fix it expects (aligned
 and matched; aligned and left as is), since a fix that stops working still saves an image that
 `--record` would keep.
 
+The video cases (5 s, the md5 the mp4 file's) are a suite of their own, `--video`, filtered from
+the case list either way: MiniMax H3 wants a GPU that holds it, so `modal.sh run --video` takes
+B200 containers (`gpu_b200`), and a plain run stays on the image engines.
+
 `--comfy <dir>` also runs each comfy engine through a ComfyUI install (`test/comfy.py`: the
 template graph, its files from the engine's `COMFY` declaration), alternating with turbo, each
-repeat swapping which goes first, so neither always reads the files cold. ComfyUI's time runs
-from its server's launch to the image it returns. It compares the two; `--comfy-only <dir>` runs
-ComfyUI alone, for a re-sync of the vendored ComfyUI.
-ComfyUI's progress bar shifts its start after the second step (`model_trange`), so its sampling
-is timed by the same stamps, from the bar's `0/N` to its `N/N`. `test/README.md` has the usage
-and `doc/test-suite-plan.md` the design.
+repeat swapping which goes first, so neither always reads the files cold. ComfyUI's time runs from
+its server's launch to the image it returns, started with the flags its engine's graph asks for
+(`comfy.py args`: `--bf16-text-enc` for comfy-minimax-h3-hq). It compares the two, a video's
+frames and sound decoded (its metadata differs); `--comfy-only <dir>` runs ComfyUI alone, for a
+re-sync of the vendored ComfyUI. ComfyUI's progress bar shifts its start after the second step
+(`model_trange`), so its sampling is timed by the same stamps, from the bar's `0/N` to its `N/N`.
+`test/README.md` has the usage and `doc/test-suite-plan.md` the design.
 
 `test/modal.sh` runs it on Modal L40S GPUs, one container per engine at once. Its results,
 turbo against ComfyUI engine by engine, are in turbo-offloader's `implementation.md`

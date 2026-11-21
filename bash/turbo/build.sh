@@ -68,6 +68,10 @@ spandrel_version="0.4.2"
 #       folder, so both are pinned to one version.
 opencv_version="5.0.0.93"
 
+# NOTE: The video modes write their mp4 with PyAV, as ComfyUI does. test/comfyui.sh installs
+#       this pin in ComfyUI too, so both sides encode with one build.
+av_version="19.0.1"
+
 huggingface_hub_version="1.33.0"
 hf_xet_version="1.7.0"
 hf_transfer_version="0.1.9"
@@ -286,6 +290,7 @@ uv pip install \
     "$(require spandrel $spandrel_version)" \
     "$(require opencv-python $opencv_version)" \
     "$(require opencv-python-headless $opencv_version)" \
+    "$(require av $av_version)" \
     "git+https://github.com/huggingface/diffusers@$diffusers_ref"
 
 #--------------------------------------------------------------------------------------------------

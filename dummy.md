@@ -7,10 +7,11 @@ a little more technical than the one before. For the full design and mechanisms,
 
 ## What is this?
 
-turboCLI runs image-generation models (FLUX.2, Z-Image, Qwen-Image-Edit, Krea...) from a command
-line or behind a small local HTTP server. You install an *engine* ([engine.md](engine.md) lists
-them) once — the only step that needs the internet — and from then on you generate images fully
-offline, on a plain CPU, an NVIDIA GPU (CUDA) or an Apple GPU (MPS):
+turboCLI runs image and video generation models (FLUX.2, Z-Image, Qwen-Image-Edit, Krea, MiniMax
+H3...) from a command line or behind a small local HTTP server. You install an *engine*
+([engine.md](engine.md) lists them) once — the only step that needs the internet — and from then on
+you generate images and videos fully offline, on a plain CPU, an NVIDIA GPU (CUDA) or an Apple GPU
+(MPS):
 
 ```
 sh text-to-image.sh z-image-turbo cuda out.png "a beautiful knight"

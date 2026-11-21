@@ -31,8 +31,8 @@ set -e
 if [ "$1" != "install" -a "$1" != "run" -a "$1" != "exec" ]; then
 
     echo "Usage: modal.sh install [engine ...]"
-    echo "       modal.sh run [--big] [run.sh options] [engine ...]"
-    echo "       modal.sh exec [--gpu | --big] <command>"
+    echo "       modal.sh run [--big | --video] [run.sh options] [engine ...]"
+    echo "       modal.sh exec [--gpu | --big | --b200] <command>"
     echo ""
     echo "Runs the test suite on Modal, on L40S GPUs, with turboCLI's own scripts: the working"
     echo "trees of turboCLI and turbo-offloader (../turbo-offloader, or TURBO_OFFLOADER) go up as"
@@ -47,9 +47,11 @@ if [ "$1" != "install" -a "$1" != "run" -a "$1" != "exec" ]; then
     echo "         summaries, the logs and images come back into test/. With --renderer cpu, on"
     echo "         CPU containers instead (slow: a small --size and a few engines). With --big,"
     echo "         on L40S containers with 224 GiB of RAM instead of 64, for the models past"
-    echo "         64 GB (minimax-h3-image, comfy-minimax-h3-image)"
-    echo "exec:    on CPU (an L40S with --gpu, one with 224 GiB of RAM with --big), a bash"
-    echo "         command in the same setup, from the sources' folder; what it writes to out/"
+    echo "         64 GB (minimax-h3-image, comfy-minimax-h3-image). With --video, the"
+    echo "         video suite (run.sh --video) on B200 containers: MiniMax H3 resident"
+    echo "exec:    on CPU (an L40S with --gpu, one with 224 GiB of RAM with --big, a B200 with"
+    echo "         --b200), a bash command in the same setup, from the sources' folder; what it"
+    echo "         writes to out/"
     echo "         comes back into test/results/modal/exec"
     echo ""
     echo "examples:"
@@ -58,6 +60,7 @@ if [ "$1" != "install" -a "$1" != "run" -a "$1" != "exec" ]; then
     echo "    modal.sh run --record --repeat 2 --comfy /opt/ComfyUI"
     echo "    modal.sh run --renderer cpu --size 256 mask comfy-flux2-4b"
     echo "    modal.sh run --big --size 4096 --comfy /opt/ComfyUI comfy-minimax-h3-image"
+    echo "    modal.sh run --video --size 512 --comfy /opt/ComfyUI"
     echo "    modal.sh exec 'bash turboCLI/bash/turbo/check-model.sh'"
 
     exit 1
@@ -149,7 +152,7 @@ EOF
     echo "$1"
 }
 
-# Runs a script in a container: <cpu|gpu|gpu_big> <script> <folder its out/ lands in>.
+# Runs a script in a container: <cpu|gpu|gpu_big|gpu_b200> <script> <folder its out/ lands in>.
 remote()
 {
     mkdir -p "$3"
@@ -174,6 +177,7 @@ cp -r turboCLI/test/reference out/
 cp turboCLI/test/results/*/summary.txt out/ 2> /dev/null || true
 cp turboCLI/test/results/*/*.log* out/logs/ 2> /dev/null || true
 cp turboCLI/test/results/*/*.png out/logs/ 2> /dev/null || true
+cp turboCLI/test/results/*/*.mp4 out/logs/ 2> /dev/null || true
 
 exit ${status:-0}
 EOF
@@ -226,6 +230,12 @@ if [ "$command" = "exec" ]; then
         target="gpu_big"
 
         shift
+
+    elif [ "$1" = "--b200" ]; then
+
+        target="gpu_b200"
+
+        shift
     fi
 
     remote $target "$*" "$test/results/modal/exec"
@@ -233,7 +243,8 @@ if [ "$command" = "exec" ]; then
     exit
 fi
 
-# run: run.sh's options apart from the engines, and --big, which is ours.
+# run: run.sh's options apart from the engines, and --big, which is ours; --video, run.sh's,
+# also takes the B200.
 arguments=""
 engines=""
 gpu="gpu"
@@ -241,8 +252,9 @@ gpu="gpu"
 while [ $# -gt 0 ]; do
 
     case "$1" in
-        --big) gpu="gpu_big";;
-        --renderer|--size|--repeat|--tolerance|--comfy|--comfy-only)
+        --big)   gpu="gpu_big";;
+        --video) gpu="gpu_b200"; arguments="$arguments --video";;
+        --renderer|--size|--repeat|--tolerance|--comfy|--comfy-only|--mode)
             arguments="$arguments $(printf '%q %q' "$1" "$2")"; shift;;
         -*) arguments="$arguments $1";;
         *)  engines="$engines $1";;
@@ -251,7 +263,8 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-# The L40S, unless the run asks for the CPU, which CPU containers serve (no GPU billed).
+# The L40S (or the GPU asked for), unless the run asks for the CPU, which CPU containers serve
+# (no GPU billed).
 target="$gpu"
 renderer="--renderer cuda"
 

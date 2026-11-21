@@ -43,3 +43,10 @@
 # UPSCALERS: image-to-image engines that enlarge their first input to the output size, declaring
 # UPSCALE, which check --modes tags so a host can tell: compute engines (esrgan-upscale) or
 # diffusion ones (comfy-seedvr2-3b-upscale), whose first input core keeps the alpha of.
+#
+# VIDEO: text-to-video and image-to-video engines take a duration and return their frames, their
+# soundtrack and its rate, and their frame rate (.videos, .audio, .fps), which core writes to an
+# mp4 (runner/video.py) at the engine's CRF when it declares one. image-to-video's inputs are
+# references tagged by role (engine/_options.parse_references): the first and last frames,
+# picture and audio references, an audio guide; an engine with references in its own workflow
+# folds that into extra_key.

@@ -83,4 +83,4 @@ uv pip install torch==$(pin torch_version) torchvision==$(pin torchvision_versio
                torchaudio==$(pin torchaudio_version) \
                --index-url https://download.pytorch.org/whl/$(pin torch_cuda)
 
-uv pip install -r "$folder/requirements.txt"
+uv pip install -r "$folder/requirements.txt" "av==$(pin av_version)"

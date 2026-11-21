@@ -100,9 +100,17 @@ def gpu_big(script, sources):
     return shell(script, sources)
 
 
+# A B200 (180 GB): MiniMax H3's bf16 files resident on the card, as the experimental H3 ran them.
+# The card holds the whole model, so turboCLI runs without ComfyUI's pinned host copy of it
+# (--disable-pinned-memory: about 100 GiB at most for comfy-minimax-h3-hq, 190 with the copy).
+@app.function(gpu="B200", memory=106496, **options)
+def gpu_b200(script, sources):
+    return shell("export OFFLOADER_DISABLE_PINNED_MEMORY=1\n" + script, sources)
+
+
 @app.local_entrypoint()
 def main(target: str, script: str, sources: str, out: str):
-    function = {"gpu": gpu, "gpu_big": gpu_big}.get(target, cpu)
+    function = {"gpu": gpu, "gpu_big": gpu_big, "gpu_b200": gpu_b200}.get(target, cpu)
 
     with open(sources, "rb") as f:
         status, files = function.remote(script, f.read())

@@ -33,6 +33,10 @@ fox="a red fox sitting in a snowy forest, golden hour"
 
 edit="turn the scene into a snowy winter night lit by torches"
 
+film="the camera slowly pushes in on a snowy forest as the wind sways the trees"
+
+duration="5"
+
 tolerance="10"
 
 repeat="1"
@@ -62,12 +66,17 @@ usage()
     echo "--tolerance <P>            percent slower still passing (default $tolerance)"
     echo "--comfy <dir>              also run the comfy engines through the ComfyUI in <dir>"
     echo "--comfy-only <dir>         run the comfy engines through the ComfyUI in <dir> alone"
+    echo "--mode <case>              only that case: a mode, or image-to-video-ref and kin"
+    echo "--video                    the video cases instead, a suite of their own (MiniMax H3:"
+    echo "                           a GPU that holds it, modal.sh run --video); a video --mode"
+    echo "                           implies it"
     echo "--list                     print the engines a run would test, and run nothing"
     echo ""
     echo "examples:"
     echo "    run.sh --record"
     echo "    run.sh flux2-4b comfy-flux2-4b"
     echo "    run.sh --repeat 2 --cool --comfy ~/ComfyUI comfy-z-image-turbo"
+    echo "    run.sh --video --size 512 --comfy ~/ComfyUI"
 
     exit 1
 }
@@ -81,6 +90,8 @@ warmup=false
 comfy=""
 sides="turbo"
 engines=""
+only=""
+video=false
 
 while [ $# -gt 0 ]; do
 
@@ -94,6 +105,8 @@ while [ $# -gt 0 ]; do
         --tolerance)  tolerance="$2"; shift;;
         --comfy)      comfy="$2"; sides="turbo comfy"; shift;;
         --comfy-only) comfy="$2"; sides="comfy"; shift;;
+        --mode)       only="$2"; shift;;
+        --video)      video=true;;
         --list)       listing=true;;
         -*)           usage;;
         *)            engines="$engines $1";;
@@ -101,6 +114,8 @@ while [ $# -gt 0 ]; do
 
     shift
 done
+
+case "$only" in *-video*) video=true;; esac
 
 #--------------------------------------------------------------------------------------------------
 # Configuration
@@ -234,14 +249,24 @@ wait_cool()
 }
 
 # Every installed engine, stock and comfy, in each of its modes, "engine mode" per line.
-# image-adjust-night is a second case of image-adjust's engines: a night, whose colors stay.
+# image-adjust-night is a second case of image-adjust's engines: a night, whose colors stay;
+# image-to-video-ref one of image-to-video's: the knight as a picture reference.
 turbo_cases()
 {
-    for mode in text-to-image image-to-image image-to-mask image-adjust image-adjust-night; do
+    for mode in text-to-image image-to-image text-to-video image-to-video image-to-video-ref \
+                image-to-mask image-adjust image-adjust-night; do
 
-        bash "$turbo/check-model.sh" ENGINES:${mode%-night} | tr -d '\r' \
+        bash "$turbo/check-model.sh" ENGINES:$(base $mode) | tr -d '\r' \
             | awk -v m=$mode '$2 == "installed" { print $1, m }'
     done
+}
+
+# The mode a case runs: image-adjust-night runs image-adjust, image-to-video-ref image-to-video.
+base()
+{
+    local mode="${1%-night}"
+
+    echo "${mode%-ref}"
 }
 
 # The (engine, mode) pairs comfy.py has a ComfyUI graph for.
@@ -277,6 +302,10 @@ run_turbo()
             case "$engine" in
                 *-upscale) input="$images/knight-small.png" prompt=none target=$upscaled;;
             esac;;
+        image-to-video)
+            input="$images/knight.png";;
+        image-to-video-ref)
+            input="image=$images/knight.png";;
         image-adjust)
             input="$images/knight-drift.png"
             expect=("align: .*, aligned$" "color: .*, matched$");;
@@ -294,6 +323,12 @@ run_turbo()
         image-to-image)
             bash "$turbo/image-to-image.sh" "$engine" $renderer "$input" "$output" "$prompt" \
                  ${target%x*} ${target#*x} $seed -1 ${offload:-offloader};;
+        text-to-video)
+            bash "$turbo/text-to-video.sh" "$engine" $renderer "$output" "$film" $duration \
+                 $width $height $seed -1 ${offload:-offloader};;
+        image-to-video*)
+            bash "$turbo/image-to-video.sh" "$engine" $renderer "$input" "$output" "$film" \
+                 $duration $width $height $seed -1 ${offload:-offloader};;
         image-to-mask)
             if [ "$engine" = "mask" ]; then
                 input="$images/chest.png,$images/courtyard.png"
@@ -334,6 +369,11 @@ run_comfy()
     local engine="$1" mode="$2" output="$3" log="$4" prompt="$fox" input="-" target=$size flag="" \
           server start end status
 
+    case "$mode" in
+        text-to-video)  prompt="$film";;
+        image-to-video*) prompt="$film" input="$images/knight.png";;
+    esac
+
     if [ "$mode" = "image-to-image" ]; then
 
         case "$engine" in
@@ -347,7 +387,8 @@ run_comfy()
     # A fresh server per run, as a turbo run starts fresh, timed from its launch as turbo's is.
     start="$(now)"
 
-    (cd "$comfy" && exec "$python" -s main.py --port $port --disable-auto-launch $flag) \
+    (cd "$comfy" && exec "$python" -s main.py --port $port --disable-auto-launch $flag \
+                       $("$python" -s "$test/comfy.py" args "$engine" | tr -d '\r')) \
         > >(stamp > "$log") 2>&1 &
     server=$!
 
@@ -359,7 +400,7 @@ run_comfy()
     done
 
     "$python" -s "$test/comfy.py" run "$engine" "$mode" "$prompt" $seed $target "$input" \
-        "$output" "http://127.0.0.1:$port" >> "$log.run" 2>&1
+        "$output" "http://127.0.0.1:$port" $duration >> "$log.run" 2>&1
     status=$?
 
     end="$(now)"
@@ -536,6 +577,11 @@ failed=false
 
 cases > "$list"
 
+# The video cases are a suite of their own (--video), the others the default one.
+awk -v video=$video '($2 ~ /-video/) == (video == "true")' "$list" > "$list.asked"
+
+mv "$list.asked" "$list"
+
 # Only the engines asked for, when some are.
 if [ -n "$engines" ]; then
 
@@ -543,11 +589,19 @@ if [ -n "$engines" ]; then
 
         if ! grep -q "^$engine " "$list"; then
 
-            echo "$engine: skipped (not installed, or no ComfyUI graph)"
+            echo "$engine: skipped (not installed, no ComfyUI graph, or video without --video)"
         fi
     done
 
     grep -E "^($(echo $engines | tr ' ' '|')) " "$list" > "$list.asked"
+
+    mv "$list.asked" "$list"
+fi
+
+# Only the case asked for, when one is.
+if [ -n "$only" ]; then
+
+    awk -v m="$only" '$2 == m' "$list" > "$list.asked"
 
     mv "$list.asked" "$list"
 fi
@@ -580,6 +634,10 @@ while read engine mode pairs; do
 
     : > "$runs"
 
+    ext=png
+
+    case "$mode" in *-video*) ext=mp4;; esac
+
     # --warmup: one run of each side first, not kept. The model files come off the disk or the
     # Volume for it, so the side that goes first does not take that read in a measured run.
     if [ $warmup = true ]; then
@@ -588,7 +646,7 @@ while read engine mode pairs; do
 
             printf "warming up %s %s %s..." $side $engine $mode
 
-            if run_$side $engine $mode "$results/$side-$engine-$mode-warmup.png" \
+            if run_$side $engine $mode "$results/$side-$engine-$mode-warmup.$ext" \
                       "$results/$side-$engine-$mode-warmup.log" < /dev/null > /dev/null; then
                 echo " done"
             else
@@ -608,7 +666,7 @@ while read engine mode pairs; do
 
             wait_cool
 
-            output="$results/$side-$engine-$mode-$r.png"
+            output="$results/$side-$engine-$mode-$r.$ext"
             log="$results/$side-$engine-$mode-$r.log"
 
             printf "running %s %s %s (%s/%s)..." $side $engine $mode $r $repeat

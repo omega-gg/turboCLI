@@ -37,6 +37,7 @@ PR(s) are welcomed
 - Krea2-Turbo
 - MOSS-Image
 - MiniMax-H3-Image
+- MiniMax-H3 (video, with its soundtrack)
 - Masking / matting: diff & region masks, BiRefNet / Lucida / InSPyReNet mattes
 - Upscaling: Real-ESRGAN, SeedVR2
 

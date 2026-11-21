@@ -30,6 +30,7 @@
 # (server.sh passes these from its own settings).
 
 import argparse
+import os
 import time
 import socket
 import threading
@@ -37,12 +38,6 @@ import traceback
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
-
-# NOTE: Importing core runs offload-backend discovery before torch, then imports torch. Nothing
-#       above touches torch, so the pre_torch_init()-before-torch invariant holds.
-from runner import core
-
-log = core.log
 
 _parser = argparse.ArgumentParser(prog="server", description="turboCLI generation server.")
 _parser.add_argument("--host", default="127.0.0.1")
@@ -53,7 +48,19 @@ _parser.add_argument("--timeout", type=float, default=600.0)
 _parser.add_argument("--range", type=int, default=20)
 # Bind the first free port in [--port, --port + --range - 1] if the requested one is taken.
 _parser.add_argument("--scan", action="store_true")
+# ComfyUI's flag: no pinned host copy of the weights (a GPU that holds the whole model).
+_parser.add_argument("--disable-pinned-memory", action="store_true")
 _args = _parser.parse_args()
+
+if _args.disable_pinned_memory:
+    os.environ["OFFLOADER_DISABLE_PINNED_MEMORY"] = "1"
+
+# NOTE: Importing core runs offload-backend discovery before torch, then imports torch. Nothing
+#       above touches torch, so the pre_torch_init()-before-torch invariant holds; the flags are
+#       parsed first, so the offloader sees them.
+from runner import core  # noqa: E402
+
+log = core.log
 
 HOST = _args.host
 PORT = _args.port

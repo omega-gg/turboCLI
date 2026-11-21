@@ -1,9 +1,9 @@
 # turboCLI manual
 
-turboCLI generates images on your own machine, from the command line or behind a small local
-server. It turns a prompt into a picture, edits a picture from reference images, and cuts a subject
-out of its background. Once an engine is installed it needs no internet at all: nothing is
-uploaded and nothing is tracked.
+turboCLI generates images and videos on your own machine, from the command line or behind a
+small local server. It turns a prompt into a picture or a clip with its sound, edits a picture
+from reference images, and cuts a subject out of its background. Once an engine is installed it
+needs no internet at all: nothing is uploaded and nothing is tracked.
 
 You drive it with a handful of shell scripts in `bash/turbo/`. This manual goes through them task
 by task, with a command or two for each; the full list of every script's arguments is in
@@ -150,6 +150,56 @@ sh text-to-image.sh comfy-krea2-turbo cuda out.png "a portrait" 1024 1024 -1 -1 
                     style.safetensors@0.8
 ```
 
+## Generating a video
+
+```sh
+sh text-to-video.sh comfy-minimax-h3 cuda knight.mp4 "a knight walks into the mist" 5 1344 768
+sh image-to-video.sh comfy-minimax-h3 cuda frame.png knight.mp4 "the camera pushes in" 5 1344 768
+```
+
+A video takes the arguments of an image, with its duration in seconds right after the prompt, 5
+by default. The engine snaps it to its own frame grid: MiniMax H3 films at 24 fps, in 17k+5
+frames, so 5 seconds is 124 frames. The video comes out as an mp4 (H.264) with its soundtrack
+(AAC): MiniMax H3 makes the sound with the picture, from what the prompt says of it. Its width
+and height are multiples of 32.
+
+MiniMax H3 is large, and fastest on a card that holds it whole: `comfy-minimax-h3`'s files take
+40 GB, `comfy-minimax-h3-hq`'s 98 GB, `minimax-h3`'s 143 GB. A smaller card works, the weights
+streaming to it every step, but much slower: `comfy-minimax-h3-hq` takes 13.7 s a step on a
+48 GB L40S, 4.6 on a 180 GB B200 (2.2 with `attention=cudnn`, below), at 1376x576.
+
+`image-to-video` takes input references, separated by commas, each tagged by its role:
+
+| Reference | What it does |
+| --- | --- |
+| `first=frame.png`, `last=end.png` | The frames the video starts and ends on. An untagged image is a frame too, the first then the last. |
+| `image=hero.png` | A picture reference: `<Picture 1>`, `<Picture 2>`... in the prompt, in order. |
+| `audio=voice.wav` | A voice or sound reference: `<Audio 1>`... ("he says, in the voice of `<Audio 1>`"). |
+| `guide=line.wav@3.5` | An exact recording placed in the soundtrack at 3.5 seconds, the video made to match it (lip sync). |
+
+With a picture or audio reference the engine switches to MiniMax H3's reference model; the frames
+and the guide go with either:
+
+```sh
+sh image-to-video.sh comfy-minimax-h3-hq cuda first=fedora.png,audio=voice.wav take.mp4 \
+                     "then he says, in the voice of <Audio 1>: ..." 5 1376 576
+```
+
+The three engines are one model: `minimax-h3` is MiniMax's release (50 steps, 5 to 15 seconds),
+`comfy-minimax-h3` the files of ComfyUI's template (20 steps, much lighter), and
+`comfy-minimax-h3-hq` ComfyUI's highest precision files, its text encoder in bf16, each frame
+center-cropped, the beta scheduler with references and the video at crf 12 (finer than 18).
+`minimax-h3` takes references alone, as diffusers runs them: no frame and no guide beside them,
+and never an audio reference on its own.
+
+The video scripts take these options for the `comfy-minimax-h3` engines, comma separated:
+
+| Option | What it does |
+| --- | --- |
+| `attention=cudnn` | cuDNN attention ahead of flash: about twice as fast on a B200 (2.3 s a step against 4.6 at 1376x576), the same quality but not the same bits. |
+| `scheduler=beta` | The beta scheduler in place of the engine's: more steps where the noise is high and where it is low, fewer between. `comfy-minimax-h3-hq` already uses it with references; `scheduler=simple` gives it the templates' instead. |
+| `crop=center` | Each frame first fitted to the video by a center crop, as `comfy-minimax-h3-hq` does; `crop=none` leaves the frames to ComfyUI's node, as the templates do (the first frame stretched, the last cropped). With references, the frames are always center-cropped. |
+
 ## Masks and mattes
 
 A mask is an 8-bit grayscale image: white where something is kept, black where it is not. Two
@@ -271,6 +321,14 @@ the size of the image: at about one megapixel an image takes seconds to a few mi
 megapixels many times longer. To get a large image, generate around one megapixel and enlarge it
 afterwards.
 
+On a card that holds the whole model, an H200 or a B200 for MiniMax H3, start the server or a
+script with `OFFLOADER_DISABLE_PINNED_MEMORY=1` (or pass `--disable-pinned-memory` to
+`runner.server` or `runner.cli`): the offloader then keeps no pinned copy of the weights in RAM,
+as ComfyUI's flag of that name does. The same images and videos with half the RAM, and a faster
+first load: on a B200, `comfy-minimax-h3-hq` peaks at 100 GiB instead of 190 and takes 94
+seconds instead of 138 for its first video. Leave it off on a smaller card, where the weights
+stream to it every step.
+
 ## When something goes wrong
 
 - **`ERROR: unknown engine`, or a model that is not there.** The engine is not installed:
@@ -298,8 +356,10 @@ instead, where ComfyUI uses them too. Images are written where you tell each scr
 
 `test/run.sh` checks that an update leaves every installed engine's image byte-identical and its
 speed intact: `test/run.sh --record` before the update, `test/run.sh` after, for all engines or the
-ones you name. It can compare the comfy engines with ComfyUI too. [test/README.md](test/README.md)
-has the details, and how to run it on cloud GPUs (Modal), every engine at once.
+ones you name. It can compare the comfy engines with ComfyUI too. The video engines are a suite of
+their own, `test/run.sh --video`, for a card that holds MiniMax H3.
+[test/README.md](test/README.md) has the details, and how to run it on cloud GPUs (Modal), every
+engine at once.
 
 ## Using it from Python
 

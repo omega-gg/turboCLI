@@ -26,9 +26,11 @@
 #
 #   comfy.py cases                                   the (engine, mode) pairs with a graph
 #   comfy.py files <engine>                          its model files, relative to models/
-#   comfy.py run <engine> <mode> <prompt> <seed> <N|WxH> <input> <output> <url>
-#   comfy.py psnr <image> <image>                    their PSNR in dB
+#   comfy.py args <engine>                           the flags ComfyUI starts with for it
+#   comfy.py run <engine> <mode> <prompt> <seed> <N|WxH> <input> <output> <url> [duration]
+#   comfy.py psnr <file> <file>                      two images' or videos' PSNR in dB
 
+import functools
 import importlib
 import json
 import os
@@ -53,7 +55,8 @@ def files(engine):
 
 # Each graph builder takes (engine, files, prompt, seed, width, height, image) and returns
 # {id: (class, inputs)}, its decoded image at node "12". Nodes 1, 2 and 3 load the model, the
-# text encoder and the VAE.
+# text encoder and the VAE. A video's builder takes the duration too, and saves its video at
+# node "99" itself.
 
 def loaders(f, clip_type):
     return {
@@ -287,6 +290,66 @@ def h3_image(engine, f, prompt, seed, width, height, image):
     })
 
 
+def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False):
+    # video_minimax_h3_t2v.json and _i2v.json, the Turbo LoRA off (comfy-minimax-h3), or the base
+    # graph of the experimental H3, remote/gen.py (comfy-minimax-h3-hq, its keyframe fitted by
+    # an ImageScale with center crop first, SaveVideo at its crf): MiniMaxH3ImageToVideo, then
+    # SamplerCustomAdvanced (res_multistep, simple, BasicGuider), VAEDecode and VAEDecodeAudio,
+    # CreateVideo at 24 fps, SaveVideo. The video at node "99". With `ref`, the image is a picture
+    # reference: video_minimax_h3_r2v.json's MiniMaxH3ReferenceToVideo on the ref2va transformer
+    # (simple), or gen.py's Ref2VA (beta).
+    module = declaration(engine)
+    base = declaration(module.BASE) if hasattr(module, "BASE") else module  # frames, INFERENCE
+    experiment = engine.endswith("-hq")
+
+    conditioning = {"clip": ["2", 0], "vae": ["3", 0], "prompt": prompt, "width": width,
+                    "height": height, "length": base.frames(duration)}
+    graph = {
+        "1": ("UNETLoader", {"unet_name": f["transformer_ref" if ref else "transformer"],
+                             "weight_dtype": "default"}),
+        "2": ("CLIPLoader", {"clip_name": f["text_encoder"], "type": "minimax",
+                             "device": "default"}),
+        "3": ("VAELoader", {"vae_name": f["vae"]}),
+        "4": ("VAELoader", {"vae_name": f["audio_vae"]}),
+        "5": ("RandomNoise", {"noise_seed": seed}),
+        "6": ("MiniMaxH3ImageToVideo", conditioning),
+        "7": ("KSamplerSelect", {"sampler_name": "res_multistep"}),
+        "8": ("BasicScheduler", {"model": ["1", 0],
+                                 "scheduler": "beta" if ref and experiment else "simple",
+                                 "steps": base.INFERENCE, "denoise": 1.0}),
+        "9": ("BasicGuider", {"model": ["1", 0], "conditioning": ["6", 0]}),
+        "10": ("SamplerCustomAdvanced", {"noise": ["5", 0], "guider": ["9", 0],
+                                         "sampler": ["7", 0], "sigmas": ["8", 0],
+                                         "latent_image": ["6", 1]}),
+        "12": ("VAEDecode", {"samples": ["10", 0], "vae": ["3", 0]}),
+        "15": ("VAEDecodeAudio", {"samples": ["10", 0], "vae": ["4", 0]}),
+        "16": ("CreateVideo", {"images": ["12", 0], "audio": ["15", 0], "fps": 24}),
+    }
+
+    if ref:
+        graph["13"] = ("LoadImage", {"image": image})
+        graph["6"] = ("MiniMaxH3ReferenceToVideo", dict(
+            conditioning, audio_vae=["4", 0], ref_image_size="match",
+            **{"ref_images.ref_image_0": ["13", 0]}))
+    elif image:
+        graph["13"] = ("LoadImage", {"image": image})
+        conditioning["first_frame"] = ["13", 0]
+        if experiment:
+            graph["14"] = ("ImageScale", {"image": ["13", 0], "upscale_method": "lanczos",
+                                          "width": width, "height": height, "crop": "center"})
+            conditioning["first_frame"] = ["14", 0]
+
+    save = {"video": ["16", 0], "filename_prefix": "turbotest/" + engine, "format": "auto",
+            "format.codec": "auto"}
+    if experiment:
+        save.update({"format": "mp4", "format.codec": "h264",
+                     "format.codec.encoding": "re-encode",
+                     "format.codec.encoding.crf": module.CRF})
+    graph["99"] = ("SaveVideo", save)
+
+    return graph
+
+
 GRAPHS = {
     ("comfy-flux2-4b", "text-to-image"): flux2,
     ("comfy-flux2-9b-distilled", "text-to-image"): flux2,
@@ -304,6 +367,18 @@ GRAPHS = {
     ("comfy-moss-image", "image-to-image"): moss,
     ("comfy-minimax-h3-image", "text-to-image"): h3_image,
     ("comfy-minimax-h3-image", "image-to-image"): h3_image,
+    ("comfy-minimax-h3", "text-to-video"): h3_video,
+    ("comfy-minimax-h3", "image-to-video"): h3_video,
+    ("comfy-minimax-h3-hq", "text-to-video"): h3_video,
+    ("comfy-minimax-h3-hq", "image-to-video"): h3_video,
+    ("comfy-minimax-h3", "image-to-video-ref"): functools.partial(h3_video, ref=True),
+    ("comfy-minimax-h3-hq", "image-to-video-ref"): functools.partial(h3_video, ref=True),
+}
+
+# The flags ComfyUI starts with for an engine's graph: the experiment ran its bf16 text encoder in
+# bf16 (ComfyUI casts it to fp16 otherwise).
+ARGS = {
+    "comfy-minimax-h3-hq": ["--bf16-text-enc"],
 }
 
 
@@ -324,13 +399,16 @@ def upload(url, path):
     return json.load(request(url + "/upload/image", body, headers))["name"]
 
 
-def run(engine, mode, prompt, seed, size, input, output, url):
+def run(engine, mode, prompt, seed, size, input, output, url, duration="5"):
     image = upload(url, input) if input != "-" else None
 
     names = {role: path.split("/", 1)[1] for role, path in files(engine).items()}
     width, height = (int(v) for v in (size.split("x") * 2)[:2])
-    nodes = GRAPHS[(engine, mode)](engine, names, prompt, int(seed), width, height, image)
-    nodes["99"] = ("SaveImage", {"filename_prefix": "turbotest/" + engine, "images": ["12", 0]})
+    video = {"duration": float(duration)} if "-video" in mode else {}
+    nodes = GRAPHS[(engine, mode)](engine, names, prompt, int(seed), width, height, image,
+                                   **video)
+    nodes.setdefault("99", ("SaveImage", {"filename_prefix": "turbotest/" + engine,
+                                          "images": ["12", 0]}))
     graph = {k: {"class_type": c, "inputs": i} for k, (c, i) in nodes.items()}
 
     body = json.dumps({"prompt": graph}).encode()
@@ -346,20 +424,46 @@ def run(engine, mode, prompt, seed, size, input, output, url):
     if entry["status"]["status_str"] != "success":
         sys.exit("ComfyUI failed: " + json.dumps(entry["status"])[:1000])
 
-    saved = entry["outputs"]["99"]["images"][0]
+    # SaveVideo lists its file under images, as an animated one, or under videos.
+    out = entry["outputs"]["99"]
+    saved = (out.get("images") or out.get("videos"))[0]
     with open(output, "wb") as f:
         f.write(request(url + "/view?" + urllib.parse.urlencode(saved)).read())
 
 
-def psnr(a, b):
+def decode(path):
+    """A video's frames (RGB, [T, H, W, 3]) and its sound ([channels, samples], or None)."""
+    import av
     import numpy as np
-    from PIL import Image
 
-    a, b = (np.asarray(Image.open(p).convert("RGB")).astype(float) for p in (a, b))
+    with av.open(path) as container:
+        frames = np.stack([f.to_ndarray(format="rgb24") for f in container.decode(video=0)])
+    with av.open(path) as container:
+        sound = (np.concatenate([f.to_ndarray() for f in container.decode(audio=0)], axis=-1)
+                 if container.streams.audio else None)
+    return frames, sound
+
+
+def psnr(a, b):
+    """The PSNR of two images, or of two videos' frames, their sound compared too (decoded: a
+    file's metadata may differ)."""
+    import numpy as np
+
+    sound = ""
+    if a.endswith(".mp4"):
+        (a, sound_a), (b, sound_b) = decode(a), decode(b)
+        same = (sound_a is None) == (sound_b is None) and (
+            sound_a is None or (sound_a.shape == sound_b.shape and (sound_a == sound_b).all()))
+        sound = "" if same else ", sound differs"
+    else:
+        from PIL import Image
+
+        a, b = (np.asarray(Image.open(p).convert("RGB")) for p in (a, b))
+    a, b = a.astype(float), b.astype(float)
     if a.shape != b.shape:
         return "size differs"
     mse = ((a - b) ** 2).mean()
-    return "identical" if mse == 0 else "%.1f dB" % (10 * np.log10(255 ** 2 / mse))
+    return ("identical" if mse == 0 else "%.1f dB" % (10 * np.log10(255 ** 2 / mse))) + sound
 
 
 if __name__ == "__main__":
@@ -369,6 +473,8 @@ if __name__ == "__main__":
             print(engine, mode)
     elif command == "files":
         print("\n".join(files(args[0]).values()))
+    elif command == "args":
+        print(" ".join(ARGS.get(args[0], [])))
     elif command == "run":
         run(*args)
     elif command == "psnr":

@@ -10,14 +10,20 @@ GPU, on CUDA, MPS or CPU. It needs bash and perl, which Git Bash, Linux and macO
 test/run.sh [options] [engine ...]
 ```
 
-No engine runs every installed one; an engine that is not installed is skipped. Each runs the
-modes it has: text to image (a fox in a snowy forest), image to image (an edit of
+No engine runs every installed one; an engine that is not installed is skipped. Each runs the modes
+it has: text to image (a fox in a snowy forest), image to image (an edit of
 [old/knight.png](old/knight.png), an upscaler enlarging
 [old/knight-small.png](old/knight-small.png), 368x512, to the size's height: x2 at 1024, x4 at
 2048, x8 at 4096, x2 at least) and image to mask (the `mask` engine on
 [old/chest.png](old/chest.png) against [old/courtyard.png](old/courtyard.png), the matte engines on
 the knight). The ESRGAN upscalers have no steps: like a mask, their time is shown, not judged;
 SeedVR2's one step is.
+
+The video cases are a suite of their own, `--video`, which a plain run leaves out: MiniMax H3
+wants a GPU that holds it, a B200 on Modal (`modal.sh run --video`). Text to video and image to
+video, 5 s: a camera pushing in on a snowy forest, then on the knight as its first frame, then
+with the knight as a picture reference (`image-to-video-ref`); the output an mp4, its md5 the
+file's. `--size 512` keeps it to a few minutes an engine.
 
 The `adjust` engine (`image-adjust.sh align,color`, register it with `install.sh adjust cpu`)
 has two cases against [old/knight-small.png](old/knight-small.png): `image-adjust` on
@@ -39,6 +45,8 @@ the case instead. No steps either: their time is shown, not judged.
 | `--tolerance <P>` | percent slower still passing, 10 by default |
 | `--comfy <dir>` | also run the comfy engines through the ComfyUI in `<dir>` |
 | `--comfy-only <dir>` | run the comfy engines through that ComfyUI alone, no turbo |
+| `--mode <case>` | only that case (`image-to-video-ref`, ...), to rerun what a fix touched |
+| `--video` | the video suite instead (a video `--mode` implies it) |
 
 ## Lint before a commit
 
@@ -116,14 +124,17 @@ The image holds ComfyUI too, in `/opt/ComfyUI` (`test/comfyui.sh`: the tag turbo
 vendors, on turboCLI's torch, with the Krea 2 edit node pack), its models the Volume's. A CPU run
 keeps the CPU path honest; it is slow, so a small size and a few engines, now and then.
 `modal.sh exec <command>` runs a command in the same setup on CPU, for a look around, and
-`modal.sh exec --gpu <command>` on an L40S. A run's logs and images come back into
-`results/modal/`, and what an `exec` writes to `out/` into `results/modal/exec/`.
+`modal.sh exec --gpu <command>` on an L40S, `modal.sh exec --b200 <command>` on a B200 (180 GB,
+MiniMax H3's bf16 files resident; turboCLI there without ComfyUI's pinned copy of the weights,
+`OFFLOADER_DISABLE_PINNED_MEMORY=1`, in a 104 GiB container). A run's logs and images come back
+into `results/modal/`, and what an `exec` writes to `out/` into `results/modal/exec/`.
 
 The L40S containers have 64 GiB of RAM. A model past that, MiniMax-H3-Image (ComfyUI's 49.5 GB
 and a process, the stock 135 GB), would stream off the Volume every step, so its runs take
 `--big`, a container with 224 GiB (`modal.sh run --big ...`, `modal.sh exec --big ...`). It is
 made for 4 to 20 MP, best at 16 MP, so it runs at `--size 2048` and `--size 4096` too, each size
-its own reference file.
+its own reference file. The video suite runs on B200 containers (`modal.sh run --video
+--size 512 --comfy /opt/ComfyUI`), its reference file the B200's.
 
 The working trees of turboCLI and turbo-offloader (`../turbo-offloader`, or `TURBO_OFFLOADER`) go
 up as they are, so it tests what is about to be committed. The image is turboCLI as its

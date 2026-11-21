@@ -13,7 +13,10 @@ Every engine turboCLI can install, by task, to help you pick one. Install an eng
   ComfyUI's ops; *MiniMax license*: the
   [MiniMax-H3-Image Community License](https://huggingface.co/MiniMaxAI/MiniMax-H3-Image/blob/main/LICENSE)
   excludes the EU, the UK, South Korea and the US, and asks for MiniMax's written authorization
-  above $1M of annual revenue or for a hosted service.
+  above $1M of annual revenue or for a hosted service; *MiniMax H3 license*: the
+  [MiniMax H3 Community License](https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE)
+  excludes the same territories, asks for MiniMax's written authorization above $20M of yearly
+  revenue, and for "MiniMax H3" on the interface of a commercial product.
 - `comfy-` engines use the model files of a ComfyUI install, the way ComfyUI runs them. Give
   `install.sh` your ComfyUI folder to reuse its files; without one they are downloaded.
 
@@ -63,6 +66,28 @@ Image-to-image: the prompt describes the change, applied to one or more referenc
 | `qwen-image-edit-2511-lightning-angles` | Lightning plus fal's Multiple-Angles LoRA, for prompts starting with `<sks>` | 59 GB | 4 | |
 | `comfy-qwen-image-edit-2511` | Qwen-Image-Edit-2511 from ComfyUI's files | 51 GB | 40 | offloader |
 | `comfy-qwen-image-edit-2511-lightning` | Qwen-Image-Edit-2511 from ComfyUI's files, with the Lightning LoRA | 51 GB | 4 | offloader |
+
+## Text-to-video
+
+A video with its soundtrack, as an mp4. The duration comes after the prompt, 5 seconds by default.
+
+| Engine | Description | Size | Steps | Requirements |
+|---|---|---|---|---|
+| `minimax-h3` | MiniMax H3, a 33B audio-video generator, 5 to 15 s at 24 fps (MiniMax's weights) | 143 GB | 50 | MiniMax H3 license |
+| `comfy-minimax-h3` | MiniMax H3 as ComfyUI's template runs it: int8 transformer and video VAE, NVFP4 text encoder | 40 GB | 20 | offloader, MiniMax H3 license |
+| `comfy-minimax-h3-hq` | MiniMax H3 from ComfyUI's highest precision files (bf16), its text encoder in bf16, saved at crf 12 | 98 GB | 20 | offloader, MiniMax H3 license |
+
+## Image-to-video
+
+Its inputs are references tagged by role: `first=` and `last=` frames, `image=` and `audio=`
+references (the engine's reference model), `guide=<audio>@<seconds>` for an exact recording.
+The sizes count both of MiniMax H3's transformers, the frames' and the references'.
+
+| Engine | Description | Size | Steps | Requirements |
+|---|---|---|---|---|
+| `minimax-h3` | MiniMax H3 from a first and a last frame, or from references alone (no audio guide), 5 to 15 s at 24 fps (MiniMax's weights) | 209 GB | 50 | MiniMax H3 license |
+| `comfy-minimax-h3` | MiniMax H3 as ComfyUI's templates run it (i2v, r2v), the first frame stretched to the canvas | 61 GB | 20 | offloader, MiniMax H3 license |
+| `comfy-minimax-h3-hq` | MiniMax H3 from ComfyUI's bf16 files, each frame center cropped to the canvas, the beta scheduler with references | 138 GB | 20 | offloader, MiniMax H3 license |
 
 ## Masking and matting
 

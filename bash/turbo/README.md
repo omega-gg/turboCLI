@@ -52,6 +52,9 @@ engine: flux2-4b
         comfy-esrgan-upscale
         comfy-seedvr2-3b-upscale (SeedVR2 3B, ComfyUI's files)
         comfy-seedvr2-7b-upscale (SeedVR2 7B, ComfyUI's files)
+        minimax-h3               (video, MiniMax's weights)
+        comfy-minimax-h3         (video, ComfyUI's files)
+        comfy-minimax-h3-hq      (video, ComfyUI's bf16 files)
 
 renderer: cpu, cuda, mps
 
@@ -115,11 +118,12 @@ engine: an installed id, reports whether it is installed
 
 MODES: list the installed engine id(s) supporting ANY of the listed modes, an
        upscaler's followed by 'upscaler'
-       (text-to-image, image-to-image)
+       (text-to-image, image-to-image, text-to-video, image-to-video)
 
 ENGINES: every engine supporting the mode, with 'installed' or 'absent', and 'gated'
          when its download needs a Hugging Face token
-         (text-to-image, image-to-image, image-to-mask, image-adjust)
+         (text-to-image, image-to-image, text-to-video, image-to-video,
+         image-to-mask, image-adjust)
 
 SETTINGS: the run settings an engine was installed with, one 'key: value' per line
           (renderer, dtype, inference, offload, slicing), and 'comfy: <folder>'
@@ -252,6 +256,97 @@ examples:
     image-to-image comfy-qwen-image-2-1-turbo cuda frame.png output.png "make it night" 1024 768 -1 -1 offloader none none align
     image-to-image comfy-minimax-h3-image cuda frame.png output.png "clean and crisp" 4096 2304 -1 -1 offloader none none align,color
     image-to-image esrgan-upscale cuda photo.png big.png none 2048 1536
+```
+
+### [text-to-video.sh](text-to-video.sh) - Generate a video from a text prompt
+
+```
+Usage: text-to-video <engine> <renderer> <output video>
+                     [prompt = none] [duration = 5]
+                     [width = 512] [height = 512]
+                     [seed = -1] [inference = -1]
+                     [offload = offloader] [slicing = none]
+                     [loras = none]
+                     [options] [server]
+
+engine: minimax-h3
+        comfy-minimax-h3
+        comfy-minimax-h3-hq
+
+renderer: cpu, cuda, mps
+
+prompt: what to film, none for an empty one
+
+duration: in seconds, each engine snapping it to its frame grid
+
+offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
+
+slicing: none, slice
+
+loras: none, comma separated <path>@[weight]
+
+options (comfy-minimax-h3 engines), comma separated:
+         attention=cudnn puts cuDNN attention ahead of flash: about twice as fast
+         on a B200
+         scheduler=simple|beta in place of the engine's: simple, or beta with
+         references on comfy-minimax-h3-hq
+
+server: host:port (or port for 127.0.0.1) of a rendering server
+
+examples:
+    text-to-video comfy-minimax-h3 cuda output.mp4 "a knight walks into the mist"
+    text-to-video comfy-minimax-h3 cuda output.mp4 "a knight walks into the mist" 5 1344 768 -1 -1 offloader none none "" 8080
+```
+
+### [image-to-video.sh](image-to-video.sh) - Generate a video from a text prompt and its references
+
+```
+Usage: image-to-video <engine> <renderer> <input references> <output video>
+                      [prompt = none] [duration = 5]
+                      [width = 512] [height = 512]
+                      [seed = -1] [inference = -1]
+                      [offload = offloader] [slicing = none]
+                      [loras = none]
+                      [options] [server]
+
+engine: minimax-h3
+        comfy-minimax-h3
+        comfy-minimax-h3-hq
+
+renderer: cpu, cuda, mps
+
+input references: separated by a comma, each tagged by its role:
+                  first=<image> last=<image>   the frames the video starts and ends on
+                  image=<image>                a picture reference, <Picture 1>...
+                  audio=<audio>                a voice or sound reference, <Audio 1>...
+                  guide=<audio>@<seconds>      a recording pinned at that time
+                  an untagged image is a frame, the first then the last. With a
+                  picture or audio reference the engine runs its reference workflow
+
+prompt: what to film, none for an empty one
+
+duration: in seconds, each engine snapping it to its frame grid
+
+offload: none, offloader, model_cpu, sequential_cpu, custom (turboCLI/backend folder)
+
+slicing: none, slice
+
+loras: none, comma separated <path>@[weight]
+
+options (comfy-minimax-h3 engines), comma separated:
+         attention=cudnn puts cuDNN attention ahead of flash: about twice as fast
+         on a B200
+         scheduler=simple|beta in place of the engine's: simple, or beta with
+         references on comfy-minimax-h3-hq
+         crop=none|center: center first fits each frame to the video by a center
+         crop, as comfy-minimax-h3-hq does (references: always center)
+
+server: host:port (or port for 127.0.0.1) of a rendering server
+
+examples:
+    image-to-video comfy-minimax-h3 cuda frame.png output.mp4 "the camera pushes in"
+    image-to-video comfy-minimax-h3 cuda first.png,last.png output.mp4 "the camera pushes in" 10 1344 768
+    image-to-video comfy-minimax-h3-hq cuda first=fedora.png,audio=voice.wav output.mp4 "he speaks in the voice of <Audio 1>" 5 1376 576
 ```
 
 ### [image-to-mask.sh](image-to-mask.sh) - Generate a mask / matte
