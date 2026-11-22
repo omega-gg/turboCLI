@@ -152,6 +152,8 @@ if [ $# -lt 3 -o $# -gt 14 ] \
     echo "         on a B200"
     echo "         scheduler=simple|beta in place of the engine's: simple, or beta with"
     echo "         references on comfy-minimax-h3-quality"
+    echo "         latent=save also writes the video's latents next to it, for a later"
+    echo "         pass: <output>.video.latent and .audio.latent, as ComfyUI's SaveLatent"
     echo ""
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""

@@ -290,6 +290,8 @@ options (comfy-minimax-h3 engines), comma separated:
          on a B200
          scheduler=simple|beta in place of the engine's: simple, or beta with
          references on comfy-minimax-h3-quality
+         latent=save also writes the video's latents next to it, for a later
+         pass: <output>.video.latent and .audio.latent, as ComfyUI's SaveLatent
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
@@ -338,6 +340,8 @@ options (comfy-minimax-h3 engines), comma separated:
          on a B200
          scheduler=simple|beta in place of the engine's: simple, or beta with
          references on comfy-minimax-h3-quality
+         latent=save also writes the video's latents next to it, for a later
+         pass: <output>.video.latent and .audio.latent, as ComfyUI's SaveLatent
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 

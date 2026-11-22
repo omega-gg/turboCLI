@@ -144,13 +144,15 @@ torch in engines. Commits on request only, no Claude attribution.
   experiment's original B200 clip, the picture 45.2 dB from it (37.3 dB with flash, the sound
   differing). The gap is after sampling (ComfyUI v0.38.0 against v0.45.4): `--highvram`, as
   the experiment launched ComfyUI, gives 45.1 dB.
-- **Options**: `attention=cudnn` and `scheduler=simple|beta` for the comfy engines, each in
-  place of the engine's for one video; minimax-h3 refuses them. A `crop=none|center` option
-  and comfy-minimax-h3-quality's center crop were removed: both engines give the node the
-  frames as they are, a frame cropped to the video's proportions beforehand if need be.
-  The Indy take from a pre-cropped frame (2912x1220, rows 206 to 1426) is the same file as
-  from in_fedora.png: AddGuide center-crops it again, 1 row off each edge, onto the region
-  it cut from the original (rows 207 to 1425; a 2912x1218 file would lose a column a side).
+- **Options**: `attention=cudnn` and `scheduler=simple|beta` for the comfy engines, each in place
+  of the engine's for one video; minimax-h3 refuses them. `latent=save` writes the video's two
+  latents beside it as SaveLatent does, the request's settings in their metadata, as the experiment
+  kept them (`.latent` files and a `.json`) for its upscale. A `crop=none|center` option and
+  comfy-minimax-h3-quality's center crop were removed: both engines give the node the frames as
+  they are, a frame cropped to the video's proportions beforehand if need be. The Indy take from a
+  pre-cropped frame (2912x1220, rows 206 to 1426) is the same file as from in_fedora.png: AddGuide
+  center-crops it again, 1 row off each edge, onto the region it cut from the original (rows 207 to
+  1425; a 2912x1218 file would lose a column a side).
 - **Cost on a B200** (Indy, cuDNN): 138 s for the first video in a process, 52.5 s for the
   next, the RAM at 189 GiB (the weights mapped and comfy-aimdo's pinned copy of them).
   `--disable-pinned-memory` (`OFFLOADER_DISABLE_PINNED_MEMORY=1`): 94 s and 51 s, 100 GiB,

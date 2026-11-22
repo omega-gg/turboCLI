@@ -105,6 +105,7 @@ What turboCLI prints tells you where it is:
 | `model ready` | It is loaded. |
 | `generating "<prompt>" (N steps)...` | The image is being made. |
 | `40%\|step 2/5 (00:06, 3.10s/it)` | Progress, step by step. |
+| `Latent: <path>` | A video's latent file, written before it with `latent=save`. |
 | `Saved: <path>` | The image is written. This is the line that means it worked. |
 | `ERROR: ...` | What went wrong. No image is written. |
 
@@ -200,6 +201,7 @@ The video scripts take these options for the `comfy-minimax-h3` engines, comma s
 | --- | --- |
 | `attention=cudnn` | cuDNN attention ahead of flash: about twice as fast on a B200 (2.3 s a step against 4.6 at 1376x576), the same quality but not the same bits. |
 | `scheduler=beta` | The beta scheduler in place of the engine's: more steps where the noise is high and where it is low, fewer between. `comfy-minimax-h3-quality` already uses it with references; `scheduler=simple` gives it the templates' instead. |
+| `latent=save` | Also writes the latents the video was decoded from next to it, `<output>.video.latent` and `.audio.latent` (about 20 MB for 5 s at 1376x576), in ComfyUI's SaveLatent format, with the video's settings (engine, prompt, references, size, seed, steps, options) in their metadata, for a later pass on a take you like without sampling it again: ComfyUI's LoadLatent reads them (its latent upscaler, for one); turboCLI has no such pass yet. |
 
 ## Masks and mattes
 

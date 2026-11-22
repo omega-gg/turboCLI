@@ -24,9 +24,12 @@
 # CreateVideo and SaveVideo write them (VideoFromComponents.save_to, v0.45.4,
 # comfy_api/latest/_input_impl/video_types.py:283-415): an mp4, H.264 in yuv420p tagged sRGB on
 # BT.709 primaries, the audio in AAC at its own rate. No metadata tags (SaveVideo writes the
-# prompt there), so a file depends on its pictures and sound alone. Torch free (PyAV, numpy).
+# prompt there), so a file depends on its pictures and sound alone. Beside it, on request, the
+# latents it was decoded from (save_latents). Torch free (PyAV, numpy, safetensors).
 
+import json
 import math
+import os
 
 from fractions import Fraction
 
@@ -34,6 +37,26 @@ import numpy as np
 
 # NOTE: SaveVideo's quality when its encoding is left to auto (video_encoder_options).
 CRF = 18
+
+
+def save_latents(path, latents, settings):
+    """Write a video's latents (float32 arrays: the video's, the audio's) next to the video at
+    `path`, <stem>.video.latent and <stem>.audio.latent, as SaveLatent (nodes.py:510-559) writes
+    each latent LTXVSeparateAVLatent splits off (nodes_lt.py:972-1000), for LoadLatent. The
+    metadata, where SaveLatent writes its prompt, holds the request's `settings` as JSON under
+    "settings", for a later pass on them. Returns the paths."""
+    from safetensors.numpy import save_file
+
+    stem = os.path.splitext(path)[0]
+    paths = []
+
+    for kind, latent in zip(("video", "audio"), latents):
+        paths.append("%s.%s.latent" % (stem, kind))
+        save_file({"latent_tensor": np.ascontiguousarray(latent),
+                   "latent_format_version_0": np.zeros(0, np.float32)}, paths[-1],
+                  metadata={"settings": json.dumps(settings)})
+
+    return paths
 
 
 def save(path, frames, fps, audio=None, rate=None, crf=CRF):

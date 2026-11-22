@@ -56,8 +56,9 @@ CFG   = ("guidance_scale", 1.0)              # BasicGuider: no CFG (the pipe ign
 INFERENCE = 20
 
 # The options a video takes (core checks them), each in place of the engine's for that video:
-# cuDNN SDPA first, as the experimental H3 ran ComfyUI, and the scheduler.
-OPTIONS = {"attention": ("cudnn",), "scheduler": ("simple", "beta")}
+# cuDNN SDPA first, as the experimental H3 ran ComfyUI, the scheduler, and the latents saved
+# next to the video for a later pass (runner/video.py save_latents).
+OPTIONS = {"attention": ("cudnn",), "scheduler": ("simple", "beta"), "latent": ("save",)}
 
 # ComfyUI's files as its templates name them, at the root of Comfy-Org's repo (no split_files/).
 COMFY = {
@@ -165,8 +166,9 @@ def _pipeline_class():
         @torch.no_grad()
         def _generate(self, prompt, image=None, height=768, width=1344, duration=5.0,
                      num_inference_steps=INFERENCE, generator=None, callback_on_step_end=None,
-                     references=(), guide=None, scheduler=None, **_):
-            # NOTE: The scheduler option replaces the engine's for this generation.
+                     references=(), guide=None, scheduler=None, latent=None, **_):
+            # NOTE: The scheduler option replaces the engine's for this generation; latent=save
+            #       returns the sampled latents beside the frames, and the seed they came from.
             if width % GRID or height % GRID:
                 raise ValueError("MiniMax H3 renders sizes on the %d pixel grid" % GRID)
 
@@ -248,22 +250,24 @@ def _pipeline_class():
             n = shapes[0][1:].numel()
             latents = latents.float()
             latents[..., n:] *= 1.0 / self.transformer.audio_scale
-            video = latents[:, :, :n].reshape(shapes[0])
-            audio = latents[:, :, n:].reshape(shapes[1])
+            video = latents[:, :, :n].reshape(shapes[0]).cpu()
+            audio = latents[:, :, n:].reshape(shapes[1]).cpu()
 
             # VAEDecode, then save_to's 8 bits: each [0, 1] value times 255, truncated.
-            pixels = self.vae.decode(video.cpu(), return_dict=False)[0][0].movedim(0, -1)
+            pixels = self.vae.decode(video, return_dict=False)[0][0].movedim(0, -1)
             pixels = pixels.mul_(255).clamp_(0, 255).byte().numpy()
 
             # VAEDecodeAudio (nodes_audio.py:99-113): the waveform, its loudness capped.
-            waveform = self.audio_vae.decode(audio.cpu(), return_dict=False)[0]
+            waveform = self.audio_vae.decode(audio, return_dict=False)[0]
             std = torch.std(waveform, dim=[1, 2], keepdim=True) * 5.0
             std[std < 1.0] = 1.0
             waveform /= std
 
             return SimpleNamespace(videos=[pixels],
                                    audio=(waveform[0].numpy(), self.audio_vae.audio_sample_rate),
-                                   fps=FPS)
+                                   fps=FPS, seed=seed,
+                                   latents=(video.numpy(), audio.numpy())
+                                   if latent == "save" else None)
 
     return ComfyH3VideoPipe
 

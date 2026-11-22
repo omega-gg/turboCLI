@@ -491,22 +491,26 @@ patches use >1 and negative, matching ComfyUI).
    `image=[first, last]`, `references=[image or audio path]` and `guide=(path, seconds)`; an
    engine whose references run on another transformer folds their presence into `extra_key`.
    A video takes the options its engine declares (`OPTIONS`, each name and its values; the
-   comfy-minimax-h3 engines' `attention=cudnn` and `scheduler=simple|beta`, minimax-h3 none), checked before anything loads with the references (a third frame or a
-   guide without its seconds refused) and the engine's own limits (`check(params)`,
-   minimax-h3's: references alone, no guide), then passed to the pipeline by name.
-   `scheduler` replaces the engine's for the generation (simple, or beta for
-   comfy-minimax-h3-quality's references).
+   comfy-minimax-h3 engines' `attention=cudnn`, `scheduler=simple|beta` and `latent=save`,
+   minimax-h3 none), checked before anything loads with the references (a third frame or a guide
+   without its seconds refused) and the engine's own limits (`check(params)`, minimax-h3's:
+   references alone, no guide), then passed to the pipeline by name. `scheduler` replaces the
+   engine's for the generation (simple, or beta for comfy-minimax-h3-quality's references).
    `attention`: the pipes run it inside the transformer's `attention(kind)` (`adapter.BaseModel`),
    cuDNN SDPA ahead of flash and ComfyUI's priority restored after (the experiment's
    cudnn_attention.py node). On a B200 at 1376x576, 2.3 s a step against 4.6, 45.2 dB from the
    experiment's B200 take against 37.3.
-9. A video mode passes the pipeline its `duration` (seconds; the engine snaps it to its frame
-   grid) and gets back its frames, soundtrack and frame rate (`.videos`, `.audio`, `.fps`):
-   `_save_video` writes them with `runner/video.py`, ComfyUI's CreateVideo and SaveVideo
-   (`VideoFromComponents.save_to`): an mp4, H.264 yuv420p tagged sRGB on BT.709, at the
-   engine's `CRF`, the sound in AAC at its rate, no metadata. Byte-identical with ComfyUI's
-   for the same frames and sound (PyAV 19.0.1, pinned in build.sh and test/comfyui.sh). Then
-   `Saved:`, as below; the align and color steps are an image's.
+9. A video mode passes the pipeline its `duration` (seconds; the engine snaps it to its frame grid)
+   and gets back its frames, soundtrack and frame rate (`.videos`, `.audio`, `.fps`), and with
+   `latent=save` its latents (`.latents`), which `_save_video` writes first beside the output:
+   `<stem>.video.latent` and `.audio.latent`, as ComfyUI's SaveLatent writes what
+   LTXVSeparateAVLatent splits off, their metadata the request's settings (`LATENT_SETTINGS`, the
+   seed and steps resolved) as JSON under `settings`, each announced by a `Latent: <path>` line. It
+   writes the video with `runner/video.py`, ComfyUI's CreateVideo and SaveVideo
+   (`VideoFromComponents.save_to`): an mp4, H.264 yuv420p tagged sRGB on BT.709, at the engine's
+   `CRF`, the sound in AAC at its rate, no metadata. Byte-identical with ComfyUI's for the same
+   frames and sound (PyAV 19.0.1, pinned in build.sh and test/comfyui.sh). Then `Saved:`, as below;
+   the align and color steps are an image's.
 10. An image: save (PNG at ComfyUI's SaveImage `compress_level=4`, lossless), then emit
    `Saved: <output>` immediately "so the client gets the result as early as possible".
    Steps 8 and 9 are `_save`, which a compute engine's result goes through too, so the steps
@@ -524,6 +528,7 @@ generating "<prompt≤60>" (<N> steps)...
  42%|step 5/12 (00:31, 3.50s/it)                 one line per step, tqdm-native figures
 align: zoom <x>% x <y>%, ..., aligned            i2i with align only, informational
 color: R <x> G <y> B <z>, matched                i2i with color only, informational
+Latent: <path>                                   a video with latent=save, before Saved
 Saved: <path>                                    THE success sentinel (exit 0 / HTTP success)
 ERROR: <message or traceback>                    validation or unexpected failure
 CANCELLED: stopped on request, server is idle

@@ -89,6 +89,11 @@ ENGINES = {}   # name -> engine module
 # NOTE: The modes whose result is a video (runner/video.py), the others an image.
 VIDEO_MODES = ("text-to-video", "image-to-video")
 
+# NOTE: What a video's saved latents keep of its request (latent=save): what it was made from,
+#       the seed and steps resolved, not where it went.
+LATENT_SETTINGS = ("engine", "mode", "prompt", "images", "loras", "options", "width", "height",
+                   "duration", "seed", "inference")
+
 for _path in sorted(glob.glob(os.path.join(os.path.dirname(__file__), "engine", "*.py"))):
     _file = os.path.basename(_path)
 
@@ -595,8 +600,15 @@ def _video_inputs(references, emit):
 
 def _save_video(result, params, mod, emit):
     """Write a video engine's result (its frames, soundtrack and frame rate) to the output, at
-    the engine's CRF, see runner/video.py. Returns True, as _save."""
+    the engine's CRF, see runner/video.py, after the latents it carries (latent=save). Returns
+    True, as _save."""
     from . import video
+
+    if getattr(result, "latents", None) is not None:
+        settings = {k: params[k] for k in LATENT_SETTINGS if k in params}
+
+        for path in video.save_latents(params["output"], result.latents, settings):
+            emit("Latent: " + path)
 
     audio, rate = result.audio if result.audio is not None else (None, None)
 
@@ -909,6 +921,10 @@ def generate(params, emit, should_stop=None):
             return False
 
         if mode in VIDEO_MODES:
+            # NOTE: The seed and steps the video came from, for its latents' settings.
+            params = dict(params, seed=str(getattr(result, "seed", seed)),
+                          inference=str(inference))
+
             return _save_video(result, params, mod, emit)
 
         image = result.images[0]
