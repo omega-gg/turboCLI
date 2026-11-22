@@ -13,9 +13,9 @@ turboCLI is a good baseline for client based applications like [turbopixel](http
 That's the original motivation for it. However, licensing this under LGPL sounds like the right
 thing to do.
 
-- [Features](feature.md) - what turboCLI does, and when to use it or Comfy CLI
 - [Manual](MANUAL.md)
 - [Bash scripts](bash/README.md)
+- [Features](feature.md) - turboCLI feature highlights
 - [Dummy](dummy.md) - plain-English introduction, no diffusion background required
 - [Implementation](implementation.md) - architecture and implementation choices, kept up to date
 
