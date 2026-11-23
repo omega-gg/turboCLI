@@ -55,6 +55,8 @@ engine: flux2-4b
         minimax-h3               (video, MiniMax's weights)
         comfy-minimax-h3         (video, ComfyUI's files)
         comfy-minimax-h3-quality (video, ComfyUI's bf16 files)
+        comfy-minimax-h3-upscale
+        comfy-minimax-h3-quality-upscale
 
 renderer: cpu, cuda, mps
 
@@ -314,6 +316,8 @@ Usage: image-to-video <engine> <renderer> <input references> <output video>
 engine: minimax-h3
         comfy-minimax-h3
         comfy-minimax-h3-quality
+        comfy-minimax-h3-upscale
+        comfy-minimax-h3-quality-upscale
 
 renderer: cpu, cuda, mps
 
@@ -322,6 +326,9 @@ input references: separated by a comma, each tagged by its role:
                   image=<image>                a picture reference, <Picture 1>...
                   audio=<audio>                a voice or sound reference, <Audio 1>...
                   guide=<audio>@<seconds>      a recording pinned at that time
+                  latent=<take>.video.latent   a take's latents (latent=save), alone:
+                                               an upscale engine renders the take again
+                                               at 2x, the rest of it the take's
                   an untagged image is a frame, the first then the last. With a
                   picture or audio reference the engine runs its reference workflow
 
@@ -349,6 +356,7 @@ examples:
     image-to-video comfy-minimax-h3 cuda frame.png output.mp4 "the camera pushes in"
     image-to-video comfy-minimax-h3 cuda first.png,last.png output.mp4 "the camera pushes in" 10 1344 768
     image-to-video comfy-minimax-h3-quality cuda first=fedora.png,audio=voice.wav output.mp4 "he speaks in the voice of <Audio 1>" 5 1376 576
+    image-to-video comfy-minimax-h3-quality-upscale cuda latent=output.video.latent output-2x.mp4
 ```
 
 ### [image-to-mask.sh](image-to-mask.sh) - Generate a mask / matte

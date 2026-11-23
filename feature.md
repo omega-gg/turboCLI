@@ -11,14 +11,15 @@ needs; this page says what turboCLI does, and when each one is the better pick.
   or up to 16% faster, and the image sooner from launch. MiniMax-H3-Image and SeedVR2 give images
   bit-identical to ComfyUI's.
 - Models larger than the graphics card, their weights streamed as needed (turbo-offloader).
-- 36 engines for text to image, image editing, text and image to video, upscaling and masking:
+- 38 engines for text to image, image editing, text and image to video, upscaling and masking:
   FLUX.2 Klein, FLUX.3 Image Klein, Z-Image-Turbo, Krea 2 Turbo, Qwen-Image 2.1,
   Qwen-Image-Edit-2511, MOSS-Image, MiniMax-H3-Image, MiniMax H3, SeedVR2, Real-ESRGAN, BiRefNet
   and InSPyReNet.
 - Video with its soundtrack: MiniMax H3 films a prompt, from a first and a last frame, or from
   picture and voice references, an exact recording pinned for lip sync, and makes the sound with
   the picture, written to an mp4 exactly as ComfyUI writes it. Per video, cuDNN attention (about
-  twice as fast on a B200), the scheduler and the frames' crop.
+  twice as fast on a B200) and the scheduler; a take you like, saved with its latents, rendered
+  again at twice its size.
 - Fast cold starts, with no torch until it is needed, and fast warm ones: a local server keeps the
   model loaded and caches prompt encodings.
 - Offline once an engine is installed: nothing is uploaded and nothing is tracked.
@@ -65,7 +66,7 @@ needs; this page says what turboCLI does, and when each one is the better pick.
 command line: its custom nodes, its models and the workflows it runs.
 
 - **Any model, any pipeline.** ComfyUI runs video, audio, 3D, ControlNet, inpainting and whatever
-  a graph can express, with thousands of custom nodes. turboCLI has 36 engines, one model of
+  a graph can express, with thousands of custom nodes. turboCLI has 38 engines, one model of
   them for video.
 - **New models on day one.** Models reach ComfyUI first; turboCLI follows its code and adds an
   engine once it is worth it.

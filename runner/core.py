@@ -582,10 +582,42 @@ def _save(image, params, steps, emit, reference=None):
     return True
 
 
+def _take(params):
+    """An upscale request names a take's latents alone (latent=): its prompt, inputs, LoRAs,
+    duration and seed are the take's, saved with them (runner/video.py save_latents), at twice
+    its size; its options too, under the request's, latent=save the request's alone. The take's
+    engine and '-upscale' name the engine. Returns the request as the engine runs it."""
+    from .engine._options import parse_options, parse_references
+    from .video import load_settings
+
+    path = parse_references(params.get("images", ""))["latent"]
+
+    if path is None:
+        return params
+
+    take = load_settings(path)
+
+    if take is None:
+        raise ValueError("%s holds no settings: a take saves them with latent=save" % path)
+    if params["engine"] != take["engine"] + "-upscale":
+        raise ValueError("%s is a %s take: %s-upscale renders it again"
+                         % (path, take["engine"], take["engine"]))
+
+    options = {k: v for k, v in parse_options(take.get("options", "")).items() if k != "latent"}
+    options.update(parse_options(params.get("options", "")))
+
+    return dict(params, prompt=take["prompt"], loras=take.get("loras", ""),
+                duration=take["duration"], seed=take["seed"],
+                width=str(2 * int(take["width"])), height=str(2 * int(take["height"])),
+                images=",".join(filter(None, (take.get("images", ""), "latent=" + path))),
+                options=",".join("%s=%s" % option for option in options.items()))
+
+
 def _video_inputs(references, emit):
     """image-to-video's input references (engine/_options.parse_references) as the pipeline takes
     them: the frames and the picture references opened, the audio as their paths, the guide as it
-    is, a (path, seconds) pair."""
+    is, a (path, seconds) pair, and a take's latents read (runner/video.py) when given, for an
+    upscale engine (_take)."""
     from PIL import Image
 
     def load(path, image=True):
@@ -593,9 +625,17 @@ def _video_inputs(references, emit):
 
         return Image.open(path).convert("RGB") if image else path
 
-    return {"image": [path and load(path) for path in references["frames"]],
-            "references": [load(path, role == "image") for role, path in references["references"]],
-            "guide": references["guide"]}
+    inputs = {"image": [path and load(path) for path in references["frames"]],
+              "references": [load(path, role == "image")
+                             for role, path in references["references"]],
+              "guide": references["guide"]}
+
+    if references["latent"] is not None:
+        from .video import load_latents
+
+        inputs["take"] = load_latents(load(references["latent"], False))
+
+    return inputs
 
 
 def _save_video(result, params, mod, emit):
@@ -665,24 +705,24 @@ def generate(params, emit, should_stop=None):
 
     # NOTE: A video's options are the engine's (OPTIONS: each name and its values), its
     #       references parsed and the engine's own limits checked (check), before anything
-    #       loads.
+    #       loads; an upscale request first made of its take's settings (_take).
     video_options, references = {}, None
 
     if mode in VIDEO_MODES:
         from .engine._options import parse_options, parse_references
 
-        video_options = parse_options(params.get("options", ""))
-        allowed = getattr(mod, "OPTIONS", {})
-
-        if any(v not in allowed.get(k, ()) for k, v in video_options.items()):
-            emit("ERROR: %s takes %s" % (engine, ", ".join(
-                "%s=%s" % (k, "|".join(v)) for k, v in allowed.items()) or "no option"))
-
-            return False
-
         try:
             if mode == "image-to-video":
+                params = _take(params)
                 references = parse_references(params.get("images", ""))
+
+            video_options = parse_options(params.get("options", ""))
+            allowed = getattr(mod, "OPTIONS", {})
+
+            if any(v not in allowed.get(k, ()) for k, v in video_options.items()):
+                raise ValueError("%s takes %s" % (engine, ", ".join(
+                    "%s=%s" % (k, "|".join(v)) for k, v in allowed.items()) or "no option"))
+
             if hasattr(mod, "check"):
                 mod.check(params)
         except ValueError as error:

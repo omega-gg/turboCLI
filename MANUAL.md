@@ -177,6 +177,7 @@ streaming to it every step, but much slower: `comfy-minimax-h3-quality` takes 13
 | `image=hero.png` | A picture reference: `<Picture 1>`, `<Picture 2>`... in the prompt, in order. |
 | `audio=voice.wav` | A voice or sound reference: `<Audio 1>`... ("he says, in the voice of `<Audio 1>`"). |
 | `guide=line.wav@3.5` | An exact recording placed in the soundtrack at 3.5 seconds, the video made to match it (lip sync). |
+| `latent=take.video.latent` | A take's latents, saved with `latent=save`, alone: an upscale engine renders that take again at twice its size (below). |
 
 With a picture or audio reference the engine switches to MiniMax H3's reference model; the frames
 and the guide go with either:
@@ -201,7 +202,24 @@ The video scripts take these options for the `comfy-minimax-h3` engines, comma s
 | --- | --- |
 | `attention=cudnn` | cuDNN attention ahead of flash: about twice as fast on a B200 (2.3 s a step against 4.6 at 1376x576), the same quality but not the same bits. |
 | `scheduler=beta` | The beta scheduler in place of the engine's: more steps where the noise is high and where it is low, fewer between. `comfy-minimax-h3-quality` already uses it with references; `scheduler=simple` gives it the templates' instead. |
-| `latent=save` | Also writes the latents the video was decoded from next to it, `<output>.video.latent` and `.audio.latent` (about 20 MB for 5 s at 1376x576), in ComfyUI's SaveLatent format, with the video's settings (engine, prompt, references, size, seed, steps, options) in their metadata, for a later pass on a take you like without sampling it again: ComfyUI's LoadLatent reads them (its latent upscaler, for one); turboCLI has no such pass yet. |
+| `latent=save` | Also writes the latents the video was decoded from next to it, `<output>.video.latent` and `.audio.latent` (about 20 MB for 5 s at 1376x576), in ComfyUI's SaveLatent format, with the video's settings (engine, prompt, references, size, seed, steps, options) in their metadata, for a later pass on a take you like without sampling it again: the upscale engines (below), or ComfyUI's LoadLatent. |
+
+**Upscaling a take.** Render small to choose, then render the take you like again at twice its
+size, without sampling it from scratch: save its latents with `latent=save`, then give them
+alone to the take's upscale engine (`comfy-minimax-h3-upscale`, or
+`comfy-minimax-h3-quality-upscale` for a `-quality` take). Its prompt, inputs, duration, seed
+and options are the take's, saved with the latents; options given again win:
+
+```sh
+sh image-to-video.sh comfy-minimax-h3-quality cuda first=fedora.png,audio=voice.wav take.mp4 \
+                     "..." 5 1376 576 1791222669 -1 offloader none none latent=save
+sh image-to-video.sh comfy-minimax-h3-quality-upscale cuda latent=take.video.latent take-2x.mp4
+```
+
+The video latent is enlarged by the community MiniMax H3 latent upscaler, then H3 redraws it at
+the new size in 8 steps, keeping the take (denoise 0.45: the fine detail is new, the shot the
+same); the soundtrack is the take's, untouched. The take's input files must still be where it
+found them.
 
 ## Masks and mattes
 

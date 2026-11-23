@@ -39,6 +39,36 @@ import numpy as np
 CRF = 18
 
 
+def load_latents(path):
+    """A take's latents (float32 arrays: the video's, the audio's) from its <stem>.video.latent
+    at `path` and the <stem>.audio.latent beside it, as LoadLatent reads each (nodes.py:
+    565-582): a file without latent_format_version_0 scaled by 1 / 0.18215."""
+    from safetensors.numpy import load_file
+
+    if not path.endswith(".video.latent"):
+        raise ValueError("a latent is a take's <stem>.video.latent: %s" % path)
+
+    out = []
+
+    for file in (path, path[:-len(".video.latent")] + ".audio.latent"):
+        latent = load_file(file)
+        scale = 1.0 if "latent_format_version_0" in latent else 1.0 / 0.18215
+        out.append(latent["latent_tensor"].astype(np.float32) * np.float32(scale))
+
+    return tuple(out)
+
+
+def load_settings(path):
+    """The request's settings save_latents wrote in a take's latent file at `path`, None
+    without them."""
+    from safetensors import safe_open
+
+    with safe_open(path, framework="numpy") as f:
+        settings = (f.metadata() or {}).get("settings")
+
+    return None if settings is None else json.loads(settings)
+
+
 def save_latents(path, latents, settings):
     """Write a video's latents (float32 arrays: the video's, the audio's) next to the video at
     `path`, <stem>.video.latent and <stem>.audio.latent, as SaveLatent (nodes.py:510-559) writes

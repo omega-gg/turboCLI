@@ -134,6 +134,8 @@ if [ $# -lt 4 -o $# -gt 15 ] \
     echo "engine: minimax-h3"
     echo "        comfy-minimax-h3"
     echo "        comfy-minimax-h3-quality"
+    echo "        comfy-minimax-h3-upscale"
+    echo "        comfy-minimax-h3-quality-upscale"
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""
@@ -142,6 +144,9 @@ if [ $# -lt 4 -o $# -gt 15 ] \
     echo "                  image=<image>                a picture reference, <Picture 1>..."
     echo "                  audio=<audio>                a voice or sound reference, <Audio 1>..."
     echo "                  guide=<audio>@<seconds>      a recording pinned at that time"
+    echo "                  latent=<take>.video.latent   a take's latents (latent=save), alone:"
+    echo "                                               an upscale engine renders the take again"
+    echo "                                               at 2x, the rest of it the take's"
     echo "                  an untagged image is a frame, the first then the last. With a"
     echo "                  picture or audio reference the engine runs its reference workflow"
     echo ""
@@ -169,6 +174,7 @@ if [ $# -lt 4 -o $# -gt 15 ] \
     echo "    image-to-video comfy-minimax-h3 cuda frame.png output.mp4 \"the camera pushes in\""
     echo "    image-to-video comfy-minimax-h3 cuda first.png,last.png output.mp4 \"the camera pushes in\" 10 1344 768"
     echo "    image-to-video comfy-minimax-h3-quality cuda first=fedora.png,audio=voice.wav output.mp4 \"he speaks in the voice of <Audio 1>\" 5 1376 576"
+    echo "    image-to-video comfy-minimax-h3-quality-upscale cuda latent=output.video.latent output-2x.mp4"
 
     exit 1
 fi

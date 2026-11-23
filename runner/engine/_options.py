@@ -41,16 +41,17 @@ def parse_options(spec):
 
 
 # NOTE: image-to-video's input references: the roles a path takes, "first=a.png" and so on. An
-#       untagged path is a frame, the first then the last.
-ROLES = ("first", "last", "image", "audio", "guide")
+#       untagged path is a frame, the first then the last. "latent=" is a take's saved
+#       latents, for an upscale engine (runner/video.py save_latents).
+ROLES = ("first", "last", "image", "audio", "guide", "latent")
 
 
 def parse_references(spec):
     """"first=a.png,audio=v.wav,guide=l.wav@3.5" -> {"frames": ["a.png", None], "references":
-    [("audio", "v.wav")], "guide": ("l.wav", 3.5)}: the first and last frames (None where
-    absent), the picture and audio references in order, and the audio guide with its time in
-    seconds (None without one)."""
-    out = {"frames": [None, None], "references": [], "guide": None}
+    [("audio", "v.wav")], "guide": ("l.wav", 3.5), "latent": None}: the first and last frames
+    (None where absent), the picture and audio references in order, the audio guide with its
+    time in seconds and the take's video latent file (None without them)."""
+    out = {"frames": [None, None], "references": [], "guide": None, "latent": None}
     untagged = 0
 
     for item in (i.strip() for i in spec.split(",")):
@@ -75,6 +76,10 @@ def parse_references(spec):
                 at = ""
             if not at:
                 raise ValueError("a guide is <audio>@<seconds>: %s" % item)
+        elif role == "latent":
+            if out["latent"] is not None:
+                raise ValueError("one latent at most")
+            out["latent"] = path
         else:
             out["references"].append((role, path))
 

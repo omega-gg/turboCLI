@@ -88,6 +88,8 @@ The sizes count both of MiniMax H3's transformers, the frames' and the reference
 | `minimax-h3` | MiniMax H3 from a first and a last frame, or from references alone (no audio guide), 5 to 15 s at 24 fps (MiniMax's weights) | 209 GB | 50 | MiniMax H3 license |
 | `comfy-minimax-h3` | MiniMax H3 as ComfyUI's templates run it (i2v, r2v), the first frame stretched to the canvas | 61 GB | 20 | offloader, MiniMax H3 license |
 | `comfy-minimax-h3-quality` | MiniMax H3 from ComfyUI's bf16 files, the beta scheduler with references | 138 GB | 20 | offloader, MiniMax H3 license |
+| `comfy-minimax-h3-upscale` | A `comfy-minimax-h3` take rendered again at twice its size from its latents alone (`latent=`, the rest the take's saved settings): the community MiniMax H3 latent upscaler, then H3 refining at the new size, the soundtrack the take's | 62 GB | 8 | offloader, MiniMax H3 license |
+| `comfy-minimax-h3-quality-upscale` | The same for a `comfy-minimax-h3-quality` take, on its files | 139 GB | 8 | offloader, MiniMax H3 license |
 
 ## Masking and matting
 

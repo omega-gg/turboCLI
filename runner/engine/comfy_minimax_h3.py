@@ -80,6 +80,9 @@ FPS = 24
 
 AUDIO_LATENT_FPS = 40
 
+# A take's refine at its new size, the experimental H3's --hires: BasicScheduler's denoise.
+REFINE_DENOISE = 0.45
+
 
 def frames(duration):
     """The template's length (24 fps, at least 5 frames), snapped up to the 17k+5 grid as
@@ -123,11 +126,14 @@ def _pipeline_class():
     class ComfyH3VideoPipe(DiffusionPipeline):
         model_cpu_offload_seq = "text_encoder->transformer->vae"
 
-        def __init__(self, transformer, text_encoder, scheduler, vae, audio_vae):
+        def __init__(self, transformer, text_encoder, scheduler, vae, audio_vae,
+                     upscaler=None):
             super().__init__()
 
             self.register_modules(transformer=transformer, text_encoder=text_encoder,
                                   scheduler=scheduler, vae=vae, audio_vae=audio_vae)
+
+            self.upscaler = upscaler  # the upscale engines' latent upscaler, placing itself
 
             self._schedule = scheduler.scheduler  # the engine's, which scheduler= overrides
 
@@ -150,13 +156,11 @@ def _pipeline_class():
 
         def prepare_latents(self, shapes, seed, device):
             """RandomNoise (sample.py:22-38): the seed's CPU float32 draws, the video's then the
-            audio's, packed flat (comfy/utils.py:1445-1453) and scaled by a first sigma of 1."""
+            audio's, packed flat and scaled by a first sigma of 1 (a take mixed in after)."""
             generator = torch.Generator().manual_seed(seed)
 
-            noise = [torch.randn(shape, generator=generator, dtype=torch.float32)
-                     for shape in shapes]
-
-            return torch.cat([n.reshape(n.shape[0], 1, -1) for n in noise], dim=-1).to(device)
+            return _pack([torch.randn(shape, generator=generator, dtype=torch.float32)
+                          for shape in shapes]).to(device)
 
         def __call__(self, *args, attention=None, **kwargs):
             # NOTE: The attention option: cuDNN SDPA first for this generation (attention=cudnn).
@@ -166,9 +170,11 @@ def _pipeline_class():
         @torch.no_grad()
         def _generate(self, prompt, image=None, height=768, width=1344, duration=5.0,
                      num_inference_steps=INFERENCE, generator=None, callback_on_step_end=None,
-                     references=(), guide=None, scheduler=None, latent=None, **_):
+                     references=(), guide=None, scheduler=None, latent=None, take=None, **_):
             # NOTE: The scheduler option replaces the engine's for this generation; latent=save
             #       returns the sampled latents beside the frames, and the seed they came from.
+            #       `take`, a take's latents (LoadLatent), is refined at this size (upscale
+            #       engines).
             if width % GRID or height % GRID:
                 raise ValueError("MiniMax H3 renders sizes on the %d pixel grid" % GRID)
 
@@ -185,6 +191,15 @@ def _pipeline_class():
             audio_t = round(frame_count / FPS * AUDIO_LATENT_FPS)
             shapes = [torch.Size([1, 24, latent_t, height // 16, width // 16]),
                       torch.Size([1, 32, 2, audio_t])]
+
+            # NOTE: A take, as the experimental H3's --hires refines one: its video latent
+            #       enlarged by MinimaxH3LatentUpscaler3D, its soundtrack's kept as it is.
+            if take is not None:
+                take = (self.upscaler(torch.from_numpy(take[0]), width, height),
+                        torch.from_numpy(take[1]))
+
+                if [t.shape for t in take] != shapes:
+                    raise ValueError("the latents do not match their take's settings")
 
             tf, pinned = self.transformer, list(image or ()) + [None, None]
             refs = None
@@ -223,11 +238,20 @@ def _pipeline_class():
             sampler = self.scheduler
             sampler.scheduler = scheduler or self._schedule
             sampler.seed = seed
-            sampler.set_timesteps(num_inference_steps, device=device)
+            sampler.set_timesteps(num_inference_steps, device=device,
+                                  denoise=1.0 if take is None else REFINE_DENOISE)
 
             # NOTE: The noise first: the transformer loads with it, as KSampler's does, then
             #       extra_conds runs on it (samplers.py:1240-1260, 1220-1226).
             latents = self.prepare_latents(shapes, seed, device)
+
+            # NOTE: A take under the noise: CONST's noise_scaling at the first sigma
+            #       (model_sampling.py), on the latent process_latent_in packs (the audio at
+            #       audio_scale).
+            if take is not None:
+                sigma = sampler.sigmas[0]
+                take_in = _pack([take[0], take[1] * self.transformer.audio_scale]).to(device)
+                latents = sigma * latents + (1.0 - sigma) * take_in
 
             conds = tf.extra_conds(context, tags, keyframes, shapes, seed, device, refs)
 
@@ -251,7 +275,7 @@ def _pipeline_class():
             latents = latents.float()
             latents[..., n:] *= 1.0 / self.transformer.audio_scale
             video = latents[:, :, :n].reshape(shapes[0]).cpu()
-            audio = latents[:, :, n:].reshape(shapes[1]).cpu()
+            audio = latents[:, :, n:].reshape(shapes[1]).cpu() if take is None else take[1]
 
             # VAEDecode, then save_to's 8 bits: each [0, 1] value times 255, truncated.
             pixels = self.vae.decode(video, return_dict=False)[0][0].movedim(0, -1)
@@ -268,6 +292,10 @@ def _pipeline_class():
                                    fps=FPS, seed=seed,
                                    latents=(video.numpy(), audio.numpy())
                                    if latent == "save" else None)
+
+    def _pack(latents):
+        """The video's and the audio's latents packed flat (comfy/utils.py:1445-1453)."""
+        return torch.cat([t.reshape(t.shape[0], 1, -1) for t in latents], dim=-1)
 
     return ComfyH3VideoPipe
 
@@ -293,12 +321,18 @@ def load(ctx, params, text_dtype=None, ref_scheduler="simple"):
     if text_dtype is not None:
         text_encoder["dtype"] = getattr(torch, text_dtype)
 
+    components = {"scheduler": ctx.backend.comfy_sampler("minimax_h3", "res_multistep",
+                                                         ref_scheduler if ref else "simple",
+                                                         transformer),
+                  "vae": ctx.backend.comfy_vae(files["vae"], {}),
+                  "audio_vae": ctx.backend.comfy_vae(files["audio_vae"], {})}
+
+    # NOTE: An upscale engine's latent upscaler (comfy_minimax_h3_upscale.py).
+    if "upscaler" in files:
+        components["upscaler"] = ctx.backend.comfy_latent_upscaler(files["upscaler"])
+
     return ctx.backend.load_pipe_comfy(
         _pipeline_class(),
         {"model": "minimax_h3", "file": transformer, "config": {}},
-        text_encoder,
-        {"scheduler": ctx.backend.comfy_sampler("minimax_h3", "res_multistep",
-                                                ref_scheduler if ref else "simple", transformer),
-         "vae": ctx.backend.comfy_vae(files["vae"], {}),
-         "audio_vae": ctx.backend.comfy_vae(files["audio_vae"], {})},
-        ctx.dtype, device=ctx.device, lora_files=ctx.loras or None)
+        text_encoder, components, ctx.dtype, device=ctx.device,
+        lora_files=ctx.loras or None)

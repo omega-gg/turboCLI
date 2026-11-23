@@ -42,7 +42,9 @@
 #
 # UPSCALERS: image-to-image engines that enlarge their first input to the output size, declaring
 # UPSCALE, which check --modes tags so a host can tell: compute engines (esrgan-upscale) or
-# diffusion ones (comfy-seedvr2-3b-upscale), whose first input core keeps the alpha of.
+# diffusion ones (comfy-seedvr2-3b-upscale), whose first input core keeps the alpha of. The
+# video ones (comfy-minimax-h3-upscale) render a take again from its latents (image-to-video's
+# latent= input), larger.
 #
 # VIDEO: text-to-video and image-to-video engines take a duration and return their frames, their
 # soundtrack and its rate, and their frame rate (.videos, .audio, .fps), which core writes to an
