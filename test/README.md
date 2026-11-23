@@ -23,7 +23,13 @@ The video cases are a suite of their own, `--video`, which a plain run leaves ou
 wants a GPU that holds it, a B200 on Modal (`modal.sh run --video`). Text to video and image to
 video, 5 s: a camera pushing in on a snowy forest, then on the knight as its first frame, then
 with the knight as a picture reference (`image-to-video-ref`); the output an mp4, its md5 the
-file's. `--size 512` keeps it to a few minutes an engine.
+file's. `--size 512` keeps it to a few minutes an engine. An H3 upscaler
+(`comfy-minimax-h3-upscale`, `comfy-minimax-h3-quality-upscale`) has one case, image to video:
+its base engine's knight take, made once a run by turbo with `latent=save`
+(`results/<machine>/take-<engine>.*`, not timed), rendered again from its latents alone at twice
+the size; ComfyUI's side refines the same latents with the experimental H3's graph (the
+community MiniMax H3 latent upscaler node, which `comfyui.sh` installs), so `--comfy-only` needs
+turbo too.
 
 The `adjust` engine (`image-adjust.sh align,color`, register it with `install.sh adjust cpu`)
 has two cases against [old/knight-small.png](old/knight-small.png): `image-adjust` on
@@ -121,8 +127,9 @@ test/modal.sh run --renderer cpu --size 256 comfy-flux2-4b # on a CPU container,
 ```
 
 The image holds ComfyUI too, in `/opt/ComfyUI` (`test/comfyui.sh`: the tag turbo-offloader
-vendors, on turboCLI's torch, with the Krea 2 edit node pack), its models the Volume's. A CPU run
-keeps the CPU path honest; it is slow, so a small size and a few engines, now and then.
+vendors, on turboCLI's torch, with the Krea 2 edit and MiniMax H3 latent upscaler node packs),
+its models the Volume's. A CPU run keeps the CPU path honest; it is slow, so a small size and
+a few engines, now and then.
 `modal.sh exec <command>` runs a command in the same setup on CPU, for a look around, and
 `modal.sh exec --gpu <command>` on an L40S, `modal.sh exec --b200 <command>` on a B200 (180 GB,
 MiniMax H3's bf16 files resident; turboCLI and ComfyUI there without ComfyUI's pinned copy of

@@ -158,7 +158,7 @@ per step, the latent upscale and the decode apart.
    - the Indy take again with `latent=save` and `attention=cudnn`, 1376x576;
    - comfy-minimax-h3-quality-upscale on its `latent=`: 2752x1152;
    - ComfyUI's graph of step 3 on the same latents at 2752x1152, with the experiment's
-     `cudnn_attention.py` node (cuDNN first, as `attention=cudnn`): identical at full size, and
+     `cudnn_attention.py` node (cuDNN first, as `attention=cudnn`): compared at full size, and
      turbo's time against it, launch to saved video, the steps, the upscale and the decode;
    - both copied to Desktop\image\minimax-h3-video, next to `indy_experiment-2x.mp4` (the
      experiment's approved `20261005-215715-scope1376-native-c-2x-fp16-1pass.mp4`), compared by
@@ -167,8 +167,35 @@ per step, the latent upscale and the decode apart.
 5. Results into this doc and the offloader's implementation.md.
 
 Not tested, to keep the spend down (each can be added):
-- the first and last frame workflow without references: the same refine, the conditioning
-  already identical in a normal take;
+- a last frame: the same refine, the conditioning already identical in a normal take (a first
+  frame without references is the test suite's case);
 - a warm second upscale in the same process (~$0.30), for the warm price alone.
 - a 10 s take at 2x (~$1.10, estimated from the 5 s steps): whether the upscaler's single
   pass and the decode at 241 frames of 2752x1152 fit on the B200.
+
+## Results (2026-11-23, B200)
+
+- **Step 2, CPU**: the mirrored upscaler identical to the node's `execute`; the latest Hugging
+  Face file the same as 3f941d5's; `BasicScheduler`'s denoise and `CONST`'s noise scaling as the
+  refine does them.
+- **Step 3, small identity** (comfy-minimax-h3, 512x512 1 s, the knight and a voice reference,
+  to 1024x1024, default attention): frames and sound identical with ComfyUI's; 49.1 s against
+  56.7 s from launch to saved video, about 1.5 s a step on both; about $0.35.
+- **Step 4, the Indy 2x** (comfy-minimax-h3-quality, `attention=cudnn`, 1376x576 to 2752x1152):
+  - the take with `latent=save` byte-identical to the earlier cuDNN take: saving changes nothing;
+  - 201.2 s on both sides from launch to saved video, the steps 19.95 s against 19.88-20.04;
+    about $0.40 a cold 2x (the experiment measured about $0.65);
+  - against ComfyUI 48.8 dB (worst frame 46.2, at most 17 levels), the first frame and the sound
+    identical; no difference to the eye (frame 120 side by side, its difference x10 a faint, even
+    noise);
+  - against the experiment's approved 2x 45.7 dB, the sound identical (the take alone is 45.2 dB:
+    ComfyUI v0.38.0 against v0.45.4).
+- **Not cuDNN**: the same latents on default attention, both sides, 46.0 dB; each side against its
+  own cuDNN 2x 44.8 dB. A rounding-level difference that 512 to 1024 does not have, its cause not
+  found (a path only full size takes; ComfyUI sizes its VAE tiles to the free VRAM). Default
+  attention's steps take 55 s: upscale with `attention=cudnn`.
+- **The test suite** (`test/run.sh --video --size 512`, the B200's reference): the
+  comfy-minimax-h3-quality-upscale case (the knight take, a first frame and no reference, at 2x)
+  identical with ComfyUI, its sampling 61.82 s against 61.12 (+1%), 99.8 s against 105.7 s from
+  launch to saved video. The other H3 engines recorded on turbo alone, their identity with ComfyUI
+  measured before.

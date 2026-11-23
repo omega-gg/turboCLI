@@ -250,14 +250,15 @@ wait_cool()
 
 # Every installed engine, stock and comfy, in each of its modes, "engine mode" per line.
 # image-adjust-night is a second case of image-adjust's engines: a night, whose colors stay;
-# image-to-video-ref one of image-to-video's: the knight as a picture reference.
+# image-to-video-ref one of image-to-video's: the knight as a picture reference, an H3 upscaler
+# left out (its one case is its take's 2x).
 turbo_cases()
 {
     for mode in text-to-image image-to-image text-to-video image-to-video image-to-video-ref \
                 image-to-mask image-adjust image-adjust-night; do
 
-        bash "$turbo/check-model.sh" ENGINES:$(base $mode) | tr -d '\r' \
-            | awk -v m=$mode '$2 == "installed" { print $1, m }'
+        bash "$turbo/check-model.sh" ENGINES:$(base $mode) | tr -d '\r' | awk -v m=$mode '
+            $2 == "installed" && !(m == "image-to-video-ref" && $1 ~ /-upscale$/) { print $1, m }'
     done
 }
 
@@ -273,6 +274,20 @@ base()
 comfy_cases()
 {
     "$python" -s "$test/comfy.py" cases | tr -d '\r'
+}
+
+# An H3 upscaler's take, made once a run: its base engine's image-to-video case, turbo's, with
+# latent=save, so both sides render the same latents again. <engine>; the take's latents at
+# $results/take-<engine>.video.latent and .audio.latent.
+take()
+{
+    local stem="$results/take-$1"
+
+    if [ -f "$stem.video.latent" ]; then return; fi
+
+    bash "$turbo/image-to-video.sh" "${1%-upscale}" $renderer "$images/knight.png" "$stem.mp4" \
+         "$film" $duration $width $height $seed -1 ${offload:-offloader} none none latent=save \
+         > "$stem.log" 2>&1
 }
 
 # Whether the ComfyUI in $comfy has every file of an engine.
@@ -303,7 +318,14 @@ run_turbo()
                 *-upscale) input="$images/knight-small.png" prompt=none target=$upscaled;;
             esac;;
         image-to-video)
-            input="$images/knight.png";;
+            input="$images/knight.png"
+
+            # NOTE: An H3 upscaler renders its take again from its latents alone, at twice its
+            #       size: the rest of the request is the take's, saved with them.
+            case "$engine" in
+                *-upscale) take $engine || return 1
+                           input="latent=$results/take-$engine.video.latent";;
+            esac;;
         image-to-video-ref)
             input="image=$images/knight.png";;
         image-adjust)
@@ -327,8 +349,13 @@ run_turbo()
             bash "$turbo/text-to-video.sh" "$engine" $renderer "$output" "$film" $duration \
                  $width $height $seed -1 ${offload:-offloader};;
         image-to-video*)
-            bash "$turbo/image-to-video.sh" "$engine" $renderer "$input" "$output" "$film" \
-                 $duration $width $height $seed -1 ${offload:-offloader};;
+            if [[ $input == latent=* ]]; then
+
+                bash "$turbo/image-to-video.sh" "$engine" $renderer "$input" "$output"
+            else
+                bash "$turbo/image-to-video.sh" "$engine" $renderer "$input" "$output" "$film" \
+                     $duration $width $height $seed -1 ${offload:-offloader}
+            fi;;
         image-to-mask)
             if [ "$engine" = "mask" ]; then
                 input="$images/chest.png,$images/courtyard.png"
@@ -367,12 +394,22 @@ run_turbo()
 run_comfy()
 {
     local engine="$1" mode="$2" output="$3" log="$4" prompt="$fox" input="-" target=$size flag="" \
-          server start end status
+          latent="" server start end status
 
     case "$mode" in
         text-to-video)  prompt="$film";;
         image-to-video*) prompt="$film" input="$images/knight.png";;
     esac
+
+    # An H3 upscaler renders its take's latents again at twice its size, from ComfyUI's input/.
+    if [ "$mode" = "image-to-video" ] && [[ $engine == *-upscale ]]; then
+
+        take $engine || return 1
+
+        mkdir -p "$comfy/input" && cp "$results/take-$engine".{video,audio}.latent "$comfy/input/"
+
+        latent="take-$engine.video.latent" target="$(( width * 2 ))x$(( height * 2 ))"
+    fi
 
     if [ "$mode" = "image-to-image" ]; then
 
@@ -403,7 +440,7 @@ run_comfy()
     done
 
     "$python" -s "$test/comfy.py" run "$engine" "$mode" "$prompt" $seed $target "$input" \
-        "$output" "http://127.0.0.1:$port" $duration >> "$log.run" 2>&1
+        "$output" "http://127.0.0.1:$port" $duration $latent >> "$log.run" 2>&1
     status=$?
 
     end="$(now)"
@@ -616,6 +653,9 @@ if [ $listing = true ]; then
 
     exit 0
 fi
+
+# The H3 upscalers' takes of an earlier run are not kept: each run makes its own.
+rm -f "$results"/take-*
 
 while read engine mode pairs; do
 

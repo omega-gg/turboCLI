@@ -223,7 +223,8 @@ found them.
 
 The 2x costs more than the take: on a B200, a 5 s take at 1376x576 is about $0.19 and its
 2x about $0.40; at 10 s, about $0.27 and $1.10 (twice the frames, four times the attention).
-Upscale only the takes you keep.
+Upscale only the takes you keep. These are with `attention=cudnn`, which a take passes on to its
+2x with its other options: without it, the 2x's steps take 2.75 times as long.
 
 ## Masks and mattes
 

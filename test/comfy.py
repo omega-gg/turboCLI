@@ -28,6 +28,7 @@
 #   comfy.py files <engine>                          its model files, relative to models/
 #   comfy.py args <engine>                           the flags ComfyUI starts with for it
 #   comfy.py run <engine> <mode> <prompt> <seed> <N|WxH> <input> <output> <url> [duration]
+#                [<take>.video.latent]                 an H3 upscaler's take, under input/
 #   comfy.py psnr <file> <file>                      two images' or videos' PSNR in dB
 
 import functools
@@ -290,17 +291,22 @@ def h3_image(engine, f, prompt, seed, width, height, image):
     })
 
 
-def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False):
+def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False, latent=None):
     # video_minimax_h3_t2v.json and _i2v.json, the Turbo LoRA off (comfy-minimax-h3), or the base
     # graph of the experimental H3, remote/gen.py (comfy-minimax-h3-quality, SaveVideo at its crf,
     # without gen.py's ImageScale, left to the source): MiniMaxH3ImageToVideo, then
     # SamplerCustomAdvanced (res_multistep, simple, BasicGuider), VAEDecode and VAEDecodeAudio,
     # CreateVideo at 24 fps, SaveVideo. The video at node "99". With `ref`, the image is a picture
     # reference: video_minimax_h3_r2v.json's MiniMaxH3ReferenceToVideo on the ref2va transformer
-    # (simple), or gen.py's Ref2VA (beta).
-    module = declaration(engine)
+    # (simple), or gen.py's Ref2VA (beta). With `latent`, an upscaler's: its take's video latent
+    # under ComfyUI's input/, its audio latent beside it, rendered again at `width` x `height`
+    # (twice its size) as gen.py --from-latent --hires 2 does: the community MiniMax H3 Latent
+    # Upscaler (3D) node @ 40316cf on the video latent, then this graph at the new size from it,
+    # its steps from denoise 0.45, the take's soundtrack decoded.
+    take = engine[:-len("-upscale")] if latent else engine
+    module = declaration(take)
     base = declaration(module.BASE) if hasattr(module, "BASE") else module  # frames, INFERENCE
-    experiment = engine.endswith("-quality")
+    experiment = take.endswith("-quality")
 
     conditioning = {"clip": ["2", 0], "vae": ["3", 0], "prompt": prompt, "width": width,
                     "height": height, "length": base.frames(duration)}
@@ -334,6 +340,22 @@ def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False)
     elif image:
         graph["13"] = ("LoadImage", {"image": image})
         conditioning["first_frame"] = ["13", 0]
+
+    if latent:
+        graph.update({
+            "20": ("LoadLatent", {"latent": latent}),
+            "21": ("LoadLatent", {"latent": latent.replace(".video.latent", ".audio.latent")}),
+            "22": ("LTXVConcatAVLatent", {"video_latent": ["20", 0], "audio_latent": ["21", 0]}),
+            "23": ("LTXVSeparateAVLatent", {"av_latent": ["22", 0]}),
+            "24": ("MinimaxH3LatentUpscaler3D", {
+                "latent": ["23", 0], "model_name": f["upscaler"], "mode": "scale by multiplier",
+                "mode.scale": 2.0, "align": 32, "enable_temporal_chunking": False,
+                "force_unload": True, "device": "cuda", "precision": "fp16"}),
+            "25": ("LTXVConcatAVLatent", {"video_latent": ["24", 0], "audio_latent": ["23", 1]}),
+        })
+        graph["8"][1].update(steps=declaration(engine).INFERENCE, denoise=base.REFINE_DENOISE)
+        graph["10"][1]["latent_image"] = ["25", 0]
+        graph["15"][1]["samples"] = ["22", 0]
 
     save = {"video": ["16", 0], "filename_prefix": "turbotest/" + engine, "format": "auto",
             "format.codec": "auto"}
@@ -369,12 +391,15 @@ GRAPHS = {
     ("comfy-minimax-h3-quality", "image-to-video"): h3_video,
     ("comfy-minimax-h3", "image-to-video-ref"): functools.partial(h3_video, ref=True),
     ("comfy-minimax-h3-quality", "image-to-video-ref"): functools.partial(h3_video, ref=True),
+    ("comfy-minimax-h3-upscale", "image-to-video"): h3_video,
+    ("comfy-minimax-h3-quality-upscale", "image-to-video"): h3_video,
 }
 
 # The flags ComfyUI starts with for an engine's graph: the experiment ran its bf16 text encoder in
 # bf16 (ComfyUI casts it to fp16 otherwise).
 ARGS = {
     "comfy-minimax-h3-quality": ["--bf16-text-enc"],
+    "comfy-minimax-h3-quality-upscale": ["--bf16-text-enc"],
 }
 
 
@@ -395,12 +420,14 @@ def upload(url, path):
     return json.load(request(url + "/upload/image", body, headers))["name"]
 
 
-def run(engine, mode, prompt, seed, size, input, output, url, duration="5"):
+def run(engine, mode, prompt, seed, size, input, output, url, duration="5", latent=None):
     image = upload(url, input) if input != "-" else None
 
     names = {role: path.split("/", 1)[1] for role, path in files(engine).items()}
     width, height = (int(v) for v in (size.split("x") * 2)[:2])
     video = {"duration": float(duration)} if "-video" in mode else {}
+    if latent:
+        video["latent"] = latent
     nodes = GRAPHS[(engine, mode)](engine, names, prompt, int(seed), width, height, image,
                                    **video)
     nodes.setdefault("99", ("SaveImage", {"filename_prefix": "turbotest/" + engine,
