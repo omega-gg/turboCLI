@@ -22,9 +22,9 @@ node is byte for byte the pinned 40316cf's (the later commits are the 2D node an
 `3d_conv_v1` is still the only 3D model. A 2D one (`2d_conv_v1`, 2026-11-10) is lighter and
 better at most scales by its author's comparison, but the 3D leads at its trained scales, 2x
 among them (84.7-89.1% less error than trilinear against 83.0-86.4%), and is a little steadier
-in time; the experiment's approved results are 3D's: the 3D model at 2x. The Hugging Face
-revision (3f941d5, the experiment's) is checked on Modal: the latest one pinned if its 3D file
-is the same.
+in time; the experiment's approved results are 3D's: the 3D model at 2x. Its Hugging Face file
+is the same at the latest revision (85a0187) as at the experiment's (3f941d5): sha256 043e5a48...,
+690,592,672 bytes; the latest is pinned.
 
 ## CLI
 
@@ -142,10 +142,12 @@ per step, the latent upscale and the decode apart.
      identical;
    - ComfyUI's `BasicScheduler`, `CONST` and `ModelSamplingAV` read, to confirm the refine's
      start (the noise mixed into a given latent): fixed before going on if H3 does it otherwise.
-3. **Small identity on a B200** (~$0.30), turbo against ComfyUI:
-   - a 512x512, 1 s comfy-minimax-h3-quality take with `latent=save`, in the Indy workflow (a
-     first frame, the knight, and a voice reference);
-   - comfy-minimax-h3-quality-upscale on `latent=` alone, to 1024x1024;
+3. **Small identity on a B200** (~$0.40), turbo against ComfyUI, on comfy-minimax-h3 (its 40 GB
+   int8 files load faster than -quality's 98 GB, three cold loads; the same code, the int8
+   upscale engine covered too, -quality's identity checked at full size in step 4):
+   - a 512x512, 1 s comfy-minimax-h3 take with `latent=save`, in the Indy workflow (a first
+     frame, the knight, and a voice reference);
+   - comfy-minimax-h3-upscale on `latent=` alone, to 1024x1024;
    - ComfyUI's graph on the same latents (gen.py's `--from-latent --hires 2`: two LoadLatent,
      LTXVConcatAVLatent, the node cloned at 40316cf into ComfyUI's custom_nodes with its model
      from the Volume, the Ref2VA conditioning at 2x, BasicScheduler beta 8 / 0.45, VAEDecode,
@@ -165,7 +167,8 @@ per step, the latent upscale and the decode apart.
 5. Results into this doc and the offloader's implementation.md.
 
 Not tested, to keep the spend down (each can be added):
-- comfy-minimax-h3-upscale (the int8 files): `-quality`'s code path, other files;
 - the first and last frame workflow without references: the same refine, the conditioning
   already identical in a normal take;
 - a warm second upscale in the same process (~$0.30), for the warm price alone.
+- a 10 s take at 2x (~$1.10, estimated from the 5 s steps): whether the upscaler's single
+  pass and the decode at 241 frames of 2752x1152 fit on the B200.

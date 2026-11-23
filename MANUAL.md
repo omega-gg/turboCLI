@@ -221,6 +221,10 @@ the new size in 8 steps, keeping the take (denoise 0.45: the fine detail is new,
 same); the soundtrack is the take's, untouched. The take's input files must still be where it
 found them.
 
+The 2x costs more than the take: on a B200, a 5 s take at 1376x576 is about $0.19 and its
+2x about $0.40; at 10 s, about $0.27 and $1.10 (twice the frames, four times the attention).
+Upscale only the takes you keep.
+
 ## Masks and mattes
 
 A mask is an 8-bit grayscale image: white where something is kept, black where it is not. Two

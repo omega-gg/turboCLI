@@ -242,8 +242,8 @@ for p in $3; do
 
     # NOTE: Each path converted, its role= and @seconds kept.
     case "$p" in
-        first=*|last=*|image=*|audio=*|guide=*) role="${p%%=*}="; p="${p#*=}";;
-        *)                                      role="";;
+        first=*|last=*|image=*|audio=*|guide=*|latent=*) role="${p%%=*}="; p="${p#*=}";;
+        *)                                               role="";;
     esac
 
     case "$role$p" in

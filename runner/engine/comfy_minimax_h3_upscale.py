@@ -35,9 +35,9 @@ BASE = base.ID
 
 MODES = ("image-to-video",)  # wire values, same as the HTTP API
 
-# The upscaler's file, pinned as the experimental H3 pins it (h3_modal.py HIRES_HF).
+# The upscaler's file, the same 3D file as at the experimental H3's revision (3f941d5).
 UPSCALER = {"role": "upscaler", "repository": "LBH-123-AI/Minimax_h3_latent_Upscaler",
-            "revision": "3f941d5d182014dd5c0a5e16330420ee2d4aa0c6",
+            "revision": "85a0187096046badc0a71ab6bd6be182ab06c0f4",
             "filename": "minimax_h3_latent_upscaler_3d_conv_v1/"
                         "minimax_h3_latent_upscaler_3d_conv_v1_fp16.safetensors",
             "path": "latent_upscale_models/minimax_h3_latent_upscaler_3d_conv_v1_fp16.safetensors"}
