@@ -208,3 +208,10 @@ Not tested, to keep the spend down (each can be added):
   identical with ComfyUI, its sampling 61.82 s against 61.12 (+1%), 99.8 s against 105.7 s from
   launch to saved video. The other H3 engines recorded on turbo alone, their identity with ComfyUI
   measured before.
+- **The card** (the Indy 2x on turbo, cold, Modal's prices): a B300 (Blackwell Ultra, its
+  attention faster on paper) took 226.4 s against the B200's 201.2, the steps 18.14 s against
+  19.95 but its start and decode slower; at 14% more a second, about $0.45 against $0.35 of GPU
+  time. The B200 stays the cheapest per video; an H200 or smaller card is slower still for its
+  price (about 2.2x the compute time, or the weights streamed). Other providers list B200s at
+  $6.69-9.59 an hour against Modal's $6.25, and the cheaper marketplace or spot ones would first
+  download the 98 GB of files for a one-shot run.
