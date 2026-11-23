@@ -1,0 +1,11 @@
+# cuda-NVIDIA-B200-512, recorded 2026-11-23: turboCLI 347057428471f7ab2da8b400ef92edde3a2d2116
+# side engine mode md5 wall load encode sampling decode (seconds)
+comfy comfy-minimax-h3-quality-upscale image-to-video 84e89e23ee40cd746879b965061c73b1 105.71 - - 61.12 -
+turbo comfy-minimax-h3 image-to-video 7e33afdc5e31d13c27a6c2be4a73a7fc 45.69 4.86 18.32 20.06 2.45
+turbo comfy-minimax-h3 image-to-video-ref 73c84d2a28845cae04684e95abc3303a 46.47 5.19 9.33 27.96 3.96
+turbo comfy-minimax-h3 text-to-video c091f2fb3b2d34515b0d3c0fa9ad883a 50.88 7.01 18.89 20.69 4.29
+turbo comfy-minimax-h3-quality image-to-video 69f0b78ed1b35e8e39af7f7436d98199 50.93 6.65 22.61 18.37 3.27
+turbo comfy-minimax-h3-quality image-to-video-ref c18cdc93f2cc3ec3e27ff9e0e8803a0f 58.72 7.05 23.44 24.53 3.67
+turbo comfy-minimax-h3-quality text-to-video c3e1edf2dcc2eb7e35e2158cfe86e148 84.99 11.70 43.98 23.36 5.95
+turbo comfy-minimax-h3-quality-upscale image-to-video e21b3035aa4045b5186da52b57f43f76 99.77 8.57 22.42 61.82 6.93
+turbo comfy-minimax-h3-upscale image-to-video 5a14d32ff197d4ad745bb81bd785076b 102.89 9.41 21.66 64.07 7.71

@@ -191,9 +191,18 @@ Not tested, to keep the spend down (each can be added):
   - against the experiment's approved 2x 45.7 dB, the sound identical (the take alone is 45.2 dB:
     ComfyUI v0.38.0 against v0.45.4).
 - **Not cuDNN**: the same latents on default attention, both sides, 46.0 dB; each side against its
-  own cuDNN 2x 44.8 dB. A rounding-level difference that 512 to 1024 does not have, its cause not
-  found (a path only full size takes; ComfyUI sizes its VAE tiles to the free VRAM). Default
-  attention's steps take 55 s: upscale with `attention=cudnn`.
+  own cuDNN 2x 44.8 dB. Default attention's steps take 55 s: upscale with `attention=cudnn`.
+- **Where the 2x parts from ComfyUI** (the cuDNN take's latents, one stage at a time):
+  - each side reproducible, run to run;
+  - the refined latents bit-identical: the upscaler, the noise, the schedule and the 8 steps;
+  - turbo's 8-bit frames bit-identical with ComfyUI's VAEDecode of the same latent run alone;
+  - the writers byte-identical on the same frames (PyAV 19.0.1 on both sides);
+  - the decoder's tile batch the same on both sides (4 a call, 89-94 GB free).
+
+  ComfyUI's VAEDecode inside the full graph, after the 2x conditioning's encode, gives other
+  pixels than the same decode alone: at 2752x1152 the decode depends on the process's history
+  (turbo's too, between runs set up otherwise), each context reproducible. Not turbo's code;
+  rounding-level, not visible; not pursued (about $2.60 spent on it).
 - **The test suite** (`test/run.sh --video --size 512`, the B200's reference): the
   comfy-minimax-h3-quality-upscale case (the knight take, a first frame and no reference, at 2x)
   identical with ComfyUI, its sampling 61.82 s against 61.12 (+1%), 99.8 s against 105.7 s from
