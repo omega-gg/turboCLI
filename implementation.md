@@ -609,6 +609,41 @@ stamps, from the bar's `0/N` to its `N/N`. `test/README.md` has the usage and
 turbo against ComfyUI engine by engine, are in turbo-offloader's `implementation.md`
 (Benchmarks, the L40S machine), with what to read them with.
 
+### Testing a new engine at the lowest cost
+
+A port of a published model is verified cheapest first, and GPU time only goes to what nothing
+cheaper can show:
+
+1. **Local, free**: engine discovery and its declaration (`core.ENGINES[...]`: BASE, steps,
+   options, files), the request rules with stubbed settings (e.g. `_take`), the constants
+   against the reference's (a sigma grid computed as the reference computes it).
+2. **Tiny-model parity, free (local CPU)**: the reference's own modules against ours on a random
+   model a few layers deep, fp32, the same inputs (LoRA names through ComfyUI's
+   `calculate_weight`, an embedder, a hook). Pass: fp32 rounding. It catches a wrong mapping or
+   formula before any weight is downloaded.
+3. **Modal CPU, no GPU billed**: `modal.sh install <engines>` puts the files on the Volume; a
+   header-only `modal.sh exec` builds the real model on the meta device and checks every LoRA
+   tensor maps onto a weight of its shape.
+4. **GPU, one piece at a time**: the main engine alone first, on a take already rendered (its
+   latents in `h3in/`), timed from launch to saved video (the real price) and its step times
+   watched; its output validated before the next engine or size. A session script stops at the
+   first failure. Nothing left running.
+5. **Side by side, free**: the outputs beside the earlier ones (fidelity back at the input's size,
+   PSNR / SSIM, and crops by eye), in the plan's Results.
+
+A Modal script's inputs travel with turboCLI's working tree (`modal.sh` ships untracked files):
+an untracked folder (`h3in/`) holds the test takes and the session scripts.
+
+**Behind an HTTPS-inspecting network.** A company network that re-signs HTTPS with its own
+root breaks the Modal CLI's uploads (`Could not connect to the Modal server`,
+`CERTIFICATE_VERIFY_FAILED`, now and then: its gRPC uses the system store, its uploads only
+certifi's). The fix is per process, nothing system-wide: a folder with the company root exported
+from the system store, certifi's bundle plus it (`modal-ca.pem`), a `modal_ca.py` that points
+`certifi.where()` at that bundle and runs `modal.__main__.main()`, and a `bin/modal` shim
+(`exec python "$(cygpath -w "$(dirname "$0")/../modal_ca.py")" "$@"`); then
+`export PATH="<folder>/bin:$PATH"` before `sh test/modal.sh ...`. A browser's "continue" page
+only lets the browser through for a while.
+
 ## Platform notes
 
 - **Windows**: Git Bash required; `getPath()` runs `cygpath -w` + `\`→`/` ("Python does not
