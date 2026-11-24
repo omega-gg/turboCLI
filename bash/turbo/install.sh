@@ -160,6 +160,8 @@ if [ $# -lt 2 -o $# -gt 8 ] \
     echo "        comfy-minimax-h3-quality (video, ComfyUI's bf16 files)"
     echo "        comfy-minimax-h3-upscale"
     echo "        comfy-minimax-h3-quality-upscale"
+    echo "        comfy-minimax-h3-ic-upscale"
+    echo "        comfy-minimax-h3-quality-ic-upscale"
     echo ""
     echo "renderer: cpu, cuda, mps"
     echo ""

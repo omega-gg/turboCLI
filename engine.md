@@ -90,6 +90,8 @@ The sizes count both of MiniMax H3's transformers, the frames' and the reference
 | `comfy-minimax-h3-quality` | MiniMax H3 from ComfyUI's bf16 files, the beta scheduler with references | 138 GB | 20 | offloader, MiniMax H3 license |
 | `comfy-minimax-h3-upscale` | A `comfy-minimax-h3` take rendered again at twice its size from its latents alone (`latent=`, the rest the take's saved settings): the community MiniMax H3 latent upscaler, then H3 refining at the new size, the soundtrack the take's | 62 GB | 8 | offloader, MiniMax H3 license |
 | `comfy-minimax-h3-quality-upscale` | The same for a `comfy-minimax-h3-quality` take, on its files | 139 GB | 8 | offloader, MiniMax H3 license |
+| `comfy-minimax-h3-ic-upscale` | A `comfy-minimax-h3` take of up to 124 frames (about 5 s) rendered again by NVIDIA's Open-H3-Regenerate-2K IC: the take kept as a clean reference video, IC's LoRA on HyperFlow 8-step and LMS Sharp, 3 steps; twice its size, or a larger width and height on its ratio (2K); the soundtrack the take's | 87 GB | 3 | offloader, MiniMax H3 license |
+| `comfy-minimax-h3-quality-ic-upscale` | The same for a `comfy-minimax-h3-quality` take, on its bf16 files | 177 GB | 3 | offloader, MiniMax H3 license |
 
 ## Masking and matting
 

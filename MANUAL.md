@@ -227,6 +227,27 @@ Upscale only the takes you keep. These are with `attention=cudnn`, which a take 
 2x with its other options: without it, the 2x's steps take 2.75 times as long. The B200 is the
 cheapest card per video on Modal: a B300's 2x took 226 s against 201, at 14% more a second.
 
+A width and height above the take's, on its ratio, render it at that size instead of 2x
+(`3456 1440` for 2K from 1376x576); smaller ones, the script's default included, give 2x.
+
+**Upscaling with IC.** `comfy-minimax-h3-ic-upscale` and `comfy-minimax-h3-quality-ic-upscale`
+render a take again with NVIDIA's Open-H3-Regenerate-2K IC: the take stays in the context as a
+clean reference video, and IC's LoRA (on HyperFlow's 8-step adapter and LMS Sharp) re-renders it
+sharper in 3 steps, keeping its scene, motion and timing; the soundtrack is the take's. The same
+call, on a take of 124 frames at most (about 5 s, IC's trained length):
+
+```sh
+sh image-to-video.sh comfy-minimax-h3-quality-ic-upscale cuda latent=take.video.latent take-2x.mp4
+```
+
+An inference of 4 (the steps argument) runs IC's 4-step sampler instead of its 3, and the option
+`sharp=0`, `0.5` or `1` sets LMS Sharp's strength (1 by default, 0 leaves it out, no faster).
+
+On a 5 s 1376x576 take at 2x on a B200, IC takes 160 s from launch to the saved video (the 2x
+above: 201 s) and keeps more of the take (37.9 dB against 33.9, scaled back to its size), but
+draws ring patterns on bright, smooth skin, with or without Sharp: the 2x above looks better.
+Compare on your own takes (turboCLI's `doc/minimax-h3-ic-upscale-plan.md`).
+
 ## Masks and mattes
 
 A mask is an 8-bit grayscale image: white where something is kept, black where it is not. Two

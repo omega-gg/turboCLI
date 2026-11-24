@@ -384,6 +384,8 @@ answer is derivable.
 | `comfy-minimax-h3-quality` | BASE = comfy-minimax-h3; delta: Comfy-Org's highest precision files (bf16 DiT and TE, fp16 video VAE, ~98 GB), the TE in bf16 (`--bf16-text-enc`), crf 12; with references the bf16 ref2va file and the beta scheduler (the default `scheduler=` overrides): the base and Ref2VA graphs of the experimental H3 (`msvc/experimental/h3`, `remote/gen.py`), the keyframes as given (gen.py's ImageScale center crop left to the source); identical with that graph in ComfyUI |
 | `comfy-minimax-h3-upscale` | BASE = comfy-minimax-h3; delta: image-to-video only, the community MiniMax H3 Latent Upscaler (3D)'s file (`upscaler` role, LBH-123-AI's repo, ~0.7 GB), 8 steps, `UPSCALE`, `check` requiring `latent=`: a take's latents (`latent=save`), the request made of its saved settings (`core._take`), enlarged by the node's network (offloader `minimax_h3_upscaler`), then refined by the base pipe at the output size, denoise 0.45 (`REFINE_DENOISE`), the take's inputs re-applied, its audio latent decoded as it is: the experimental H3's `--from-latent --hires 2` |
 | `comfy-minimax-h3-quality-upscale` | BASE = comfy-minimax-h3-quality; the same delta, for its takes |
+| `comfy-minimax-h3-ic-upscale` | BASE = comfy-minimax-h3; NVIDIA's Open-H3-Regenerate-2K IC (NVlabs/Sana `sol-engine/models/Open-H3-Regenerate-2K/IC`): image-to-video on `latent=` alone, a take of 124 frames at most (IC's), the fl2va file swapped for the full-form int8 ref2va (`transformer_ic`: its time embedder and full adaln, which HyperFlow needs; the pruned ref2va stays for Sharp's `adaln_t_table`), the community upscaler, IC's three LoRAs (`lora_ic`, `lora_hyperflow`, `lora_sharp`, in place of the take's) and its silence (`silence`), from `Efficient-Large-Model/Open-H3-Regenerate-2K-IC` (pinned); `load(ic=IC)`: the offloader's `HyperFlowModel` (HyperFlow's two-time embedder, Sharp's curve branches), Euler on HyperFlow's 8-step grid at shift 12 (`set_sigmas`, the last 3 steps: IC's up3, 4: up4), the take as the reference video (its latent as is, its frames for Qwen3-VL), IC's task before the take's prompt, the audio rows IC's silence held clean, the take's audio out; crf 12; `sharp=0|0.5|1` (IC's `--sharp`, 1 by default) sets LMS Sharp, 0 leaving its LoRA and curve branches out, part of `extra_key`. Parity with IC's own code on a tiny model (LoRA names, two-time embedding, Sharp branch) at fp32 rounding (`doc/minimax-h3-ic-upscale-plan.md`) |
+| `comfy-minimax-h3-quality-ic-upscale` | BASE = comfy-minimax-h3-quality; the same on the full-form bf16 ref2va, the TE in bf16, for its takes |
 | `mask` | **compute engine** (declares `run`, not a pipeline); mode `image-to-mask`; torch-free pixel-diff / grown-box mask (options `mode=default\|region`); register-only install; options `cutoff=N` (0-255), `glow=N` (pixels, `default` only: the mask grows by about N, graded, which covers the outline a removal leaves where `region` would have boxed the whole footprint. It does not replace `region`, see `doc/mask-glow-plan.md`) and `fade=<l>:<t>:<r>:<b>` (pixels per border, either mode: the borders of a crop ramp to 0 over that many pixels, never more than a quarter of a side, since a grown box fills a crop to its edge, or a change runs off it, and the caller pads it back into a seam. 0 keeps a border hard and the caller owns the distance, see `doc/mask-fade-plan.md`). Both are off unless sent |
 | `mask-birefnet` / `mask-lucida` / `mask-inspyrenet` | compute matte engines, mode `image-to-mask`; MODEL `kind` snapshot (birefnet/lucida) or url (inspyrenet); `mask-lucida` BASE = `mask-birefnet`; optional plate keeps the cast shadow; options `cutoff=N` (shadow floor) |
 | `esrgan-upscale` / `comfy-esrgan-upscale` | compute upscalers, mode `image-to-image` on the first input (`esrgan_upscale.py`): spandrel loads Real-ESRGAN x4plus (url xinntao release `v0.1.0` / one COMFY component, no scaffold), the model stays resident (one, keyed by file and device), runs fp16 `channels_last` on a GPU (54 dB from fp32, 3.3x faster on an A1000) in 512 tiles overlapping by 32 with ramp blending (halved on out of memory down to 128: ComfyUI's numbers), then lanczos to the output size. An alpha channel follows at the same size |
@@ -492,7 +494,9 @@ patches use >1 and negative, matching ComfyUI).
    `guide=<audio>@<seconds>`, and `latent=<stem>.video.latent`, a take's latents for an upscale
    engine. A `latent=` request is first made of the take's settings, saved in the latents'
    metadata (`_take`: its prompt, inputs, LoRAs, duration, seed and options, the request's
-   options over them, twice its size), the take's engine and `-upscale` naming the engine.
+   options over them; the request's width and height when larger than the take's and on its
+   ratio within 1%, a 2K target, twice its size otherwise, the script's 512x512 default
+   included), the take's engine the upscale engine's `BASE`.
    `_video_inputs` opens the images and hands the pipeline `image=[first, last]`,
    `references=[image or audio path]`, `guide=(path, seconds)` and `take=(video, audio)`
    (`video.load_latents`, LoadLatent's read); an engine whose references run on another
@@ -608,6 +612,41 @@ stamps, from the bar's `0/N` to its `N/N`. `test/README.md` has the usage and
 `test/modal.sh` runs it on Modal L40S GPUs, one container per engine at once. Its results,
 turbo against ComfyUI engine by engine, are in turbo-offloader's `implementation.md`
 (Benchmarks, the L40S machine), with what to read them with.
+
+### Testing a new engine at the lowest cost
+
+A port of a published model (the IC upscale engines, `doc/minimax-h3-ic-upscale-plan.md`) is
+verified cheapest first, and GPU time only goes to what nothing cheaper can show:
+
+1. **Local, free**: engine discovery and its declaration (`core.ENGINES[...]`: BASE, steps,
+   options, files), the request rules with stubbed settings (e.g. `_take`), the constants
+   against the reference's (a sigma grid computed as the reference computes it).
+2. **Tiny-model parity, free (local CPU)**: the reference's own modules against ours on a random
+   model a few layers deep, fp32, the same inputs (LoRA names through ComfyUI's
+   `calculate_weight`, an embedder, a hook). Pass: fp32 rounding. It catches a wrong mapping or
+   formula before any weight is downloaded.
+3. **Modal CPU, no GPU billed**: `modal.sh install <engines>` puts the files on the Volume; a
+   header-only `modal.sh exec` builds the real model on the meta device and checks every LoRA
+   tensor maps onto a weight of its shape.
+4. **GPU, one piece at a time**: the main engine alone first, on a take already rendered (its
+   latents in `h3in/`), timed from launch to saved video (the real price) and its step times
+   watched; its output validated before the next engine or size. A session script stops at the
+   first failure. Nothing left running.
+5. **Side by side, free**: the outputs beside the earlier ones (fidelity back at the input's size,
+   PSNR / SSIM, and crops by eye), in the plan's Results.
+
+A Modal script's inputs travel with turboCLI's working tree (`modal.sh` ships untracked files):
+an untracked folder (`h3in/`) holds the test takes and the session scripts.
+
+**Behind an HTTPS-inspecting network.** A company network that re-signs HTTPS with its own
+root breaks the Modal CLI's uploads (`Could not connect to the Modal server`,
+`CERTIFICATE_VERIFY_FAILED`, now and then: its gRPC uses the system store, its uploads only
+certifi's). The fix is per process, nothing system-wide: a folder with the company root exported
+from the system store, certifi's bundle plus it (`modal-ca.pem`), a `modal_ca.py` that points
+`certifi.where()` at that bundle and runs `modal.__main__.main()`, and a `bin/modal` shim
+(`exec python "$(cygpath -w "$(dirname "$0")/../modal_ca.py")" "$@"`); then
+`export PATH="<folder>/bin:$PATH"` before `sh test/modal.sh ...`. A browser's "continue" page
+only lets the browser through for a while.
 
 ## Platform notes
 

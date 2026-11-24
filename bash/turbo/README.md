@@ -57,6 +57,8 @@ engine: flux2-4b
         comfy-minimax-h3-quality (video, ComfyUI's bf16 files)
         comfy-minimax-h3-upscale
         comfy-minimax-h3-quality-upscale
+        comfy-minimax-h3-ic-upscale
+        comfy-minimax-h3-quality-ic-upscale
 
 renderer: cpu, cuda, mps
 
@@ -318,6 +320,8 @@ engine: minimax-h3
         comfy-minimax-h3-quality
         comfy-minimax-h3-upscale
         comfy-minimax-h3-quality-upscale
+        comfy-minimax-h3-ic-upscale
+        comfy-minimax-h3-quality-ic-upscale
 
 renderer: cpu, cuda, mps
 
@@ -328,7 +332,8 @@ input references: separated by a comma, each tagged by its role:
                   guide=<audio>@<seconds>      a recording pinned at that time
                   latent=<take>.video.latent   a take's latents (latent=save), alone:
                                                an upscale engine renders the take again
-                                               at 2x, the rest of it the take's
+                                               at 2x (or a larger width and height on
+                                               its ratio), the rest of it the take's
                   an untagged image is a frame, the first then the last. With a
                   picture or audio reference the engine runs its reference workflow
 
