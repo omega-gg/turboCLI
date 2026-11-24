@@ -127,15 +127,13 @@ def _pipeline_class():
         model_cpu_offload_seq = "text_encoder->transformer->vae"
 
         def __init__(self, transformer, text_encoder, scheduler, vae, audio_vae,
-                     upscaler=None, ic=None):
+                     upscaler=None):
             super().__init__()
 
             self.register_modules(transformer=transformer, text_encoder=text_encoder,
                                   scheduler=scheduler, vae=vae, audio_vae=audio_vae)
 
             self.upscaler = upscaler  # the upscale engines' latent upscaler, placing itself
-
-            self.ic = ic  # the IC upscale engines' task, sigma grid and silence (load)
 
             self._schedule = scheduler.scheduler  # the engine's, which scheduler= overrides
 
@@ -197,8 +195,8 @@ def _pipeline_class():
             # NOTE: A take, as the experimental H3's --hires refines one: its video latent
             #       enlarged by MinimaxH3LatentUpscaler3D, its soundtrack's kept as it is.
             if take is not None:
-                draft = torch.from_numpy(take[0])
-                take = (self.upscaler(draft, width, height), torch.from_numpy(take[1]))
+                take = (self.upscaler(torch.from_numpy(take[0]), width, height),
+                        torch.from_numpy(take[1]))
 
                 if [t.shape for t in take] != shapes:
                     raise ValueError("the latents do not match their take's settings")
@@ -206,19 +204,7 @@ def _pipeline_class():
             tf, pinned = self.transformer, list(image or ()) + [None, None]
             refs = None
 
-            if self.ic is not None:
-                # Open-H3-Regenerate-2K IC (ref2va_ic/encode.py): the take as the reference
-                # video, its latent as it is and its frames (8 bits, as a video file's) for
-                # Qwen3-VL, IC's task before the take's prompt. Its decode is an input's, not
-                # the sampler's end (decode_input), so the transformer still loads after it.
-                draft_pixels = self.vae.decode_input(draft, return_dict=False)[0][0].movedim(0, -1)
-                draft_pixels = draft_pixels.mul_(255).clamp_(0, 255).byte().float() / 255.0
-                items, refs = tf.video_reference(draft, draft_pixels)
-                context, tags = self.encode_prompt(
-                    self.ic["task"] + "\n\nScene description: " + prompt, device=device,
-                    items=items)
-                keyframes = []
-            elif references:
+            if references:
                 # MiniMaxH3ReferenceToVideo (nodes_minimax_h3.py:259-381): the references
                 # encoded, the prompt with their items, then each frame pinned by AddGuide.
                 items, refs = tf.reference_to_video(references, self.vae, self.audio_vae,
@@ -252,12 +238,8 @@ def _pipeline_class():
             sampler = self.scheduler
             sampler.scheduler = scheduler or self._schedule
             sampler.seed = seed
-            if self.ic is not None:
-                # IC's samplers: the HyperFlow grid's last steps (3 is up3, 4 up4).
-                sampler.set_sigmas(self.ic["sigmas"][-(num_inference_steps + 1):], device)
-            else:
-                sampler.set_timesteps(num_inference_steps, device=device,
-                                      denoise=1.0 if take is None else REFINE_DENOISE)
+            sampler.set_timesteps(num_inference_steps, device=device,
+                                  denoise=1.0 if take is None else REFINE_DENOISE)
 
             # NOTE: The noise first: the transformer loads with it, as KSampler's does, then
             #       extra_conds runs on it (samplers.py:1240-1260, 1220-1226).
@@ -265,18 +247,13 @@ def _pipeline_class():
 
             # NOTE: A take under the noise: CONST's noise_scaling at the first sigma
             #       (model_sampling.py), on the latent process_latent_in packs (the audio at
-            #       audio_scale). IC's audio rows are its silence, held clean.
+            #       audio_scale).
             if take is not None:
-                sigma, n = sampler.sigmas[0], shapes[0][1:].numel()
-                audio = (self.ic["silence"][..., :shapes[1][-1]] if self.ic is not None
-                         else take[1] * self.transformer.audio_scale)
-                take_in = _pack([take[0], audio]).to(device)
+                sigma = sampler.sigmas[0]
+                take_in = _pack([take[0], take[1] * self.transformer.audio_scale]).to(device)
                 latents = sigma * latents + (1.0 - sigma) * take_in
-                if self.ic is not None:
-                    latents[..., n:] = take_in[..., n:]
 
-            conds = tf.extra_conds(context, tags, keyframes, shapes, seed, device, refs,
-                                   fixed_audio=self.ic is not None)
+            conds = tf.extra_conds(context, tags, keyframes, shapes, seed, device, refs)
 
             with self.progress_bar(total=len(sampler.timesteps)) as bar:
                 for i, t in enumerate(sampler.timesteps):
@@ -323,12 +300,11 @@ def _pipeline_class():
     return ComfyH3VideoPipe
 
 
-def load(ctx, params, text_dtype=None, ref_scheduler="simple", ic=None):
+def load(ctx, params, text_dtype=None, ref_scheduler="simple"):
     """Assemble the pipeline of _pipeline_class from ComfyUI's single files via the offloader:
     the ref2va transformer and `ref_scheduler` for a request with references. `text_dtype` (a
-    torch dtype's name) runs the text encoder in it, as ComfyUI's --bf16-text-enc does. `ic` (an
-    IC upscale engine's task and sigma grid): the full ref2va file with HyperFlow's and Sharp's
-    model-side pieces, their LoRAs and IC's in place of the take's, Euler. OFFLOADER-ONLY."""
+    torch dtype's name) runs the text encoder in it, as ComfyUI's --bf16-text-enc does.
+    OFFLOADER-ONLY."""
     import torch
 
     files = _comfy.by_role(ctx.model)  # engine/<id>/ (engine.json)
@@ -337,42 +313,26 @@ def load(ctx, params, text_dtype=None, ref_scheduler="simple", ic=None):
         raise RuntimeError("%s requires an offload backend (offload=offloader): ComfyUI's models "
                            "run on it" % params["engine"])
 
-    ref = ic is None and extra_key(params)[0]
-    transformer = files.get("transformer_ref" if ref else "transformer")
-    sampler, scheduler = "res_multistep", ref_scheduler if ref else "simple"
-    config, loras = {}, ctx.loras or None
+    ref = extra_key(params)[0]
+    transformer = files["transformer_ref" if ref else "transformer"]
 
     text_encoder = {"model": "minimax_h3", "file": files["text_encoder"]}
 
     if text_dtype is not None:
         text_encoder["dtype"] = getattr(torch, text_dtype)
 
-    components = {"vae": ctx.backend.comfy_vae(files["vae"], {}),
+    components = {"scheduler": ctx.backend.comfy_sampler("minimax_h3", "res_multistep",
+                                                         ref_scheduler if ref else "simple",
+                                                         transformer),
+                  "vae": ctx.backend.comfy_vae(files["vae"], {}),
                   "audio_vae": ctx.backend.comfy_vae(files["audio_vae"], {})}
 
     # NOTE: An upscale engine's latent upscaler (comfy_minimax_h3_upscale.py).
     if "upscaler" in files:
         components["upscaler"] = ctx.backend.comfy_latent_upscaler(files["upscaler"])
 
-    # NOTE: An IC upscale engine (comfy_minimax_h3_ic_upscale.py): Sharp's curve table is the
-    #       pruned ref2va file's adaln_t_table, IC's silence its audio rows [1, 32, 2, t].
-    if ic is not None:
-        from safetensors.torch import load_file
-
-        # NOTE: LMS Sharp at ic["sharp"] (IC's 1), left out at 0.
-        sharp = ic.get("sharp", 1.0)
-        transformer, sampler = files["transformer_ic"], "euler"
-        config = {"hyperflow": files["lora_hyperflow"], "curve": files["transformer_ref"],
-                  "sharp": files["lora_sharp"] if sharp else None, "strength": sharp}
-        loras = [(files["lora_hyperflow"], 1.0)] + ([(files["lora_sharp"], sharp)] if sharp
-                                                    else []) + [(files["lora_ic"], 1.0)]
-        silence = load_file(files["silence"])["audio_latents"].float().permute(1, 0, 2)[None]
-        components["ic"] = dict(ic, silence=silence)
-
-    components["scheduler"] = ctx.backend.comfy_sampler("minimax_h3", sampler, scheduler,
-                                                        transformer)
-
     return ctx.backend.load_pipe_comfy(
         _pipeline_class(),
-        {"model": "minimax_h3", "file": transformer, "config": config},
-        text_encoder, components, ctx.dtype, device=ctx.device, lora_files=loras)
+        {"model": "minimax_h3", "file": transformer, "config": {}},
+        text_encoder, components, ctx.dtype, device=ctx.device,
+        lora_files=ctx.loras or None)

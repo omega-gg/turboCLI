@@ -584,11 +584,9 @@ def _save(image, params, steps, emit, reference=None):
 
 def _take(params):
     """An upscale request names a take's latents alone (latent=): its prompt, inputs, LoRAs,
-    duration and seed are the take's, saved with them (runner/video.py save_latents); its options
-    too, under the request's, latent=save the request's alone. The size is the request's when
-    larger than the take's, on its ratio (a 2K target), twice the take's otherwise (the script's
-    512x512 default included). The take's engine is the upscale engine's BASE. Returns the request
-    as the engine runs it."""
+    duration and seed are the take's, saved with them (runner/video.py save_latents), at twice
+    its size; its options too, under the request's, latent=save the request's alone. The take's
+    engine and '-upscale' name the engine. Returns the request as the engine runs it."""
     from .engine._options import parse_options, parse_references
     from .video import load_settings
 
@@ -601,24 +599,16 @@ def _take(params):
 
     if take is None:
         raise ValueError("%s holds no settings: a take saves them with latent=save" % path)
-    base = getattr(ENGINES.get(params["engine"]), "BASE", None)
-    if take["engine"] != base:
-        raise ValueError("%s is a %s take: %s renders %s takes"
-                         % (path, take["engine"], params["engine"], base))
+    if params["engine"] != take["engine"] + "-upscale":
+        raise ValueError("%s is a %s take: %s-upscale renders it again"
+                         % (path, take["engine"], take["engine"]))
 
     options = {k: v for k, v in parse_options(take.get("options", "")).items() if k != "latent"}
     options.update(parse_options(params.get("options", "")))
 
-    take_size = int(take["width"]), int(take["height"])
-    size = int(params.get("width") or 0), int(params.get("height") or 0)
-    if size[0] < take_size[0] or size[1] < take_size[1] or size == take_size:
-        size = 2 * take_size[0], 2 * take_size[1]
-    elif abs(size[0] / size[1] - take_size[0] / take_size[1]) > 0.01 * take_size[0] / take_size[1]:
-        raise ValueError("%dx%d is not on the take's %dx%d ratio" % (size + take_size))
-
     return dict(params, prompt=take["prompt"], loras=take.get("loras", ""),
                 duration=take["duration"], seed=take["seed"],
-                width=str(size[0]), height=str(size[1]),
+                width=str(2 * int(take["width"])), height=str(2 * int(take["height"])),
                 images=",".join(filter(None, (take.get("images", ""), "latent=" + path))),
                 options=",".join("%s=%s" % option for option in options.items()))
 
