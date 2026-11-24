@@ -611,8 +611,9 @@ turbo against ComfyUI engine by engine, are in turbo-offloader's `implementation
 
 ### Testing a new engine at the lowest cost
 
-A port of a published model is verified cheapest first, and GPU time only goes to what nothing
-cheaper can show:
+A port of a published model (Open-H3-Regenerate-2K IC: built, judged worse by eye than the
+2x upscale, ring patterns on skin, and reverted; 040516d, its plan and results in `doc/`) is
+verified cheapest first, and GPU time only goes to what nothing cheaper can show:
 
 1. **Local, free**: engine discovery and its declaration (`core.ENGINES[...]`: BASE, steps,
    options, files), the request rules with stubbed settings (e.g. `_take`), the constants
