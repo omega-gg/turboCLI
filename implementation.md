@@ -391,6 +391,22 @@ answer is derivable.
 | `mask-apply` | compute engine, mode `image-apply-mask`; applies a mask via `composite` or `putalpha`, or trims an image down to what shows via `trim`; register-only; options `mode=composite\|putalpha\|trim`, `pad=N` and `speck=N` for `trim` |
 | `adjust` | compute engine, mode `image-adjust` (`image-adjust.sh`); the align and color steps of image-to-image on an existing image, images `base,reference`, options `align[=<percent>]` and/or `color[=<levels>]` (the key alone for the default limit), align first; register-only; also holds the steps' `parse` and `step`, which `core.generate` imports |
 
+**Tried and reverted: Open-H3-Regenerate-2K IC** (NVlabs/Sana `sol-engine`, in `040516d`, reverted
+in `ef9004d`; the plan, the port and the measures in that commit's
+`doc/minimax-h3-ic-upscale-plan.md`). NVIDIA's IC LoRA on H3's Ref2VA model, with HyperFlow 8-step
+and LMS Sharp, re-renders a take in 3 steps with the take itself as a clean reference video.
+Ported as two upscale engines, matched to IC's own code on a tiny model at fp32 rounding. On a
+5 s 1376x576 take at 2x on a B200 it was faster than the 2x upscale (160 s against 201 s) and
+closer to the take (37.9 dB / SSIM 0.965 against 33.9 / 0.940, scaled back to the take's size).
+What was not good:
+- concentric ring ("fingerprint") patterns on bright, smooth skin, with or without Sharp, and
+  over-sharpened skin: by eye the 2x upscale looks better, despite IC's better measures;
+- extra files: the full-form Ref2VA model (66 GB bf16, 34 GB int8) and IC's three LoRAs (12 GB);
+- takes of 124 frames at most (about 5 s, IC's trained length).
+
+Untested: a 768-row take (IC's training size), its 4-step sampler, and NVIDIA's own CLI on the
+same take, which would tell a gap in the port from IC itself.
+
 ## The backend seam (runner side)
 
 - **One package scan** — diffusers and transformers each run `importlib.metadata`'s
@@ -611,9 +627,8 @@ turbo against ComfyUI engine by engine, are in turbo-offloader's `implementation
 
 ### Testing a new engine at the lowest cost
 
-A port of a published model (Open-H3-Regenerate-2K IC: built, judged worse by eye than the
-2x upscale, ring patterns on skin, and reverted; 040516d, its plan and results in `doc/`) is
-verified cheapest first, and GPU time only goes to what nothing cheaper can show:
+A port of a published model (as Open-H3-Regenerate-2K IC, after the engine table) is verified
+cheapest first, and GPU time only goes to what nothing cheaper can show:
 
 1. **Local, free**: engine discovery and its declaration (`core.ENGINES[...]`: BASE, steps,
    options, files), the request rules with stubbed settings (e.g. `_take`), the constants
