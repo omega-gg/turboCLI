@@ -650,6 +650,31 @@ cheapest first, and GPU time only goes to what nothing cheaper can show:
 A Modal script's inputs travel with turboCLI's working tree (`modal.sh` ships untracked files):
 an untracked folder (`h3in/`) holds the test takes and the session scripts.
 
+### Generating images on Modal: which container
+
+Images are made with `test/modal.sh exec <flag> "<command>"` (containers in
+`test/modal_app.py`), the inputs staged in turboCLI's tree, the outputs written to `/src/out/`.
+Always:
+
+- **Image engines** (FLUX, Qwen, Z-Image, MOSS, SeedVR2...): `--gpu`, an L40S with 64 GiB, the
+  cheapest that holds them.
+- **MiniMax-H3-Image** (`comfy-minimax-h3-image`): `--big`, an L40S with 224 GiB (about $3.74/h
+  at Modal's list prices). Not `--gpu`: past 64 GiB its weights stream off the Volume every step.
+  Not `--b200`: about $7.08/h, and a single image is mostly the load of its 49 GB, which the
+  Volume bounds, not the GPU. One 16 MP edit in a fresh container takes about 105-135 s, about
+  $0.11-0.14: 52.1 s launch to image with the files warm (26 s of it sampling) and about 23 s to
+  read them cold, both measured, plus about 30-60 s of container start and upload, estimated. On a
+  B200 the estimate is about 85-115 s and $0.17-0.23 (never timed).
+- **`--b200`**: MiniMax H3 video only, which wants the model resident.
+
+Several images go in one container: each `text-to-image.sh` / `image-to-image.sh` call is a new
+process that loads the model again. Start `bash turboCLI/bash/turbo/server.sh start 8080 &` in
+the exec, wait for `curl -s 127.0.0.1:8080/health`, pass `8080` as each call's last argument
+(text-to-image's 12th, after `loras`; image-to-image's 14th, after `options`), then
+`server.sh stop 8080`. Each further 16 MP H3 edit then costs about 26-29 s, about $0.03. Not yet
+tried on Modal. These prices are measured time times list price; `modal billing report --for
+today --show-resources` gives the billed ones, by complete hours only.
+
 **Behind an HTTPS-inspecting network.** A company network that re-signs HTTPS with its own
 root breaks the Modal CLI's uploads (`Could not connect to the Modal server`,
 `CERTIFICATE_VERIFY_FAILED`, now and then: its gRPC uses the system store, its uploads only

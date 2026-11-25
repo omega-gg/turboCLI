@@ -144,6 +144,11 @@ made for 4 to 20 MP, best at 16 MP, so it runs at `--size 2048` and `--size 4096
 its own reference file. The video suite runs on B200 containers (`modal.sh run --video
 --size 512 --comfy /opt/ComfyUI`), its reference file the B200's.
 
+To make images with `exec`: `--gpu` for the image engines, `--big` for MiniMax-H3-Image (a 16 MP
+edit in a fresh container: about 2 min, about $0.11-0.14), `--b200` for video only, and one
+container with `server.sh` for several images. `implementation.md` (Generating images on Modal)
+has the figures and the commands.
+
 The working trees of turboCLI and turbo-offloader (`../turbo-offloader`, or `TURBO_OFFLOADER`) go
 up as they are, so it tests what is about to be committed. The image is turboCLI as its
 `build.sh` builds it, made again when the build scripts change; the models and engine records stay

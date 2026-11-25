@@ -261,6 +261,13 @@ minimax-h3-image samples in 28.1 s at 1024² (on its 4 MP canvas), 23.3 s at 204
 by one level on a few pixels between a cold and a warm run (ComfyUI's VAE sizes its tiles to the
 free VRAM), the same on both.
 
+**Cost on Modal** (measured time times list price, not yet a billed figure): the `--big`
+container is about $3.74/h. One 16 MP edit in a fresh container takes about 105-135 s, about
+$0.11-0.14 (52.1 s launch to image, about 23 s more with the files cold, about 30-60 s of
+container start, estimated); each further edit in the same container through `server.sh`, about
+$0.03. A B200 (`--b200`, about $7.08/h) is estimated at $0.17-0.23 for the same edit: the load is
+bound by the Volume, not the GPU. `implementation.md` (Generating images on Modal) has the rule.
+
 ## Verification (Modal: CPU for installs, a few short GPU runs, nothing left running)
 
 1. **Install** on CPU: `test/modal.sh install comfy-minimax-h3-image minimax-h3-image`, about
