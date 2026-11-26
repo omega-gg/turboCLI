@@ -177,7 +177,8 @@ v0.41.2 running its distilled FLUX.3 templates headless (no upsampler) on the sa
   qkv, `rms_rope`, SwiGLU folded into the int8 `mlp_out`, `adaln`, in-place gated residuals).
 - **Images** keep the composition of ComfyUI's at the same seed (schedule, position ids and noise
   are identical), 25-27 dB at the pixel level; the remaining drift is in the text encoder or the
-  VAE implementation, not the sampler.
+  VAE implementation, not the sampler. Superseded: on ComfyUI's own transformer and text encoder,
+  t2i is 42.0 dB on the L40S (turbo-offloader's Benchmarks), the edit 31.5 dB (below).
 - **LoRAs** bind as in ComfyUI: `_lora_keys` is its FLUX.3 key map (`model_lora_keys_unet`,
   generic entries and the Flux3 branch) on the diffusers names the convert records. Checked
   against ComfyUI's own map for this file: every weight entry resolves to the same tensor and
@@ -204,3 +205,47 @@ sampling against ComfyUI's 11 s, 31 s against 33 s end to end.
 Against comfy-flux2-9b-distilled (4 steps, fp8) on the same 1024² edit, interleaved: 144 s
 against 103 s end to end. FLUX.3's steps are twice as fast (7.2 against 14.7 s) but four times
 as many; BFL's template suggests 4 to 16 steps.
+
+## Checked against ComfyUI v0.46.3 (2026-11-26)
+
+The offloader vendors v0.45.4. Read-only check against the latest tag, v0.46.3 (master
+`8b0f107` read too), and workflow templates 0.11.118:
+
+- **Model code unchanged**: `ldm/flux3/model.py`, `text_encoders/flux.py`, `qwen3vl.py` and the
+  `Flux3` classes of `model_base.py` / `supported_models.py` are identical to v0.45.4, on master
+  too. Master's `ldm/flux/layers.py` change (`chunk_tokens`, #17688) touches none of what FLUX.3
+  imports. The v0.45.4 to v0.46.3 changes in vendored files (`ops.cast_bias_weight` dtype,
+  `ModelPatcherDynamic` buffer restore #16491, DirectML removed) are not FLUX.3-specific: a
+  routine re-sync, no parity risk expected.
+- **Templates unchanged since 2026-10-17**: both distilled templates run euler / simple, 16
+  steps, CFG 1, as `test/comfy.py` does. Reading trap: the t2i template's inner KSampler says
+  `er_sde`, 15 steps, but those are defaults; the subgraph node outside sets 16 / euler / simple.
+- **Model files renamed** on `black-forest-labs/flux-3-image-klein-comfy` (templates since
+  2026-10-17, HF main since): the distilled int8 DiT is now
+  `diffusion_models/flux3-image-klein-int8-convrot.safetensors`, byte-identical to the pinned
+  `flux3_image_klein_sd_int8_convrot.safetensors` (sha256 `847d8933...`). The names flipped: the
+  old `flux3_image_klein_int8_convrot` (no `_sd_`) was the 50-step base, now
+  `flux3-image-klein-base-int8-convrot`. The TE and the VAE kept their names. Since
+  `_install_comfy` matches by path, a ComfyUI folder filled from the current template does not
+  get its DiT reused: install downloads a second 5.8 GB copy under the old name.
+- Known departures still standing: the templates' prompt upsampler (on by default in both), the
+  edit template's `ReferenceMultiLatent` at 1 MP (references go at their own size here), and its
+  `Flux3LayoutPrompt` + `CreateBoundingBoxes` layout prompt (no counterpart here).
+
+### Edit against ComfyUI (2026-11-26)
+
+`test/comfy.py` now has the edit graph too: the distilled edit template without the upsampler and
+the layout prompt, `ReferenceMultiLatent` at `keep resolution` and the latent at the output's
+size, as turbo runs it, so the score measures the engine and not those choices. One case on one
+L40S (`modal.sh run --mode image-to-image --comfy /opt/ComfyUI comfy-flux3-6b`, no repeat, no
+warmup), ComfyUI v0.45.4, the knight at 736x1024, 1024², seed 42:
+
+- **31.5 dB**, the same picture by eye (composition, light, snow; the small flames in the side
+  arches differ). t2i is 42.0 dB; an edit lands about 10 dB lower on other engines too
+  (comfy-moss-image 40.4 against 30.8 dB).
+- **Speed equal**: steady steps 0.216 s for turbo, 0.217-0.220 s for ComfyUI. The case printed
+  `+33% SLOWER` only because turbo ran first and read the files cold: its first step took 3.94 s.
+  A one-run check of the image ignores that; a timing wants `--warmup` or `--repeat 2`.
+- turbo's own edit is `SAME` as the L40S reference: nothing moved since it was recorded.
+- About 50 s of the two runs plus the container's start: well under $0.20 at list price
+  (estimated, not billed yet).

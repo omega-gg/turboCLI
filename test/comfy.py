@@ -94,12 +94,23 @@ def flux2(engine, f, prompt, seed, width, height, image):
 
 
 def flux3(engine, f, prompt, seed, width, height, image):
-    # image_flux3_klein_distilled_t2i.json, its subgraph, the prompt upsampler off
-    return dict(loaders(f, "flux3"), **{
+    # image_flux3_klein_distilled_t2i.json and _image_edit.json, the prompt upsampler and the
+    # layout prompt off. As turbo's, a reference keeps its size (the template's goes to 1 MP) and
+    # the latent is the output's size (the template's is the reference's).
+    graph = loaders(f, "flux3")
+    conditioning = [["4", 0], ["5", 0]]
+    if image:
+        graph["13"] = ("LoadImage", {"image": image})
+        graph["14"] = ("ReferenceMultiLatent", {"positive": ["4", 0], "negative": ["5", 0],
+                                                "vae": ["3", 0], "resolution": "keep resolution",
+                                                "images.image0": ["13", 0]})
+        conditioning = [["14", 0], ["14", 1]]
+
+    return dict(graph, **{
         "4": ("CLIPTextEncode", {"text": prompt, "clip": ["2", 0]}),
         "5": ("CLIPTextEncode", {"text": "", "clip": ["2", 0]}),
         "6": ("EmptyFlux2LatentImage", {"width": width, "height": height, "batch_size": 1}),
-        "7": ksampler(seed, 16, ["1", 0], ["4", 0], ["5", 0], ["6", 0]),
+        "7": ksampler(seed, 16, ["1", 0], *conditioning, ["6", 0]),
         "12": ("VAEDecode", {"samples": ["7", 0], "vae": ["3", 0]}),
     })
 
@@ -372,6 +383,7 @@ GRAPHS = {
     ("comfy-flux2-4b", "text-to-image"): flux2,
     ("comfy-flux2-9b-distilled", "text-to-image"): flux2,
     ("comfy-flux3-6b", "text-to-image"): flux3,
+    ("comfy-flux3-6b", "image-to-image"): flux3,
     ("comfy-z-image-turbo", "text-to-image"): z_image,
     ("comfy-esrgan-upscale", "image-to-image"): esrgan,
     ("comfy-seedvr2-3b-upscale", "image-to-image"): seedvr2,

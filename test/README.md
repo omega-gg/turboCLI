@@ -54,6 +54,9 @@ the case instead. No steps either: their time is shown, not judged.
 | `--mode <case>` | only that case (`image-to-video-ref`, ...), to rerun what a fix touched |
 | `--video` | the video suite instead (a video `--mode` implies it) |
 
+Without `--warmup` or `--repeat`, the side that runs first can print `SLOWER` from its first step
+alone, which streams the weights in: a single run checks the image, not the time.
+
 ## Lint before a commit
 
 The suite only meets the code paths its cases take. `python -m pyflakes runner test`
