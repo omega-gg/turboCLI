@@ -67,7 +67,9 @@ COMFY = {
         {"role": "transformer", "repository": _REPO,
          "revision": "5c9b714851dc072b04a23ef6d2d36421f5ccb3a0",
          "path": "diffusion_models/flux3_image_klein_sd_int8_convrot.safetensors",
-         "filename": "diffusion_models/flux3_image_klein_sd_int8_convrot.safetensors"},
+         "filename": "diffusion_models/flux3_image_klein_sd_int8_convrot.safetensors",
+         # The same file (sha256 847d8933...), renamed in the repo and ComfyUI's templates.
+         "alias": "diffusion_models/flux3-image-klein-int8-convrot.safetensors"},
         {"role": "text_encoder", "repository": _REPO,
          "revision": "5c9b714851dc072b04a23ef6d2d36421f5ccb3a0",
          "path": "text_encoders/qwen3vl_4b_int8_convrot.safetensors",

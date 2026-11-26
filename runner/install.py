@@ -306,7 +306,11 @@ def _engine_installed(mod):
 
         wanted = sorted((c["role"], c["path"]) for c in spec)
 
-        if sorted((c["role"], c["path"].split("/", 1)[-1]) for c in components) != wanted:
+        # A component reused under its alias is the spec's.
+        aliases  = {c["alias"]: c["path"] for c in spec if "alias" in c}
+        recorded = [(c["role"], c["path"].split("/", 1)[-1]) for c in components]
+
+        if sorted((role, aliases.get(path, path)) for role, path in recorded) != wanted:
             return False
 
         return bool(components) and all(os.path.isfile(_comp_path(comfy, c)) for c in components)
@@ -373,8 +377,15 @@ def _install_comfy(mod, comfy, out):
     for c in comfy_cfg["components"]:
         dest = os.path.join(models, *c["path"].split("/"))
 
+        # The same file under another name (alias) is reused as it is.
+        alias = c.get("alias") and os.path.join(models, *c["alias"].split("/"))
+
+        if alias and not os.path.isfile(dest) and os.path.isfile(alias):
+            dest = alias
+
         if os.path.isfile(dest):
-            print("Component present: %s" % c["path"], flush=True)
+            print("Component present: %s" % os.path.relpath(dest, models).replace(os.sep, "/"),
+                  flush=True)
         else:
             print("Downloading component: %s" % c["path"], flush=True)
 

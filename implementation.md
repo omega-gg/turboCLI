@@ -185,15 +185,15 @@ inside the base-reinstall branch (`install.py:561-562`).
   skips the base re-download when the registry already records the pinned revision, and only
   missing LoRAs are fetched (install.py:533-546) — installing `-lightning` over an existing base
   pulls just the LoRA.
-- **Comfy install** (`_install_comfy`, install.py:237-324): reuse each COMFY component already
-  under the ComfyUI install's `models/`, `hf_hub_download` only the missing ones *into that
-  tree*, fetch the tiny SCAFFOLD (configs/tokenizer/scheduler, no weights) into `engine/<id>`,
-  and write engine.json with `external` flagging weights outside our model folder. `external` is
-  *diagnostic only* — nothing reads it; what actually protects a user's ComfyUI is `_gc`'s live
-  `_under(path, default_folder())` guard, recomputed from the real path. Without `--comfy` a
-  self-contained `model/ComfyUI/` layout is used - so a reinstall that forgets the folder moves the
-  engine there and downloads every component again, which is why `check-model SETTINGS:` hands
-  the folder back as `comfy:`. The scaffold is pruned after the fetch
+- **Comfy install** (`_install_comfy`, install.py:360-459): reuse each COMFY component already
+  under the ComfyUI install's `models/` (by its path or its `alias`), `hf_hub_download` only the
+  missing ones *into that tree*, fetch the tiny SCAFFOLD (configs/tokenizer/scheduler, no
+  weights) into `engine/<id>`, and write engine.json with `external` flagging weights outside our
+  model folder. `external` is *diagnostic only* — nothing reads it; what actually protects a
+  user's ComfyUI is `_gc`'s live `_under(path, default_folder())` guard, recomputed from the real
+  path. Without `--comfy` a self-contained `model/ComfyUI/` layout is used - so a reinstall that
+  forgets the folder moves the engine there and downloads every component again, which is why
+  `check-model SETTINGS:` hands the folder back as `comfy:`. The scaffold is pruned after the fetch
   (`_prune_scaffold`) so narrowing `SCAFFOLD.allow_patterns` cannot leave orphans behind.
 - **Removal and reinstall share one GC** (`_referenced` + `_gc`): delete what a record referenced
   that the registry no longer names — only models / LoRAs / comfy components no surviving engine
@@ -291,7 +291,7 @@ lazily (`_resolve`, core.py:110), "so discovery stays cheap and an unused engine
 | `CFG` | one `(kwarg, value)` pair injected into the pipe call (core.py:599-600); the value may be a dict, one per mode (`by_mode`: comfy-moss-image's templates differ) |
 | `INFERENCE` | default step count when the caller passes `-1` (fallback 4, core.py:586-587); a dict too, one per mode |
 | `MODEL` | install spec `{repository, model, revision}` (stock); optional `kind` = `snapshot`\|`url` picks a non-diffusers install (verbatim HF repo / raw asset); optional `allow_patterns` narrows the diffusers snapshot (default `model_index.json` + every folder; `flux3-6b` takes its components and `modular_model_index.json` only); it only *renames* the folder: omitted, `resolve_model` falls back to `ID` (core.py:173), which is why COMFY engines declare none |
-| `COMFY` | ComfyUI-reuse spec `{repository?, revision, components: [{role, path, ...}]}`; presence dispatches both install and `resolve_model` (core.py:177) |
+| `COMFY` | ComfyUI-reuse spec `{repository?, revision, components: [{role, path, ...}]}`; presence dispatches both install and `resolve_model` (core.py:177); a component's optional `alias` is the same file under another name, reused when the ComfyUI folder has it |
 | `SCAFFOLD` | tiny config-only snapshot spec (`allow_patterns`, no weights); optional, `comfy-esrgan-upscale` reads its file as is |
 | `LORAS` | install-time LoRA list `[{repository, file, revision}]` |
 | `GATED` | `True` when the download needs a Hugging Face token: `check-model ENGINES:` adds `gated`. Declared by each gated engine, not inherited |

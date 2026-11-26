@@ -225,9 +225,10 @@ The offloader vendors v0.45.4. Read-only check against the latest tag, v0.46.3 (
   `diffusion_models/flux3-image-klein-int8-convrot.safetensors`, byte-identical to the pinned
   `flux3_image_klein_sd_int8_convrot.safetensors` (sha256 `847d8933...`). The names flipped: the
   old `flux3_image_klein_int8_convrot` (no `_sd_`) was the 50-step base, now
-  `flux3-image-klein-base-int8-convrot`. The TE and the VAE kept their names. Since
-  `_install_comfy` matches by path, a ComfyUI folder filled from the current template does not
-  get its DiT reused: install downloads a second 5.8 GB copy under the old name.
+  `flux3-image-klein-base-int8-convrot`. The TE and the VAE kept their names. The new name is
+  the DiT's `alias`, so a ComfyUI folder filled from the current template is reused rather than
+  downloaded again (5.8 GB); the pinned name stays the spec's, so the installs on disk and the
+  test harness (`comfy.py files`) are unchanged.
 - Known departures still standing: the templates' prompt upsampler (on by default in both), the
   edit template's `ReferenceMultiLatent` at 1 MP (references go at their own size here), and its
   `Flux3LayoutPrompt` + `CreateBoundingBoxes` layout prompt (no counterpart here).
