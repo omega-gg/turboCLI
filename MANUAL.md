@@ -306,6 +306,14 @@ It needs no download and no graphics card, and takes about a tenth of a second f
 a 16 MP image. `align` leaves an image of another shape than
 its reference as it is: it measures a drift, not a reframing.
 
+`transfer` grades an image toward another picture, which need not show the same thing: a shot
+toward the one it must cut with. Each L*a*b* channel takes the reference's mean and spread, so its
+balance, saturation and contrast come along, not its content. `transfer=0.5` goes half the way:
+
+```sh
+sh image-adjust.sh shot.png other-shot.png graded.png transfer=0.5
+```
+
 ## Running a server
 
 Each script run starts python and loads the model, which can take longer than making the image. A

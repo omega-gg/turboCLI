@@ -434,6 +434,9 @@ fixes: align        the zoom and shift an engine added are measured and undone,
        color        the colors are matched to the reference, the detail kept,
                     unless they moved over 16 levels (color=<levels> for another)
        align,color  both, in that order
+       transfer     graded toward the reference, which need not show the same
+                    picture: each L*a*b* channel takes its mean and spread
+                    (transfer=<strength> from 0 to 1, part of the way)
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 
@@ -441,4 +444,5 @@ examples:
     image-adjust clean.png frame.png fixed.png color
     image-adjust edit.png frame.png fixed.png align,color
     image-adjust edit.png frame.png fixed.png align,color=24 8080
+    image-adjust shot.png other-shot.png graded.png transfer=0.5
 ```

@@ -25,8 +25,9 @@
 # core runs them after an image-to-image render, against its first input; as a "compute" engine,
 # torch free, they run on an existing image: images = "base,reference". Options align and/or
 # color, each alone for its default limit or with its own: align=<percent>, the zoom past which
-# it was asked for; color=<levels>, the mean move past which it was. See
-# doc/image-adjust-plan.md.
+# it was asked for; color=<levels>, the mean move past which it was. And transfer
+# (runner/transfer.py), an image graded toward another picture that need not show the same
+# thing, transfer=<strength> part of the way. See doc/image-adjust-plan.md.
 
 from importlib import import_module
 
@@ -34,7 +35,7 @@ ID    = "adjust"
 MODES = ("image-adjust",)
 
 # NOTE: The order they run in: the geometry first.
-STEPS = ("align", "color")
+STEPS = ("align", "color", "transfer")
 
 
 def _limit(name, value):
@@ -79,7 +80,7 @@ def run(ctx, params, emit):
     steps = parse(parse_options(params.get("options", "")))
 
     if not steps:
-        raise ValueError("adjust needs align and/or color")
+        raise ValueError("adjust needs align, color and/or transfer")
 
     image = Image.open(images[0])
 

@@ -226,3 +226,16 @@ the reference is the first input as the pipeline decoded it, or read again for a
 upscale rarely moves: on the suite's 8 upscale results align always left it as is (0.3 s at 1 MP,
 1.2 s at 12 MP), color took back 1.4 to 2.1 levels (97 to 142 ms), a real move (a lanczos x2
 measures 0.2) that brings the result closer to its input.
+
+## Revised: transfer, toward another picture
+
+`color` fits the same pixels of an edit and its input, so it cannot grade one shot toward
+another: a roof would pair with a patch of sky. `transfer` (`runner/transfer.py`, a third step
+after `align` and `color`) does: Reinhard et al.'s color transfer (2001), each L\*a\*b\* channel
+taking the reference's mean and spread, measured on copies 512 long. `transfer=<strength>` is the
+share of the way, 1 by default, over 1 refused. It runs in OpenCV's float L\*a\*b\*: Pillow's is 8
+bit, and its round trip alone greyed a dark picture (indy's barnett aerial, saturation 0.61 to
+0.47 for no grade); OpenCV's comes back within a level (mean 0.014). On that aerial against its
+first shot, 0.5 took blue minus red from 21.4 to 15.0 (the reference 10.3) and the saturation from
+0.70 to 0.63 (0.61), the brightness as it was. Alpha goes through as it is.
+

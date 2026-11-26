@@ -102,7 +102,7 @@ IFS=","
 for fix in $fixes; do
 
     case "$fix" in
-        align|color|align=*|color=*) ;;
+        align|color|transfer|align=*|color=*|transfer=*) ;;
         *)                           fixes="";;
     esac
 done
@@ -121,6 +121,9 @@ if [ $# -lt 4 -o $# -gt 5 ] || [ -z "$fixes" ]; then
     echo "       color        the colors are matched to the reference, the detail kept,"
     echo "                    unless they moved over 16 levels (color=<levels> for another)"
     echo "       align,color  both, in that order"
+    echo "       transfer     graded toward the reference, which need not show the same"
+    echo "                    picture: each L*a*b* channel takes its mean and spread"
+    echo "                    (transfer=<strength> from 0 to 1, part of the way)"
     echo ""
     echo "server: host:port (or port for 127.0.0.1) of a rendering server"
     echo ""
@@ -128,6 +131,7 @@ if [ $# -lt 4 -o $# -gt 5 ] || [ -z "$fixes" ]; then
     echo "    image-adjust clean.png frame.png fixed.png color"
     echo "    image-adjust edit.png frame.png fixed.png align,color"
     echo "    image-adjust edit.png frame.png fixed.png align,color=24 8080"
+    echo "    image-adjust shot.png other-shot.png graded.png transfer=0.5"
 
     exit 1
 fi
