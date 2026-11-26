@@ -268,6 +268,11 @@ container start, estimated); each further edit in the same container through `se
 $0.03. A B200 (`--b200`, about $7.08/h) is estimated at $0.17-0.23 for the same edit: the load is
 bound by the Volume, not the GPU. `implementation.md` (Generating images on Modal) has the rule.
 
+**On `--gpu` (64 GiB), 2026-11-26**: the 4096² edit is `SAME` and billed $0.074 (105 s of GPU,
+the memory at its 64 GiB: never past it). Cold, one run: 82.6 s launch to image, load 20.9 s,
+encode 25.2 s, sampling 30.3 s (+16% on the warm `--big` reference's 25.9 s), decode 6.2 s. So
+ComfyUI's 49.5 GB does not stream every step there; images go on `--gpu`, timings on `--big`.
+
 ## Verification (Modal: CPU for installs, a few short GPU runs, nothing left running)
 
 1. **Install** on CPU: `test/modal.sh install comfy-minimax-h3-image minimax-h3-image`, about

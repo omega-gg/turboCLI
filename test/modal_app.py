@@ -93,8 +93,9 @@ def gpu(script, sources):
     return shell(script, sources)
 
 
-# The same L40S with the RAM of a model past 64 GB (MiniMax-H3-Image: ComfyUI's 49.5 GB and a
-# process, the stock 135 GB), which would otherwise stream off the Volume every step.
+# The same L40S with the RAM of a model past 64 GB (MiniMax-H3-Image's stock 135 GB), which would
+# otherwise stream off the Volume every step. ComfyUI's 49.5 GB runs on the regular one, sampling
+# 16% slower: here for timings against the L40S references, recorded on it.
 @app.function(gpu="L40S", memory=229376, **options)
 def gpu_big(script, sources):
     return shell(script, sources)

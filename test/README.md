@@ -140,17 +140,18 @@ the weights, `OFFLOADER_DISABLE_PINNED_MEMORY=1` and `--disable-pinned-memory`, 
 container). A run's logs and images come back
 into `results/modal/`, and what an `exec` writes to `out/` into `results/modal/exec/`.
 
-The L40S containers have 64 GiB of RAM. A model past that, MiniMax-H3-Image (ComfyUI's 49.5 GB
-and a process, the stock 135 GB), would stream off the Volume every step, so its runs take
-`--big`, a container with 224 GiB (`modal.sh run --big ...`, `modal.sh exec --big ...`). It is
+The L40S containers have 64 GiB of RAM. A model past that, the stock MiniMax-H3-Image (135 GB),
+would stream off the Volume every step, so its runs take `--big`, a container with 224 GiB
+(`modal.sh run --big ...`, `modal.sh exec --big ...`), and so do comfy-minimax-h3-image's, whose
+references were recorded there (it fits 64 GiB, its sampling 16% slower). MiniMax-H3-Image is
 made for 4 to 20 MP, best at 16 MP, so it runs at `--size 2048` and `--size 4096` too, each size
 its own reference file. The video suite runs on B200 containers (`modal.sh run --video
 --size 512 --comfy /opt/ComfyUI`), its reference file the B200's.
 
-To make images with `exec`: `--gpu` for the image engines, `--big` for MiniMax-H3-Image (a 16 MP
-edit in a fresh container: about 2 min, about $0.11-0.14), `--b200` for video only, and one
-container with `server.sh` for several images. `implementation.md` (Generating images on Modal)
-has the figures and the commands.
+To make images with `exec`: `--gpu` for the image engines, comfy-minimax-h3-image too (a 16 MP
+edit in a fresh container: billed $0.074), `--b200` for video only, and one container with
+`server.sh` for several images. `implementation.md` (Generating images on Modal) has the figures
+and the commands.
 
 The working trees of turboCLI and turbo-offloader (`../turbo-offloader`, or `TURBO_OFFLOADER`) go
 up as they are, so it tests what is about to be committed. The image is turboCLI as its
