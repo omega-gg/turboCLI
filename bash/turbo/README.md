@@ -349,6 +349,8 @@ options (comfy-minimax-h3 engines), comma separated:
          references on comfy-minimax-h3-quality
          latent=save also writes the video's latents next to it, for a later
          pass: <output>.video.latent and .audio.latent, as ComfyUI's SaveLatent
+         denoise=0-1 the upscale engines' refine strength, 0.45 by default:
+         lower keeps more of the take's fine detail, 0 the upscaler's alone
 
 server: host:port (or port for 127.0.0.1) of a rendering server
 

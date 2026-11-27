@@ -40,6 +40,23 @@ def parse_options(spec):
     return out
 
 
+def allowed(values, value):
+    """An option's value against the values its engine declares (OPTIONS): one of them, or any
+    number between the two of a (low, high) pair of floats."""
+    if values and isinstance(values[0], float):
+        try:
+            return values[0] <= float(value) <= values[1]
+        except ValueError:
+            return False
+
+    return value in values
+
+
+def describe(values):
+    """Those values as an error lists them: a|b, or low-high for a pair of floats."""
+    return "%g-%g" % values if values and isinstance(values[0], float) else "|".join(values)
+
+
 # NOTE: image-to-video's input references: the roles a path takes, "first=a.png" and so on. An
 #       untagged path is a frame, the first then the last. "latent=" is a take's saved
 #       latents, for an upscale engine (runner/video.py save_latents).

@@ -46,6 +46,13 @@ COMFY = dict(base.COMFY, components=base.COMFY["components"] + [UPSCALER])
 
 INFERENCE = 8  # the refine's steps (gen.py --hires-steps)
 
+# NOTE: The refine's strength in place of REFINE_DENOISE (0.45), any number from 0 (no refine:
+#       the take as the upscaler enlarged it) to 1 (a new video from pure noise). Lower keeps more
+#       of the take's fine detail (its rain), redrawn less. H3's shift starts 0.45 at sigma 0.91,
+#       0.3 at 0.84 and 0.25 at 0.8 (beta, with references: 0.79 and 0.72): it tells from 0.25
+#       down, and above 0.45 barely (0.6 at 0.94).
+OPTIONS = dict(base.OPTIONS, denoise=(0.0, 1.0))
+
 UPSCALE = True  # it enlarges its input, as the image upscalers do (check --modes)
 
 

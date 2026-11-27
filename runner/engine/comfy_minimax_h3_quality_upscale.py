@@ -32,6 +32,7 @@ BASE = base.ID
 
 MODES     = upscale.MODES
 INFERENCE = upscale.INFERENCE
+OPTIONS   = upscale.OPTIONS
 UPSCALE   = upscale.UPSCALE
 
 COMFY = dict(base.COMFY, components=base.COMFY["components"] + [upscale.UPSCALER])

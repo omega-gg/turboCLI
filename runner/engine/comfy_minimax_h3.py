@@ -170,11 +170,12 @@ def _pipeline_class():
         @torch.no_grad()
         def _generate(self, prompt, image=None, height=768, width=1344, duration=5.0,
                      num_inference_steps=INFERENCE, generator=None, callback_on_step_end=None,
-                     references=(), guide=None, scheduler=None, latent=None, take=None, **_):
+                     references=(), guide=None, scheduler=None, latent=None, take=None,
+                     denoise=None, **_):
             # NOTE: The scheduler option replaces the engine's for this generation; latent=save
             #       returns the sampled latents beside the frames, and the seed they came from.
             #       `take`, a take's latents (LoadLatent), is refined at this size (upscale
-            #       engines).
+            #       engines), from `denoise` (the denoise option, REFINE_DENOISE without it).
             if width % GRID or height % GRID:
                 raise ValueError("MiniMax H3 renders sizes on the %d pixel grid" % GRID)
 
@@ -200,6 +201,13 @@ def _pipeline_class():
 
                 if [t.shape for t in take] != shapes:
                     raise ValueError("the latents do not match their take's settings")
+
+            denoise = 1.0 if take is None else float(denoise or REFINE_DENOISE)
+
+            # NOTE: denoise=0, no refine: the take as the upscaler enlarged it, as in ComfyUI,
+            #       whose BasicScheduler then gives no sigmas and its sampler the latent back.
+            if denoise == 0:
+                return self._decode(take[0].float().cpu(), take[1], seed, latent)
 
             tf, pinned = self.transformer, list(image or ()) + [None, None]
             refs = None
@@ -238,8 +246,7 @@ def _pipeline_class():
             sampler = self.scheduler
             sampler.scheduler = scheduler or self._schedule
             sampler.seed = seed
-            sampler.set_timesteps(num_inference_steps, device=device,
-                                  denoise=1.0 if take is None else REFINE_DENOISE)
+            sampler.set_timesteps(num_inference_steps, device=device, denoise=denoise)
 
             # NOTE: The noise first: the transformer loads with it, as KSampler's does, then
             #       extra_conds runs on it (samplers.py:1240-1260, 1220-1226).
@@ -277,6 +284,10 @@ def _pipeline_class():
             video = latents[:, :, :n].reshape(shapes[0]).cpu()
             audio = latents[:, :, n:].reshape(shapes[1]).cpu() if take is None else take[1]
 
+            return self._decode(video, audio, seed, latent)
+
+        def _decode(self, video, audio, seed, latent):
+            """The video's and the audio's latents decoded, with the latents if latent=save."""
             # VAEDecode, then save_to's 8 bits: each [0, 1] value times 255, truncated.
             pixels = self.vae.decode(video, return_dict=False)[0][0].movedim(0, -1)
             pixels = pixels.mul_(255).clamp_(0, 255).byte().numpy()

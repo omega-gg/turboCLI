@@ -709,7 +709,7 @@ def generate(params, emit, should_stop=None):
     video_options, references = {}, None
 
     if mode in VIDEO_MODES:
-        from .engine._options import parse_options, parse_references
+        from .engine._options import allowed, describe, parse_options, parse_references
 
         try:
             if mode == "image-to-video":
@@ -717,11 +717,11 @@ def generate(params, emit, should_stop=None):
                 references = parse_references(params.get("images", ""))
 
             video_options = parse_options(params.get("options", ""))
-            allowed = getattr(mod, "OPTIONS", {})
+            declared = getattr(mod, "OPTIONS", {})
 
-            if any(v not in allowed.get(k, ()) for k, v in video_options.items()):
+            if any(not allowed(declared.get(k, ()), v) for k, v in video_options.items()):
                 raise ValueError("%s takes %s" % (engine, ", ".join(
-                    "%s=%s" % (k, "|".join(v)) for k, v in allowed.items()) or "no option"))
+                    "%s=%s" % (k, describe(v)) for k, v in declared.items()) or "no option"))
 
             if hasattr(mod, "check"):
                 mod.check(params)
