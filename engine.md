@@ -76,24 +76,20 @@ A video with its soundtrack, as an mp4. The duration comes after the prompt, 5 s
 | `minimax-h3` | MiniMax H3, a 33B audio-video generator, 5 to 15 s at 24 fps (MiniMax's weights) | 143 GB | 50 | MiniMax H3 license |
 | `comfy-minimax-h3` | MiniMax H3 as ComfyUI's template runs it: int8 transformer and video VAE, NVFP4 text encoder | 40 GB | 20 | offloader, MiniMax H3 license |
 | `comfy-minimax-h3-quality` | MiniMax H3 from ComfyUI's highest precision files (bf16), its text encoder in bf16, saved at crf 12 | 98 GB | 20 | offloader, MiniMax H3 license |
-| `comfy-minimax-h3-fl2va-quality` | The same: its files are `comfy-minimax-h3-quality`'s without the reference transformer | 98 GB | 20 | offloader, MiniMax H3 license |
 
 ## Image-to-video
 
 Its inputs are references tagged by role: `first=` and `last=` frames, `image=` and `audio=`
 references (the engine's reference model), `guide=<audio>@<seconds>` for an exact recording.
-The sizes count both of MiniMax H3's transformers, the frames' and the references', except for
-the fl2va engines, which run references on the frames' one.
+The sizes count both of MiniMax H3's transformers, the frames' and the references'.
 
 | Engine | Description | Size | Steps | Requirements |
 |---|---|---|---|---|
 | `minimax-h3` | MiniMax H3 from a first and a last frame, or from references alone (no audio guide), 5 to 15 s at 24 fps (MiniMax's weights) | 209 GB | 50 | MiniMax H3 license |
 | `comfy-minimax-h3` | MiniMax H3 as ComfyUI's templates run it (i2v, r2v), the first frame stretched to the canvas | 61 GB | 20 | offloader, MiniMax H3 license |
 | `comfy-minimax-h3-quality` | MiniMax H3 from ComfyUI's bf16 files, the beta scheduler with references | 138 GB | 20 | offloader, MiniMax H3 license |
-| `comfy-minimax-h3-fl2va-quality` | `comfy-minimax-h3-quality` with its references on the frames' transformer (fl2va), not MiniMax's reference one (ref2va): crisper reference takes, a pinned first frame no longer standing out, but glitchier: `comfy-minimax-h3-quality` stays the default | 98 GB | 20 | offloader, MiniMax H3 license |
 | `comfy-minimax-h3-upscale` | A `comfy-minimax-h3` take rendered again at twice its size from its latents alone (`latent=`, the rest the take's saved settings): the community MiniMax H3 latent upscaler, then H3 refining at the new size, the soundtrack the take's | 62 GB | 8 | offloader, MiniMax H3 license |
 | `comfy-minimax-h3-quality-upscale` | The same for a `comfy-minimax-h3-quality` take, on its files | 139 GB | 8 | offloader, MiniMax H3 license |
-| `comfy-minimax-h3-fl2va-quality-upscale` | The same for a `comfy-minimax-h3-fl2va-quality` take, on its files | 99 GB | 8 | offloader, MiniMax H3 license |
 
 ## Masking and matting
 
