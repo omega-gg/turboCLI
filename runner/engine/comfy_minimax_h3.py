@@ -302,9 +302,9 @@ def _pipeline_class():
 
 def load(ctx, params, text_dtype=None, ref_scheduler="simple"):
     """Assemble the pipeline of _pipeline_class from ComfyUI's single files via the offloader:
-    the ref2va transformer and `ref_scheduler` for a request with references. `text_dtype` (a
-    torch dtype's name) runs the text encoder in it, as ComfyUI's --bf16-text-enc does.
-    OFFLOADER-ONLY."""
+    the ref2va transformer (if the engine has one) and `ref_scheduler` for a request with
+    references. `text_dtype` (a torch dtype's name) runs the text encoder in it, as ComfyUI's
+    --bf16-text-enc does. OFFLOADER-ONLY."""
     import torch
 
     files = _comfy.by_role(ctx.model)  # engine/<id>/ (engine.json)
@@ -314,7 +314,7 @@ def load(ctx, params, text_dtype=None, ref_scheduler="simple"):
                            "run on it" % params["engine"])
 
     ref = extra_key(params)[0]
-    transformer = files["transformer_ref" if ref else "transformer"]
+    transformer = files["transformer_ref" if ref and "transformer_ref" in files else "transformer"]
 
     text_encoder = {"model": "minimax_h3", "file": files["text_encoder"]}
 

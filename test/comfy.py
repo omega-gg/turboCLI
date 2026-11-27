@@ -49,6 +49,14 @@ def declaration(engine):
     return importlib.import_module("runner.engine." + engine.replace("-", "_"))
 
 
+def inherited(engine, name):
+    """An engine's symbol, from its BASE chain if it does not declare it, as discovery folds it."""
+    module = declaration(engine)
+    while not hasattr(module, name):
+        module = declaration(module.BASE)
+    return getattr(module, name)
+
+
 def files(engine):
     """{role: path relative to ComfyUI's models/}."""
     return {c["role"]: c["path"] for c in declaration(engine).COMFY["components"]}
@@ -309,21 +317,20 @@ def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False,
     # SamplerCustomAdvanced (res_multistep, simple, BasicGuider), VAEDecode and VAEDecodeAudio,
     # CreateVideo at 24 fps, SaveVideo. The video at node "99". With `ref`, the image is a picture
     # reference: video_minimax_h3_r2v.json's MiniMaxH3ReferenceToVideo on the ref2va transformer
-    # (simple), or gen.py's Ref2VA (beta). With `latent`, an upscaler's: its take's video latent
+    # (simple), or gen.py's Ref2VA (beta), on the fl2va one for an engine without a ref2va file
+    # (comfy-minimax-h3-fl2va-quality). With `latent`, an upscaler's: its take's video latent
     # under ComfyUI's input/, its audio latent beside it, rendered again at `width` x `height`
     # (twice its size) as gen.py --from-latent --hires 2 does: the community MiniMax H3 Latent
     # Upscaler (3D) node @ 40316cf on the video latent, then this graph at the new size from it,
     # its steps from denoise 0.45, the take's soundtrack decoded.
     take = engine[:-len("-upscale")] if latent else engine
-    module = declaration(take)
-    base = declaration(module.BASE) if hasattr(module, "BASE") else module  # frames, INFERENCE
     experiment = take.endswith("-quality")
+    unet = f["transformer_ref" if ref and "transformer_ref" in f else "transformer"]
 
     conditioning = {"clip": ["2", 0], "vae": ["3", 0], "prompt": prompt, "width": width,
-                    "height": height, "length": base.frames(duration)}
+                    "height": height, "length": inherited(take, "frames")(duration)}
     graph = {
-        "1": ("UNETLoader", {"unet_name": f["transformer_ref" if ref else "transformer"],
-                             "weight_dtype": "default"}),
+        "1": ("UNETLoader", {"unet_name": unet, "weight_dtype": "default"}),
         "2": ("CLIPLoader", {"clip_name": f["text_encoder"], "type": "minimax",
                              "device": "default"}),
         "3": ("VAELoader", {"vae_name": f["vae"]}),
@@ -333,7 +340,7 @@ def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False,
         "7": ("KSamplerSelect", {"sampler_name": "res_multistep"}),
         "8": ("BasicScheduler", {"model": ["1", 0],
                                  "scheduler": "beta" if ref and experiment else "simple",
-                                 "steps": base.INFERENCE, "denoise": 1.0}),
+                                 "steps": inherited(take, "INFERENCE"), "denoise": 1.0}),
         "9": ("BasicGuider", {"model": ["1", 0], "conditioning": ["6", 0]}),
         "10": ("SamplerCustomAdvanced", {"noise": ["5", 0], "guider": ["9", 0],
                                          "sampler": ["7", 0], "sigmas": ["8", 0],
@@ -364,7 +371,8 @@ def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False,
                 "force_unload": True, "device": "cuda", "precision": "fp16"}),
             "25": ("LTXVConcatAVLatent", {"video_latent": ["24", 0], "audio_latent": ["23", 1]}),
         })
-        graph["8"][1].update(steps=declaration(engine).INFERENCE, denoise=base.REFINE_DENOISE)
+        graph["8"][1].update(steps=declaration(engine).INFERENCE,
+                             denoise=inherited(take, "REFINE_DENOISE"))
         graph["10"][1]["latent_image"] = ["25", 0]
         graph["15"][1]["samples"] = ["22", 0]
 
@@ -373,7 +381,7 @@ def h3_video(engine, f, prompt, seed, width, height, image, duration, ref=False,
     if experiment:
         save.update({"format": "mp4", "format.codec": "h264",
                      "format.codec.encoding": "re-encode",
-                     "format.codec.encoding.crf": module.CRF})
+                     "format.codec.encoding.crf": inherited(take, "CRF")})
     graph["99"] = ("SaveVideo", save)
 
     return graph
@@ -403,6 +411,8 @@ GRAPHS = {
     ("comfy-minimax-h3-quality", "image-to-video"): h3_video,
     ("comfy-minimax-h3", "image-to-video-ref"): functools.partial(h3_video, ref=True),
     ("comfy-minimax-h3-quality", "image-to-video-ref"): functools.partial(h3_video, ref=True),
+    ("comfy-minimax-h3-fl2va-quality", "image-to-video-ref"): functools.partial(h3_video,
+                                                                                ref=True),
     ("comfy-minimax-h3-upscale", "image-to-video"): h3_video,
     ("comfy-minimax-h3-quality-upscale", "image-to-video"): h3_video,
 }
@@ -411,6 +421,7 @@ GRAPHS = {
 # bf16 (ComfyUI casts it to fp16 otherwise).
 ARGS = {
     "comfy-minimax-h3-quality": ["--bf16-text-enc"],
+    "comfy-minimax-h3-fl2va-quality": ["--bf16-text-enc"],
     "comfy-minimax-h3-quality-upscale": ["--bf16-text-enc"],
 }
 

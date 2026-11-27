@@ -187,12 +187,17 @@ sh image-to-video.sh comfy-minimax-h3-quality cuda first=fedora.png,audio=voice.
                      "then he says, in the voice of <Audio 1>: ..." 5 1376 576
 ```
 
-The three engines are one model: `minimax-h3` is MiniMax's release (50 steps, 5 to 15 seconds),
+The engines are one model: `minimax-h3` is MiniMax's release (50 steps, 5 to 15 seconds),
 `comfy-minimax-h3` the files of ComfyUI's template (20 steps, much lighter), and
 `comfy-minimax-h3-quality` ComfyUI's highest precision files, its text encoder in bf16, the beta
-scheduler with references and the video at crf 12 (finer than 18). A frame of other proportions
-than the video's is stretched to it (the first) or cropped (the last), as ComfyUI's node does,
-and center-cropped with references: crop it to the video's proportions first to keep it whole.
+scheduler with references and the video at crf 12 (finer than 18).
+`comfy-minimax-h3-fl2va-quality` is `comfy-minimax-h3-quality` with its references on the frames'
+transformer (fl2va) instead of MiniMax's reference one (ref2va), which is not MiniMax's split:
+crisper takes, whose first frame pinned beside references no longer stands out from the rest, but
+glitchier ones. `comfy-minimax-h3-quality` stays the engine for references: try both on a take
+and judge by eye. A frame of other proportions than the video's is stretched to it (the first) or
+cropped (the last), as ComfyUI's node does, and center-cropped with references: crop it to the
+video's proportions first to keep it whole.
 `minimax-h3` takes references alone, as diffusers runs them: no frame and no guide beside them,
 and never an audio reference on its own.
 
@@ -201,14 +206,15 @@ The video scripts take these options for the `comfy-minimax-h3` engines, comma s
 | Option | What it does |
 | --- | --- |
 | `attention=cudnn` | cuDNN attention ahead of flash: about twice as fast on a B200 (2.3 s a step against 4.6 at 1376x576), the same quality but not the same bits. |
-| `scheduler=beta` | The beta scheduler in place of the engine's: more steps where the noise is high and where it is low, fewer between. `comfy-minimax-h3-quality` already uses it with references; `scheduler=simple` gives it the templates' instead. |
+| `scheduler=beta` | The beta scheduler in place of the engine's: more steps where the noise is high and where it is low, fewer between. The `-quality` engines already use it with references; `scheduler=simple` gives it the templates' instead. |
 | `latent=save` | Also writes the latents the video was decoded from next to it, `<output>.video.latent` and `.audio.latent` (about 20 MB for 5 s at 1376x576), in ComfyUI's SaveLatent format, with the video's settings (engine, prompt, references, size, seed, steps, options) in their metadata, for a later pass on a take you like without sampling it again: the upscale engines (below), or ComfyUI's LoadLatent. |
 
 **Upscaling a take.** Render small to choose, then render the take you like again at twice its
 size, without sampling it from scratch: save its latents with `latent=save`, then give them
-alone to the take's upscale engine (`comfy-minimax-h3-upscale`, or
-`comfy-minimax-h3-quality-upscale` for a `-quality` take). Its prompt, inputs, duration, seed
-and options are the take's, saved with the latents; options given again win:
+alone to the take's upscale engine, its engine's name and `-upscale`
+(`comfy-minimax-h3-upscale`, `comfy-minimax-h3-quality-upscale`,
+`comfy-minimax-h3-fl2va-quality-upscale`). Its prompt, inputs, duration, seed and options are the
+take's, saved with the latents; options given again win:
 
 ```sh
 sh image-to-video.sh comfy-minimax-h3-quality cuda first=fedora.png,audio=voice.wav take.mp4 \

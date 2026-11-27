@@ -55,8 +55,10 @@ engine: flux2-4b
         minimax-h3               (video, MiniMax's weights)
         comfy-minimax-h3         (video, ComfyUI's files)
         comfy-minimax-h3-quality (video, ComfyUI's bf16 files)
+        comfy-minimax-h3-fl2va-quality
         comfy-minimax-h3-upscale
         comfy-minimax-h3-quality-upscale
+        comfy-minimax-h3-fl2va-quality-upscale
 
 renderer: cpu, cuda, mps
 
@@ -274,6 +276,7 @@ Usage: text-to-video <engine> <renderer> <output video>
 engine: minimax-h3
         comfy-minimax-h3
         comfy-minimax-h3-quality
+        comfy-minimax-h3-fl2va-quality
 
 renderer: cpu, cuda, mps
 
@@ -291,7 +294,7 @@ options (comfy-minimax-h3 engines), comma separated:
          attention=cudnn puts cuDNN attention ahead of flash: about twice as fast
          on a B200
          scheduler=simple|beta in place of the engine's: simple, or beta with
-         references on comfy-minimax-h3-quality
+         references on the -quality engines
          latent=save also writes the video's latents next to it, for a later
          pass: <output>.video.latent and .audio.latent, as ComfyUI's SaveLatent
 
@@ -316,8 +319,10 @@ Usage: image-to-video <engine> <renderer> <input references> <output video>
 engine: minimax-h3
         comfy-minimax-h3
         comfy-minimax-h3-quality
+        comfy-minimax-h3-fl2va-quality
         comfy-minimax-h3-upscale
         comfy-minimax-h3-quality-upscale
+        comfy-minimax-h3-fl2va-quality-upscale
 
 renderer: cpu, cuda, mps
 
@@ -346,7 +351,7 @@ options (comfy-minimax-h3 engines), comma separated:
          attention=cudnn puts cuDNN attention ahead of flash: about twice as fast
          on a B200
          scheduler=simple|beta in place of the engine's: simple, or beta with
-         references on comfy-minimax-h3-quality
+         references on the -quality engines
          latent=save also writes the video's latents next to it, for a later
          pass: <output>.video.latent and .audio.latent, as ComfyUI's SaveLatent
 
